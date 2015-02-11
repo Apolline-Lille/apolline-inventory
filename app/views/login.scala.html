@@ -2,9 +2,9 @@
 @(formulaire: Form[UserManager.LoginInfo])
 <h1>Welcome</h1>
 
-@helper.form(action = routes.UserManager.welcome()) {
+@helper.form(action = routes.UserManager.loginSubmit()) {
 	@helper.inputText(formulaire("login"))
 	@helper.inputPassword(formulaire("passwd"))
-	<input type="button" value="Sign in">
+	<input type="submit" value="Sign in">
 }
 
