@@ -1,10 +1,13 @@
 @* login Template File *@
 @(formulaire: Form[UserManager.LoginInfo])
-<h1>Welcome</h1>
 
+@main("Login"){
+<h1>Welcome</h1>
+<div class="container">
 @helper.form(action = routes.UserManager.loginSubmit()) {
 	@helper.inputText(formulaire("login"))
 	@helper.inputPassword(formulaire("passwd"))
-	<input type="submit" value="Sign in">
+	<button type="submit" class="btn btn-success">Sign in</button>
 }
-
+</div>
+}

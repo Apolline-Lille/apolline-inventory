@@ -1,5 +1,6 @@
 package controllers
 
+import models._
 import play.api._
 import play.api.mvc._
 import reactivemongo.api._
@@ -45,7 +46,7 @@ object UserManager extends Controller with MongoController {
 
         val cursor = usersCollection.
         find(Json.obj("username" -> login, "password" -> passwd)).
-        cursor[JsObject].
+        cursor[JsObject].        
         collect[List]()
 
         // val newUser = models.User(userData.name, userData.age)
@@ -55,7 +56,8 @@ object UserManager extends Controller with MongoController {
           if(result.isEmpty) {
             Ok(views.html.login(loginForm.withError("login", "login/password incorrect")))
           } else {
-            Ok("logged in").withSession("user" -> login)
+            
+            Ok(views.html.dashboard(models.User("Dummy","Dummy"))).withSession("user" -> login)
           }
         }
       }
@@ -63,8 +65,10 @@ object UserManager extends Controller with MongoController {
   }
 
   def userWelcome = Action { request =>
-    // val inputUser
-    Ok
-  }
+      request.session.get("user").map { loggedUserName =>
+      val u = User(loggedUserName,"test")
+        Ok(views.html.dashboard(u))  
+      }.getOrElse {Ok("Are no logged anymore")}
+   }
 
 }
