@@ -170,12 +170,12 @@ trait SensorManagerLike extends Controller{
       sensor=>
         //Data prefilled into the form
         SensorForm(
-          sensor.get.id,
-          sensor.get.acquisition,
-          sensor.get.expiration,
-          sensor.get.firstUse,
-          sensor.get.hs,
-          sensor.get.commentaire,
+          sensor.id,
+          sensor.acquisition,
+          sensor.expiration,
+          sensor.firstUse,
+          sensor.hs,
+          sensor.commentaire,
           ""
         )
     }
@@ -208,11 +208,11 @@ trait SensorManagerLike extends Controller{
         //Data prefilled into the form
         SensorForm(
           "",
-          sensor.get.acquisition,
-          sensor.get.expiration,
-          sensor.get.firstUse,
-          sensor.get.hs,
-          sensor.get.commentaire,
+          sensor.acquisition,
+          sensor.expiration,
+          sensor.firstUse,
+          sensor.hs,
+          sensor.commentaire,
           ""
         )
     }
@@ -480,7 +480,7 @@ trait SensorManagerLike extends Controller{
    *         Return Redirect to the sensor inventary if sensor not found or to the login page if user is not connect
    *         Return Internal Server Error if have mongoDB error
    */
-  def printFormWithData(id:String,id2:String,r:Call)(f:Option[Sensor]=>SensorForm)(implicit request:Request[AnyContent]): Future[Result] ={
+  def printFormWithData(id:String,id2:String,r:Call)(f:Sensor=>SensorForm)(implicit request:Request[AnyContent]): Future[Result] ={
     //Verify if user is connect
     UserManager.doIfconnectAsync(request) {
 
@@ -494,7 +494,7 @@ trait SensorManagerLike extends Controller{
           //If the sensor found
           case _=>{
             //print the prefilled form with sensor information
-            val sensorData=f(sensor)
+            val sensorData=f(sensor.get)
             Ok(views.html.sensors.formSensor(form.fill(sensorData),id,r))
           }
 
