@@ -1,7 +1,3 @@
-function submitForm(id){
-    $("#"+id).submit();
-}
-
 function addField(id,classe) {
     console.log(classe,id)
     $("#" + id).append($($("." + classe + ":first")[0]).clone().append(""));
