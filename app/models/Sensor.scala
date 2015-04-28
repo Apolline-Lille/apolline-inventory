@@ -44,4 +44,4 @@ abstract class SensorDao extends JsonDao[Sensor, BSONObjectID](ReactiveMongoPlug
      }
 }
 
-object SensorDaoObj extends SensorDao{}
+object SensorDaoObj extends SensorDao

@@ -22,5 +22,4 @@ abstract class TypeMesureDao extends JsonDao[TypeMesure, BSONObjectID](ReactiveM
 
 }
 
-object TypeMesureDaoObj extends TypeMesureDao {
-}
+object TypeMesureDaoObj extends TypeMesureDao
