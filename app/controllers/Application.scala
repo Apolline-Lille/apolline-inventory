@@ -1,16 +1,12 @@
 package controllers
 
-import play.api._
-import play.api.mvc._
-import reactivemongo.api._
-import play.modules.reactivemongo.MongoController
-import play.modules.reactivemongo.json.collection.JSONCollection
+import play.api.mvc.{Controller, Action}
 
+object Application extends Controller {
 
-object Application extends Controller with MongoController {
+  def swagger = Action {
+    request =>
+      Ok(views.html.swagger())
+  }
 
-       
-    def index = Action {
-      Ok(views.html.index("Bonjour")).withNewSession }
-
-}               
+}

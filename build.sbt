@@ -14,5 +14,6 @@ libraryDependencies ++= Seq(
   cache,
   ws,
   "org.reactivemongo" %% "reactivemongo-extensions-json" % "0.10.0.0-SNAPSHOT",
-  "org.reactivemongo" %% "play2-reactivemongo" % "0.10.5.0.akka23"
+  "org.reactivemongo" %% "play2-reactivemongo" % "0.10.5.0.akka23",
+  "com.wordnik" %% "swagger-play2" % "1.3.11"
 )
