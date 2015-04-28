@@ -1,0 +1,8 @@
+@(current:String)
+
+<nav>
+  <ul class="nav nav-tabs">
+    <li role="presentation" @if(current.equals("module")){class="active"}><a href="#">@Messages("inventary.onglet.module")</a></li>
+    <li role="presentation" @if(current.equals("capteur")){class="active"}><a href="#">@Messages("inventary.onglet.sensor")</a></li>
+  </ul>
+</nav>

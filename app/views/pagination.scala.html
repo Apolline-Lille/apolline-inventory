@@ -1,0 +1,24 @@
+@(current:Int,nbPage:Int,route:String)
+
+@previous={@{current - 1}}
+@next={@{current + 1}}
+
+@if(nbPage>1) {
+  <nav>
+    <ul class="pagination">
+      <li @if(current==1){class="disabled"}>
+        @if(current>1){<a href="@route@previous" aria-label="Previous">}
+          <span aria-hidden="true">&laquo;</span>
+        @if(current>1){</a>}
+      </li>
+      @for(i <- (if(current<3){1} else {current-2}) to (if(current+2>nbPage){nbPage}else{current+2})) {
+        <li @if(i==current){class="active"}><a href="@route@i">@i</a></li>
+      }
+      <li @if(current==nbPage){class="disabled"}>
+        @if(current<nbPage){<a href="@route@next" aria-label="Next">}
+          <span aria-hidden="true">&raquo;</span>
+        @if(current<nbPage){</a>}
+      </li>
+    </ul>
+  </nav>
+}

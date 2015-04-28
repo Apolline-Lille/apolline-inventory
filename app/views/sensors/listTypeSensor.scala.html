@@ -1,0 +1,67 @@
+@(sort:String,listType:List[TypeSensor],listMesure:List[TypeMesure],listCategorie:List[String],stock:List[reactivemongo.bson.BSONDocument],filtre:List[reactivemongo.bson.BSONDocument])
+@import reactivemongo.bson.BSONObjectID
+
+@main(Messages("inventary.typeSensor.title")){
+  @navigation("inventary")
+  <div class="container">
+    @inventary("capteur")
+    <section>
+      <article class="col-sm-10">
+        <div>
+          @if(listType.size==0){
+            <h3 style="text-align:center">Aucun résultat trouvé</h3>
+          }else {
+            @for(types <- listType) {
+              <div class="col-sm-12">
+                <h4><a href="@routes.SensorManager.inventary(types._id.stringify)">@{
+                  types.nomType
+                } / @{
+                  types.modele
+                }</a>
+                  <span>
+                    <a href="@routes.TypeSensorManager.typeUpdatePage(types._id.stringify)"><span class="glyphicon glyphicon-pencil"></span></a>
+                    <a href="@routes.TypeSensorManager.delete(types._id.stringify)"><span class="glyphicon glyphicon-trash"></span></a>
+                  </span>
+                </h4>
+              </div>
+              <div class="col-sm-11 col-sm-offset-1">
+                <div class="row"> <span class="bold">@Messages("inventary.typeSensor.fabricant")</span> : @{
+                  types.fabricant
+                } </div>
+                <div class="row"> <span class="bold">@Messages("inventary.typeSensor.nbSignaux")</span> : @{
+                  types.nbSignaux
+                } (@{
+                  listMesure.filter(m => m._id == types.mesure).head.nom
+                }) </div>
+                <div class="row"> <span class="bold">@Messages("inventary.typeSensor.espece")</span> : @{
+                  types.espece.mkString(", ")
+                } </div>
+                <div class="row"> <span class="bold">@Messages("inventary.typeSensor.stock")</span> : @defining(
+                  stock.filter(p=>p.getAs[BSONObjectID]("_id").get.equals(types._id))
+                ){s=>@if(s.nonEmpty){
+                 @{s.head.getAs[reactivemongo.bson.BSONInteger]("count").get.value}
+                }else{
+                  0
+                }
+                }</div>
+              </div>
+            }
+          }
+        </div>
+      </article>
+      <nav class="col-sm-2">
+        <ul class="nav nav-pills nav-stacked">
+          @if(filtre.size>1) {
+            <li role="presentation" @if(sort==null){class="active"}><a href="@routes.TypeSensorManager.inventary()" style="padding : 0px 15px !important">All</a></li>
+            @for(types <- filtre) {
+              @defining(types.getAs[String]("_id").get) { nomType =>
+                <li role="presentation" @if(sort!=null && sort.equals(nomType)){class="active"}><a href="@routes.TypeSensorManager.inventary(nomType)" style="padding : 0px 15px !important">@nomType</a></li>
+              }
+            }
+          }
+        </ul>
+        <a href="@routes.TypeSensorManager.typePage" class="btn btn-default">Ajouter un type</a>
+      </nav>
+    </section>
+  </div>
+}

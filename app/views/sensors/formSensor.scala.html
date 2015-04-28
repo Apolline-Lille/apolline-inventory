@@ -1,0 +1,37 @@
+@(form:Form[SensorForm],id:String,routeSubmit:Call)
+
+@import models.template.InlineInput.inlineInput
+
+@main(Messages("inventary.typeSensor.title")){
+  @navigation("inventary")
+  <div class="container">
+    @inventary("capteur")
+    <section>
+      <article>
+        <a href="@routes.SensorManager.inventary(id)">Retour</a>
+        @helper.form(action=routeSubmit){
+          @for(error<-form.globalErrors){
+            <div class="alert alert-danger" role="alert">@error.message</div>
+          }
+          <div class="col-sm-12">
+            @helper.inputText(form("id"),'_label->Messages("inventary.sensor.id"),'_showConstraints -> false,'class->"form-control")
+            @helper.inputDate(form("acquisition"),'_label->Messages("inventary.sensor.acquisition"),'_showConstraints -> false,'class->"form-control")
+            @helper.inputDate(form("expiration"),'_label->Messages("inventary.sensor.expiration"),'_showConstraints -> false,'class->"form-control")
+            @helper.inputDate(form("firstUse"),'_label->Messages("inventary.sensor.firstUse"),'_showConstraints -> false,'class->"form-control")
+            @helper.checkbox(form("hs"),'_label->Messages("inventary.sensor.hs"),'_showConstraints -> false)
+            @helper.textarea(form("commentaire"),'_label->Messages("inventary.sensor.commentaire"),'_showConstraints -> false,'class->"form-control")
+          </div>
+          <div class="col-sm-12">
+            <div style="float:right">
+              <input value="Reset" class="btn btn-default" type="reset"/>
+              <input value="Envoyer" class="btn btn-default" type="submit" name="send"/>
+              @if(!routeSubmit.toString().endsWith("/update")){
+                <input value="Envoyer et continuer" class="btn btn-default" type="submit" name="send"/>
+              }
+            </div>
+          </div>
+        }
+      </article>
+    </section>
+  </div>
+}

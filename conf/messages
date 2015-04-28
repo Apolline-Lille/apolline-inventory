@@ -1,0 +1,29 @@
+global.sitename=Apolline
+global.dashboard=Dashboard
+global.sensors=Inventaire
+global.users=Utilisateurs
+
+inventary.typeSensor.title=Inventaire des capteurs
+inventary.typeSensor.model=Modèle
+inventary.typeSensor.type=Type de capteur
+inventary.typeSensor.fabricant=Fabricant
+inventary.typeSensor.nbSignaux=Nombre de signaux
+inventary.typeSensor.espece=Espèces
+inventary.typeSensor.mesure=Type de signaux
+inventary.typeSensor.unite=Unité
+inventary.typeSensor.stock=Stocks
+
+inventary.sensor.id=Identifiant
+inventary.sensor.acquisition=Date d''acquisition
+inventary.sensor.expiration=Date d''expiration
+inventary.sensor.firstUse=Date de première utilisation
+inventary.sensor.hs=Hors service
+inventary.sensor.commentaire=Commentaire
+inventary.sensor.etat=Etat
+
+inventary.onglet.sensor=Capteurs
+inventary.onglet.module=Modules
+
+login.username=Login
+login.password=Password
+login.submitBtn=Log In

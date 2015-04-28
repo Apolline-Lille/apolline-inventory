@@ -1,0 +1,89 @@
+@(form:Form[TypeSensorForm],
+  modele:List[reactivemongo.bson.BSONDocument],
+  fabricant:List[reactivemongo.bson.BSONDocument],
+  espece:List[reactivemongo.bson.BSONDocument],
+  types:List[reactivemongo.bson.BSONDocument],
+  route:Call
+)
+
+@import models.template.InlineInput.inlineInput
+
+@main(Messages("inventary.typeSensor.title")){
+  @navigation("inventary")
+  <div class="container">
+    @inventary("capteur")
+    <section>
+      <article>
+        <a href="@routes.TypeSensorManager.inventary()">Retour</a>
+        @helper.form(action=route){
+          @for(error<-form.globalErrors){
+            <div class="alert alert-danger" role="alert">@error.message</div>
+          }
+          <div class="col-sm-12">
+            @helper.input(form("model"),'_label->Messages("inventary.typeSensor.model"),'_showConstraints -> false) { (id, name, value, args) =>
+              <input id="@id" name="@name" class="form-control" list="list_modele" type="text" autocomplete="off" @if(value!=null){value="@value"}/>
+              <datalist id="list_modele">
+                @for(mod<-modele){
+                  <option value="@{mod.getAs[String]("_id")}"></option>
+                }
+              </datalist>
+            }
+            @helper.input(form("types"),'_label->Messages("inventary.typeSensor.type"),'_showConstraints -> false) { (id, name, value, args) =>
+              <input id="@id" name="@name" class="form-control" list="list_type" type="text" autocomplete="off" @if(value!=null){value="@value"}/>
+              <datalist id="list_type">
+                @for(t<-types){
+                  <option value="@t.getAs[String]("_id")"></option>
+                }
+              </datalist>
+            }
+            <div class="form-inline">
+            @helper.input(form("espece"),'_label->Messages("inventary.typeSensor.espece"),'_showConstraints -> false,'idBlock->"block_espece",'classLine->"line_espece") { (id, name, value, args) =>
+              <div id="block_espece">
+                @helper.repeat(form("espece")){f=>
+                  <div class="line_espece">
+                    <input id="@id" name="@{
+                      name
+                    }[]" class="form-control" list="list_espece" type="text" autocomplete="off" value="@f.value.getOrElse("")"/>
+                    <datalist id="list_espece">
+                    @for(esp <- espece) {
+                      <option value="@esp.getAs[String]("_id")"></option>
+                    }
+                    </datalist>
+                  </div>
+                }
+              </div>
+            }(views.html.template.multipleInput,implicitly[Lang])
+            </div>
+            @helper.input(form("fabricant"),'_label->Messages("inventary.typeSensor.fabricant"),'_showConstraints -> false) { (id, name, value, args) =>
+              <input id="@id" name="@name" class="form-control" list="list_fabricant" type="text" autocomplete="off" @if(value!=null){value="@value"}/>
+              <datalist id="list_fabricant">
+                @for(fab<-fabricant){
+                  <option value="@fab.getAs[String]("_id")"></option>
+                }
+              </datalist>
+            }
+            @helper.input(form("nbSignaux"),'_label->Messages("inventary.typeSensor.nbSignaux"),'_showConstraints -> false) { (id, name, value, args) =>
+              <input id="@id" name="@name" class="form-control" type="number" autocomplete="off" @if(value!=null){value="@value"}/>
+            }
+            @helper.input(form("mesure"),'_label->Messages("inventary.typeSensor.mesure"),'_showConstraints -> false) { (id, name, value, args) =>
+              <input id="@id" name="@name" class="form-control" list="list_mesure" type="text" autocomplete="off" @if(value!=null){value="@value"}/>
+              <datalist id="list_mesure">
+                <option value="Mod"></option>
+              </datalist>
+            }
+            @helper.input(form("unite"),'_label->Messages("inventary.typeSensor.unite"),'_showConstraints -> false) { (id, name, value, args) =>
+              <input id="@id" name="@name" class="form-control" list="list_unite" type="text" autocomplete="off" @if(value!=null){value="@value"}/>
+              <datalist id="list_unite">
+                <option value="Mod"></option>
+              </datalist>
+            }
+          </div>
+          <div class="col-sm-12">
+            <div style="float:right"> <input value="Reset" class="btn btn-default"
+            type="reset"> <input value="Envoyer" class="btn btn-default" type="submit"></div>
+          </div>
+        }
+      </article>
+    </section>
+  </div>
+}

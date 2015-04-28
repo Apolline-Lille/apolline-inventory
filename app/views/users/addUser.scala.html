@@ -1,0 +1,13 @@
+@(formulaire: Form[UserManager.UserInfo])
+
+@main("Register"){
+    <h1>Welcome</h1>
+    <div class="container">
+    @helper.form(action = routes.UserManager.addUserSubmit()) {
+        @helper.inputText(formulaire("login"))
+        @helper.inputPassword(formulaire("passwd"))
+        @helper.inputPassword(formulaire("passwd2"))
+        <button type="submit" class="btn btn-success">Register</button>
+    }
+    </div>
+}
