@@ -219,11 +219,12 @@ class TypeSensorManagerSpec extends Specification with Mockito {
     "send 500 internal error if mongoDB error when find type sensor" in new WithApplication{
       val f=fixture
       val futureMock=mock[Future[List[TypeSensor]]]
+      val throwable=mock[Throwable]
 
       f.sensorDaoMock.countByType() returns future{Stream[BSONDocument]()}
       f.typeSensorDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns futureMock
       futureMock.flatMap(any[List[TypeSensor]=>Future[List[TypeSensor]]])(any[ExecutionContext]) returns futureMock
-      futureMock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers (value => future{value.asInstanceOf[PartialFunction[Throwable,Result]](null)})
+      futureMock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers (value => future{value.asInstanceOf[PartialFunction[Throwable,Result]](throwable)})
       f.typeMesureDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns future{List[TypeMesure]()}
       f.typeSensorDaoMock.findAllType() returns future{Stream[BSONDocument]()}
 
@@ -242,12 +243,13 @@ class TypeSensorManagerSpec extends Specification with Mockito {
     "send 500 internal error if mongoDB error when find type mesure" in new WithApplication{
       val f=fixture
       val futureMock=mock[Future[List[TypeMesure]]]
+      val throwable=mock[Throwable]
 
       f.sensorDaoMock.countByType() returns future{Stream[BSONDocument]()}
       f.typeSensorDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns future{List[TypeSensor]()}
       f.typeMesureDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns futureMock
       futureMock.flatMap(any[List[TypeMesure]=>Future[List[TypeMesure]]])(any[ExecutionContext]) returns futureMock
-      futureMock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers (value => future{value.asInstanceOf[PartialFunction[Throwable,Result]](null)})
+      futureMock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers (value => future{value.asInstanceOf[PartialFunction[Throwable,Result]](throwable)})
       f.typeSensorDaoMock.findAllType() returns future{Stream[BSONDocument]()}
 
       val r = f.controller.inventary().apply(FakeRequest(GET, "/inventary/sensors").withSession("user" -> ""))
@@ -265,10 +267,11 @@ class TypeSensorManagerSpec extends Specification with Mockito {
     "send 500 internal error if mongoDB error when find stock" in new WithApplication{
       val f=fixture
       val futureMock=mock[Future[Stream[BSONDocument]]]
+      val throwable=mock[Throwable]
 
       f.sensorDaoMock.countByType() returns futureMock
       futureMock.flatMap(any[Stream[BSONDocument]=>Future[Stream[BSONDocument]]])(any[ExecutionContext]) returns futureMock
-      futureMock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers (value => future{value.asInstanceOf[PartialFunction[Throwable,Result]](null)})
+      futureMock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers (value => future{value.asInstanceOf[PartialFunction[Throwable,Result]](throwable)})
       f.typeSensorDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns future{List[TypeSensor]()}
       f.typeMesureDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns future{List[TypeMesure]()}
       f.typeSensorDaoMock.findAllType() returns future{Stream[BSONDocument]()}
@@ -288,13 +291,14 @@ class TypeSensorManagerSpec extends Specification with Mockito {
     "send 500 internal error if mongoDB error when find type name" in new WithApplication{
       val f=fixture
       val futureMock=mock[Future[Stream[BSONDocument]]]
+      val throwable=mock[Throwable]
 
       f.sensorDaoMock.countByType() returns future{Stream[BSONDocument]()}
       f.typeSensorDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns future{List[TypeSensor]()}
       f.typeMesureDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns future{List[TypeMesure]()}
       f.typeSensorDaoMock.findAllType() returns futureMock
       futureMock.map(any[Stream[BSONDocument]=>Stream[BSONDocument]])(any[ExecutionContext]) returns futureMock
-      futureMock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers (value => future{value.asInstanceOf[PartialFunction[Throwable,Result]](null)})
+      futureMock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers (value => future{value.asInstanceOf[PartialFunction[Throwable,Result]](throwable)})
 
       val r = f.controller.inventary().apply(FakeRequest(GET, "/inventary/sensors").withSession("user" -> ""))
 
@@ -342,8 +346,9 @@ class TypeSensorManagerSpec extends Specification with Mockito {
       val func=mock[(TypeSensorForm,List[String],TypeMesure)=>Future[Result]]
       val especes=mock[List[String]]
       val typeData=mock[TypeSensorForm]
+      val lastError=mock[LastError]
 
-      f.typeMesureDaoMock.insert(any[TypeMesure],any[GetLastError])(any[ExecutionContext]) returns future{null}
+      f.typeMesureDaoMock.insert(any[TypeMesure],any[GetLastError])(any[ExecutionContext]) returns future{lastError}
       func.apply(org.mockito.Matchers.eq(typeData),org.mockito.Matchers.eq(especes),any[TypeMesure]) returns future{Results.Ok("func applied")}
 
       val req=FakeRequest(POST, "/inventary/sensors/"+bson.stringify+"/update")
@@ -364,10 +369,11 @@ class TypeSensorManagerSpec extends Specification with Mockito {
       val especes=mock[List[String]]
       val typeData=mock[TypeSensorForm]
       val futureMock=mock[Future[LastError]]
+      val throwable=mock[Throwable]
 
       f.typeMesureDaoMock.insert(any[TypeMesure],any[GetLastError])(any[ExecutionContext]) returns futureMock
       futureMock.flatMap(any[LastError=>Future[LastError]])(any[ExecutionContext]) returns futureMock
-      futureMock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers {value => future{value.asInstanceOf[PartialFunction[Throwable,Result]](null)}}
+      futureMock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers {value => future{value.asInstanceOf[PartialFunction[Throwable,Result]](throwable)}}
 
       val req=FakeRequest(POST, "/inventary/sensors/"+bson.stringify+"/update")
       val action=Action.async(f.controller.applyFunctionWithInsertSensor(typeData,especes,func))
@@ -469,8 +475,9 @@ class TypeSensorManagerSpec extends Specification with Mockito {
       val route=mock[Call]
       val function=mock[(TypeSensorForm,List[String],TypeMesure)=>Future[Result]]
       val f=fixture
+      val typeSensor=mock[TypeSensor]
 
-      f.typeSensorDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{Some(null)}
+      f.typeSensorDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{Some(typeSensor)}
       f.listDataEmptyStream
 
       val r = f.controller.submitForm(route)(function)(FakeRequest(POST, "url").withJsonBody(formData).withSession("user" -> ""))
@@ -491,11 +498,12 @@ class TypeSensorManagerSpec extends Specification with Mockito {
       val function=mock[(TypeSensorForm,List[String],TypeMesure)=>Future[Result]]
       val futureMock=mock[Future[Option[TypeMesure]]]
       val fix=fixture
+      val throwable=mock[Throwable]
 
       fix.typeSensorDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{None}
       fix.typeMesureDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns futureMock
       futureMock.flatMap(any[Option[TypeMesure]=>Future[Option[TypeMesure]]])(any[ExecutionContext]) returns futureMock
-      futureMock.recover(any[PartialFunction[Throwable,Results]])(any[ExecutionContext]) answers (vals => future{vals.asInstanceOf[PartialFunction[Throwable,Results]](null)})
+      futureMock.recover(any[PartialFunction[Throwable,Results]])(any[ExecutionContext]) answers (vals => future{vals.asInstanceOf[PartialFunction[Throwable,Results]](throwable)})
 
 
       val r = fix.controller.submitForm(route)(function)(FakeRequest(POST, "url").withJsonBody(formData).withSession("user" -> ""))
@@ -536,13 +544,13 @@ class TypeSensorManagerSpec extends Specification with Mockito {
 
     "send redirect after insert type mesure and type sensor" in new WithApplication {
       val formData = Json.parse("""{"model":"mod","types":"typ","espece":["esp"],"fabricant":"fab","nbSignaux":"1","mesure":"mes","unite":"u"}""")
-
+      val lastError=mock[LastError]
       val f=fixture
 
       f.typeSensorDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{None}
       f.typeMesureDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{None}
-      f.typeMesureDaoMock.insert(any[TypeMesure],any[GetLastError])(any[ExecutionContext]) returns future{null}
-      f.typeSensorDaoMock.insert(any[TypeSensor],any[GetLastError])(any[ExecutionContext]) returns future{null}
+      f.typeMesureDaoMock.insert(any[TypeMesure],any[GetLastError])(any[ExecutionContext]) returns future{lastError}
+      f.typeSensorDaoMock.insert(any[TypeSensor],any[GetLastError])(any[ExecutionContext]) returns future{lastError}
 
       val r = f.controller.typeInsert.apply(FakeRequest(POST, "/inventary/sensors/type").withJsonBody(formData).withSession("user" -> ""))
 
@@ -557,12 +565,12 @@ class TypeSensorManagerSpec extends Specification with Mockito {
 
     "send redirect after insert type sensor" in new WithApplication {
       val formData = Json.parse("""{"model":"mod","types":"typ","espece":["esp"],"fabricant":"fab","nbSignaux":"1","mesure":"mes","unite":"u"}""")
-
+      val lastError=mock[LastError]
       val f=fixture
 
       f.typeSensorDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{None}
       f.typeMesureDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{Some(TypeMesure(bson,"non","u"))}
-      f.typeSensorDaoMock.insert(any[TypeSensor],any[GetLastError])(any[ExecutionContext]) returns future{null}
+      f.typeSensorDaoMock.insert(any[TypeSensor],any[GetLastError])(any[ExecutionContext]) returns future{lastError}
 
       val r = f.controller.typeInsert.apply(FakeRequest(POST, "/inventary/sensors/type").withJsonBody(formData).withSession("user" -> ""))
 
@@ -640,12 +648,13 @@ class TypeSensorManagerSpec extends Specification with Mockito {
 
     "send 500 Internal error for mongoDB error" in new WithApplication {
       val future_Mock=mock[Future[Option[TypeSensor]]]
+      val throwable=mock[Throwable]
 
       val fix=fixture
 
       fix.typeSensorDaoMock.findById(any[BSONObjectID])(any[ExecutionContext]) returns future_Mock
       future_Mock.flatMap(any[(Option[TypeSensor])=>Future[Option[TypeSensor]]])(any[ExecutionContext]) returns future_Mock
-      future_Mock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers (vals => future{vals.asInstanceOf[PartialFunction[Throwable,Result]](null)})
+      future_Mock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers (vals => future{vals.asInstanceOf[PartialFunction[Throwable,Result]](throwable)})
 
       val r = fix.controller.typeUpdatePage(bson.stringify).apply(FakeRequest(GET, "/inventary/sensors/"+bson.stringify+"/update").withSession("user" -> ""))
 
@@ -660,13 +669,14 @@ class TypeSensorManagerSpec extends Specification with Mockito {
     "send 500 Internal error for mongoDB error 2" in new WithApplication {
       val future_Mock=mock[Future[Option[TypeMesure]]]
       val typeSensor=Some(TypeSensor(bson,"type","mod",bson2,"fab",1,List[String]("esp1"),false))
+      val throwable=mock[Throwable]
 
       val fix = fixture
 
       fix.typeSensorDaoMock.findById(any[BSONObjectID])(any[ExecutionContext]) returns future{typeSensor}
       fix.typeMesureDaoMock.findById(any[BSONObjectID])(any[ExecutionContext]) returns future_Mock
       future_Mock.map(any[(Option[TypeMesure])=>Option[TypeMesure]])(any[ExecutionContext]) returns future_Mock
-      future_Mock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers (vals => future{vals.asInstanceOf[PartialFunction[Throwable,Result]](null)})
+      future_Mock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers (vals => future{vals.asInstanceOf[PartialFunction[Throwable,Result]](throwable)})
 
       val r = fix.controller.typeUpdatePage(bson.stringify).apply(FakeRequest(GET, "/inventary/sensors/"+bson.stringify+"/update").withSession("user" -> ""))
 
@@ -684,11 +694,12 @@ class TypeSensorManagerSpec extends Specification with Mockito {
     "send redirect after insert type mesure and update type sensor" in new WithApplication {
       val formData = Json.parse("""{"model":"mod","types":"typ","espece":["esp"],"fabricant":"fab","nbSignaux":"1","mesure":"mes","unite":"u"}""")
       val fix=fixture
+      val lastError=mock[LastError]
 
       fix.typeSensorDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{None}
       fix.typeMesureDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{None}
-      fix.typeMesureDaoMock.insert(any[TypeMesure],any[GetLastError])(any[ExecutionContext]) returns future{null}
-      fix.typeSensorDaoMock.updateById(any[BSONObjectID],any[TypeSensor],any[GetLastError])(any[Writes[TypeSensor]],any[ExecutionContext]) returns future{null}
+      fix.typeMesureDaoMock.insert(any[TypeMesure],any[GetLastError])(any[ExecutionContext]) returns future{lastError}
+      fix.typeSensorDaoMock.updateById(any[BSONObjectID],any[TypeSensor],any[GetLastError])(any[Writes[TypeSensor]],any[ExecutionContext]) returns future{lastError}
 
       val r = fix.controller.typeUpdate(bson.stringify).apply(FakeRequest(POST, "/inventary/sensors/"+bson.stringify+"/update").withJsonBody(formData).withSession("user" -> ""))
 
@@ -704,12 +715,12 @@ class TypeSensorManagerSpec extends Specification with Mockito {
 
     "send redirect after update type sensor" in new WithApplication {
       val formData = Json.parse("""{"model":"mod","types":"typ","espece":["esp"],"fabricant":"fab","nbSignaux":"1","mesure":"mes","unite":"u"}""")
-
+      val lastError=mock[LastError]
       val fix=fixture
 
       fix.typeSensorDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{None}
       fix.typeMesureDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{Some(TypeMesure(bson,"non","u"))}
-      fix.typeSensorDaoMock.updateById(any[BSONObjectID],any[TypeSensor],any[GetLastError])(any[Writes[TypeSensor]],any[ExecutionContext]) returns future{null}
+      fix.typeSensorDaoMock.updateById(any[BSONObjectID],any[TypeSensor],any[GetLastError])(any[Writes[TypeSensor]],any[ExecutionContext]) returns future{lastError}
 
       val r = fix.controller.typeUpdate(bson.stringify).apply(FakeRequest(POST, "/inventary/sensors/"+bson.stringify+"/update").withJsonBody(formData).withSession("user" -> ""))
 
@@ -727,10 +738,11 @@ class TypeSensorManagerSpec extends Specification with Mockito {
     "send 500 Internal Error for mongoDB error" in new WithApplication{
       val futureMock = mock[Future[Option[TypeSensor]]]
       val fix=fixture
+      val throwable=mock[Throwable]
 
       fix.typeSensorDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns futureMock
       futureMock.flatMap(any[(Option[TypeSensor])=>Future[Option[TypeSensor]]])(any[ExecutionContext]) returns futureMock
-      futureMock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers (vals => future{vals.asInstanceOf[PartialFunction[Throwable,Result]](null)})
+      futureMock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers (vals => future{vals.asInstanceOf[PartialFunction[Throwable,Result]](throwable)})
 
       val r = fix.controller.delete(bson.stringify).apply(FakeRequest(GET, "/inventary/sensors/"+bson.stringify+"/delete").withSession("user" -> ""))
 
@@ -745,11 +757,12 @@ class TypeSensorManagerSpec extends Specification with Mockito {
     "send 500 Internal Error for mongoDB error 2" in new WithApplication{
       val futureMock=mock[Future[LastError]]
       val fix=fixture
+      val throwable=mock[Throwable]
 
       fix.typeSensorDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{Some(TypeSensor(bson,"type1","modele1",bson2,"fab1",1,List[String]("esp1","esp2")))}
       fix.typeSensorDaoMock.updateById(any[BSONObjectID],any[TypeSensor],any[GetLastError])(any[Writes[TypeSensor]],any[ExecutionContext]) returns futureMock
       futureMock.map(any[LastError=>LastError])(any[ExecutionContext]) returns futureMock
-      futureMock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers (vals => future{vals.asInstanceOf[PartialFunction[Throwable,Result]](null)})
+      futureMock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers (vals => future{vals.asInstanceOf[PartialFunction[Throwable,Result]](throwable)})
 
       val r = fix.controller.delete(bson.stringify).apply(FakeRequest(GET, "/inventary/sensors/"+bson.stringify+"/delete").withSession("user" -> ""))
 
@@ -777,9 +790,10 @@ class TypeSensorManagerSpec extends Specification with Mockito {
 
     "send Redirect after update type sensor" in new WithApplication{
       val fix=fixture
+      val lastError=mock[LastError]
 
       fix.typeSensorDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{Some(TypeSensor(bson,"type1","modele1",bson2,"fab1",1,List[String]("esp1","esp2")))}
-      fix.typeSensorDaoMock.updateById(any[BSONObjectID],any[TypeSensor],any[GetLastError])(any[Writes[TypeSensor]],any[ExecutionContext]) returns future{null}
+      fix.typeSensorDaoMock.updateById(any[BSONObjectID],any[TypeSensor],any[GetLastError])(any[Writes[TypeSensor]],any[ExecutionContext]) returns future{lastError}
 
       val r = fix.controller.delete(bson.stringify).apply(FakeRequest(GET, "/inventary/sensors/"+bson.stringify+"/delete").withSession("user" -> ""))
 
