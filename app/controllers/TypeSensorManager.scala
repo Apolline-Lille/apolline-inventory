@@ -93,12 +93,12 @@ trait TypeSensorManagerLike extends Controller{
   @ApiImplicitParams(Array(
     new ApiImplicitParam(value = "Sensor type name for filter all sensors type",name="sort", dataType = "String", paramType = "query")
   ))
-  def inventary(sort:String=null)=Action.async{
+  def inventary(sort:String="")=Action.async{
     request =>
       //Verify if user is connect
       UserManager.doIfconnectAsync(request) {
         //create a selector for filter sensors type
-        val selector=if(sort==null){Json.obj("delete"->false)}else{Json.obj("delete"->false,"nomType"->sort)}
+        val selector=if(sort.isEmpty){Json.obj("delete"->false)}else{Json.obj("delete"->false,"nomType"->sort)}
 
         //Find sensors quantity for all type
         val future_stock=sensorDao.countByType()
@@ -355,10 +355,8 @@ trait TypeSensorManagerLike extends Controller{
             case None =>future{Redirect(routes.TypeSensorManager.inventary())}
 
             //Sensor type found
-            case _ => {
-
+            case Some(typeSensorData) => {
               //Update the sensor type and set the delete column to true
-              val typeSensorData = data.get
               typeSensorDao.updateById(
                 BSONObjectID(id),
                 TypeSensor(

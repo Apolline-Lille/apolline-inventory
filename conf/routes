@@ -20,7 +20,7 @@ GET         /register                                 controllers.UserManager.ad
 POST        /register                                 controllers.UserManager.addUserSubmit
 
 #Sensor page
-GET         /inventary/sensors                        controllers.TypeSensorManager.inventary(sort:String ?= null)
+GET         /inventary/sensors                        controllers.TypeSensorManager.inventary(sort:String ?= "")
 GET         /inventary/sensors/type                   controllers.TypeSensorManager.typePage
 POST        /inventary/sensors/type                   controllers.TypeSensorManager.typeInsert
 GET         /inventary/sensors/:id                    controllers.SensorManager.inventary(id:String)

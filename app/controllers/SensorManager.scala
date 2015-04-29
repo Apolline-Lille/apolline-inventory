@@ -374,9 +374,8 @@ trait SensorManagerLike extends Controller{
             case None => future{Redirect(routes.SensorManager.inventary(idType))}
 
             //If sensor found
-            case _ => {
+            case Some(sensorData) => {
               //Update the sensor and set the delete column to true
-              val sensorData = data.get
               update(idType,id,sensorData,true)
             }
           }).recover({
