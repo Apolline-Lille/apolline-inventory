@@ -8,10 +8,6 @@ scalaVersion := "2.10.4"
 
 resolvers += "Sonatype Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots/"
 
-addSbtPlugin("org.scoverage" % "sbt-scoverage" % "1.0.4")
-
-addSbtPlugin("com.codacy" % "sbt-codacy-coverage" % "1.0.3")
-
 libraryDependencies ++= Seq(
   jdbc,
   anorm,
