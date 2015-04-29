@@ -486,15 +486,15 @@ trait SensorManagerLike extends Controller{
 
       //Find the sensor
       sensorDao.findById(BSONObjectID(id2)).map(
-        sensor=> sensor match{
+        sensorOpt=> sensorOpt match{
 
           //If the sensor not found redirect to the sensor inventary
           case None=>Redirect(routes.SensorManager.inventary(id))
 
           //If the sensor found
-          case _=>{
+          case Some(sensor)=>{
             //print the prefilled form with sensor information
-            val sensorData=f(sensor.get)
+            val sensorData=f(sensor)
             Ok(views.html.sensors.formSensor(form.fill(sensorData),id,r))
           }
 

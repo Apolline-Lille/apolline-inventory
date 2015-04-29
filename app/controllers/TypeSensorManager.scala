@@ -174,33 +174,33 @@ trait TypeSensorManagerLike extends Controller{
 
         //Find the sensor type
         typeSensorDao.findById(BSONObjectID(id)).flatMap(
-          typeSensor=> typeSensor match{
+          typeSensorOpt=> typeSensorOpt match{
 
             //Sensor type not found redirect to the sensor inventary
             case None=>future{Redirect(routes.TypeSensorManager.inventary())}
 
             //Sensor type found
-            case _=>{
+            case Some(typeSensor)=>{
 
               //Find signal associated to the sensor type
-              typeMesureDao.findById(typeSensor.get.mesure).map(
-              typeMesure=>typeMesure match {
+              typeMesureDao.findById(typeSensor.mesure).map(
+              typeMesureOpt=>typeMesureOpt match {
 
                 //Signal not found redirect to the sensor inventary
                 case None => Redirect(routes.TypeSensorManager.inventary())
 
                 //Signal found
-                case _ => {
+                case Some(typeMesure) => {
 
                   //Prepare data for prefilled the form
                   val typeSensorData = TypeSensorForm(
-                    typeSensor.get.modele,
-                    typeSensor.get.nomType,
-                    typeSensor.get.espece,
-                    typeMesure.get.nom,
-                    typeSensor.get.nbSignaux,
-                    typeSensor.get.fabricant,
-                    typeMesure.get.unite
+                    typeSensor.modele,
+                    typeSensor.nomType,
+                    typeSensor.espece,
+                    typeMesure.nom,
+                    typeSensor.nbSignaux,
+                    typeSensor.fabricant,
+                    typeMesure.unite
                   )
 
                   //Display the form for update sensor type
