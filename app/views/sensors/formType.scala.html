@@ -19,8 +19,9 @@
           @for(error<-form.globalErrors){
             <div class="alert alert-danger" role="alert">@error.message</div>
           }
+          <h5 style="color:red;float:right"><em>*</em> @Messages("global.fieldRequired")</h5>
           <div class="col-sm-12">
-            @helper.input(form("model"),'_label->Messages("inventary.typeSensor.model"),'_showConstraints -> false) { (id, name, value, args) =>
+            @helper.input(form("model"),'_label->Messages("inventary.typeSensor.model"),'required->true) { (id, name, value, args) =>
               <input id="@id" name="@name" class="form-control" list="list_modele" type="text" autocomplete="off" @if(value!=null){value="@value"}/>
               <datalist id="list_modele">
                 @for(mod<-modele){
@@ -28,7 +29,7 @@
                 }
               </datalist>
             }
-            @helper.input(form("types"),'_label->Messages("inventary.typeSensor.type"),'_showConstraints -> false) { (id, name, value, args) =>
+            @helper.input(form("types"),'_label->Messages("inventary.typeSensor.type"),'required->true) { (id, name, value, args) =>
               <input id="@id" name="@name" class="form-control" list="list_type" type="text" autocomplete="off" @if(value!=null){value="@value"}/>
               <datalist id="list_type">
                 @for(t<-types){
@@ -37,7 +38,7 @@
               </datalist>
             }
             <div class="form-inline">
-            @helper.input(form("espece"),'_label->Messages("inventary.typeSensor.espece"),'_showConstraints -> false,'idBlock->"block_espece",'classLine->"line_espece") { (id, name, value, args) =>
+            @helper.input(form("espece"),'_label->Messages("inventary.typeSensor.espece"),'required->true,'idBlock->"block_espece",'classLine->"line_espece") { (id, name, value, args) =>
               <div id="block_espece">
                 @helper.repeat(form("espece")){f=>
                   <div class="line_espece">
@@ -54,7 +55,7 @@
               </div>
             }(views.html.template.multipleInput,implicitly[Lang])
             </div>
-            @helper.input(form("fabricant"),'_label->Messages("inventary.typeSensor.fabricant"),'_showConstraints -> false) { (id, name, value, args) =>
+            @helper.input(form("fabricant"),'_label->Messages("inventary.typeSensor.fabricant"),'required->true) { (id, name, value, args) =>
               <input id="@id" name="@name" class="form-control" list="list_fabricant" type="text" autocomplete="off" @if(value!=null){value="@value"}/>
               <datalist id="list_fabricant">
                 @for(fab<-fabricant){
@@ -62,16 +63,16 @@
                 }
               </datalist>
             }
-            @helper.input(form("nbSignaux"),'_label->Messages("inventary.typeSensor.nbSignaux"),'_showConstraints -> false) { (id, name, value, args) =>
+            @helper.input(form("nbSignaux"),'_label->Messages("inventary.typeSensor.nbSignaux"),'required->true) { (id, name, value, args) =>
               <input id="@id" name="@name" class="form-control" type="number" autocomplete="off" @if(value!=null){value="@value"}/>
             }
-            @helper.input(form("mesure"),'_label->Messages("inventary.typeSensor.mesure"),'_showConstraints -> false) { (id, name, value, args) =>
+            @helper.input(form("mesure"),'_label->Messages("inventary.typeSensor.mesure"),'required->true) { (id, name, value, args) =>
               <input id="@id" name="@name" class="form-control" list="list_mesure" type="text" autocomplete="off" @if(value!=null){value="@value"}/>
               <datalist id="list_mesure">
                 <option value="Mod"></option>
               </datalist>
             }
-            @helper.input(form("unite"),'_label->Messages("inventary.typeSensor.unite"),'_showConstraints -> false) { (id, name, value, args) =>
+            @helper.input(form("unite"),'_label->Messages("inventary.typeSensor.unite"),'required->true) { (id, name, value, args) =>
               <input id="@id" name="@name" class="form-control" list="list_unite" type="text" autocomplete="off" @if(value!=null){value="@value"}/>
               <datalist id="list_unite">
                 <option value="Mod"></option>

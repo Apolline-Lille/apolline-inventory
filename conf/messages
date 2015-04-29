@@ -5,6 +5,8 @@ global.sensors=Inventaire
 global.error.required=This field is required
 global.error.noResult=Aucun résultat trouvé
 
+global.fieldRequired=Champs requis
+
 global.btn.submit=Envoyer
 global.btn.reset=Reset
 global.btn.submitAndContinue=Envoyer et continuer

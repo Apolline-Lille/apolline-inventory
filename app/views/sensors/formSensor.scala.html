@@ -13,13 +13,14 @@
           @for(error<-form.globalErrors){
             <div class="alert alert-danger" role="alert">@error.message</div>
           }
+          <h5 style="color:red;float:right"><em>*</em> @Messages("global.fieldRequired")</h5>
           <div class="col-sm-12">
-            @helper.inputText(form("id"),'_label->Messages("inventary.sensor.id"),'_showConstraints -> false,'class->"form-control")
-            @helper.inputDate(form("acquisition"),'_label->Messages("inventary.sensor.acquisition"),'_showConstraints -> false,'class->"form-control")
-            @helper.inputDate(form("expiration"),'_label->Messages("inventary.sensor.expiration"),'_showConstraints -> false,'class->"form-control")
-            @helper.inputDate(form("firstUse"),'_label->Messages("inventary.sensor.firstUse"),'_showConstraints -> false,'class->"form-control")
-            @helper.checkbox(form("hs"),'_label->Messages("inventary.sensor.hs"),'_showConstraints -> false)
-            @helper.textarea(form("commentaire"),'_label->Messages("inventary.sensor.commentaire"),'_showConstraints -> false,'class->"form-control")
+            @helper.inputText(form("id"),'_label->Messages("inventary.sensor.id"),'required->true,'class->"form-control")
+            @helper.inputDate(form("acquisition"),'_label->Messages("inventary.sensor.acquisition"),'required->true,'class->"form-control")
+            @helper.inputDate(form("expiration"),'_label->Messages("inventary.sensor.expiration"),'class->"form-control")
+            @helper.inputDate(form("firstUse"),'_label->Messages("inventary.sensor.firstUse"),'class->"form-control")
+            @helper.checkbox(form("hs"),'_label->Messages("inventary.sensor.hs"))
+            @helper.textarea(form("commentaire"),'_label->Messages("inventary.sensor.commentaire"),'class->"form-control")
           </div>
           <div class="col-sm-12">
             <div style="float:right">
