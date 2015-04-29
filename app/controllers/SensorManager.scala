@@ -7,6 +7,7 @@ import com.wordnik.swagger.annotations._
 import models._
 import play.api.data.Form
 import play.api.data.Forms._
+import play.api.i18n.Messages
 import play.api.libs.json.{JsObject, Json}
 import play.api.mvc._
 import play.modules.reactivemongo.json.BSONFormats
@@ -544,7 +545,7 @@ trait SensorManagerLike extends Controller{
                 case None => f(sensorData)
 
                 //If sensor found, return bad request with prefilled form
-                case _=> future{BadRequest(views.html.sensors.formSensor(form.withGlobalError("Ce capteur existe déjà").fill(sensorData), id,routeSubmit))}
+                case _=> future{BadRequest(views.html.sensors.formSensor(form.withGlobalError(Messages("inventary.sensor.error.sensorExist")).fill(sensorData), id,routeSubmit))}
               }
             ).recover({
               //Send Internal Server Error if have mongoDB error
@@ -572,7 +573,7 @@ trait SensorManagerLike extends Controller{
     //If first use date is defined and acquisition date is after
     if(sensorData.firstUse.nonEmpty && sensorData.acquisition.after(sensorData.firstUse.get)){
       //Return form with an error
-      nform.withError("firstUse","La date de première utilisation doit être supèrieur à la date d'acquisition")
+      nform.withError("firstUse",Messages("inventary.sensor.error.firstUseBeforeAcquisition"))
     }else{
       nform
     }
@@ -589,7 +590,7 @@ trait SensorManagerLike extends Controller{
     //If expiration date is defined and acquisition date is after
     if(sensorData.expiration.nonEmpty && sensorData.acquisition.after(sensorData.expiration.get)){
       //Return form with an error
-      form.withError("expiration","La date d'expiration doit être supèrieur à la date d'acquisition")
+      form.withError("expiration",Messages("inventary.sensor.error.expirationBeforeAcquisition"))
     }else{
       form
     }
@@ -625,7 +626,7 @@ trait SensorManagerLike extends Controller{
       Redirect(routes.SensorManager.inventary(idType))
     ).recover({
       //Send Internal Server Error if have mongoDB error
-      case e => InternalServerError("error update")
+      case e => InternalServerError("error")
     })
   }
 

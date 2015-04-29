@@ -23,10 +23,10 @@
           </div>
           <div class="col-sm-12">
             <div style="float:right">
-              <input value="Reset" class="btn btn-default" type="reset"/>
-              <input value="Envoyer" class="btn btn-default" type="submit" name="send"/>
+              <input value="@Messages("global.btn.reset")" class="btn btn-default" type="reset"/>
+              <input value="@Messages("global.btn.submit")" class="btn btn-default" type="submit" name="send"/>
               @if(!routeSubmit.toString().endsWith("/update")){
-                <input value="Envoyer et continuer" class="btn btn-default" type="submit" name="send"/>
+                <input value="@Messages("global.btn.submitAndContinue")" class="btn btn-default" type="submit" name="send"/>
               }
             </div>
           </div>

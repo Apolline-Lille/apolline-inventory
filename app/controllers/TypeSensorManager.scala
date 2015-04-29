@@ -1,16 +1,14 @@
 package controllers
 
-import java.lang.annotation.Annotation
-
 import com.wordnik.swagger.annotations._
 import models._
+import play.api.i18n.Messages
 import play.api.libs.json.Json
 import play.api.mvc._
 import play.api.data._
 import play.api.data.Forms._
 import play.modules.reactivemongo.json.BSONFormats
 import reactivemongo.bson.{BSONObjectID, BSONDocument}
-import reactivemongo.core.commands.LastError
 
 import scala.concurrent._
 import scala.concurrent.duration.Duration
@@ -417,7 +415,7 @@ trait TypeSensorManagerLike extends Controller{
           //If don't have valid specie
           if (especes.size == 0) {
             //print form with prefilled data and a bad request
-            future{printForm(Results.BadRequest,form.withError("espece", "This field is required").fill(typeData),r)}
+            future{printForm(Results.BadRequest,form.withError("espece",Messages("global.error.required")).fill(typeData),r)}
           } else {
 
             //Find the sensor type
@@ -442,7 +440,7 @@ trait TypeSensorManagerLike extends Controller{
                   })
                 }
                 //print form with prefilled data and a bad request
-                case _ => future{printForm(Results.BadRequest, form.withGlobalError("Ce type de capteur existe déjà").fill(typeData), r)}
+                case _ => future{printForm(Results.BadRequest, form.withGlobalError(Messages("inventary.typeSensor.error.typeExist")).fill(typeData), r)}
               }
             ).recover({
               //Send Internal Server Error if have mongoDB error
