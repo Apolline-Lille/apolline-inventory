@@ -48,6 +48,8 @@ class TypeSensorManagerSpec extends Specification with Mockito {
       typeSensorDaoMock.findListModele(any[String]) returns future{Stream[BSONDocument]()}
       typeSensorDaoMock.findListFabricant(any[String]) returns future{Stream[BSONDocument]()}
       typeSensorDaoMock.findListType(any[String]) returns future{Stream[BSONDocument]()}
+      typeMesureDaoMock.findListMesure(any[String]) returns future{Stream[BSONDocument]()}
+      typeMesureDaoMock.findListUnite(any[String]) returns future{Stream[BSONDocument]()}
     }
 
     def verifyCallListData:Unit={
@@ -55,6 +57,8 @@ class TypeSensorManagerSpec extends Specification with Mockito {
       there was one(typeSensorDaoMock).findListModele(any[String])
       there was one(typeSensorDaoMock).findListFabricant(any[String])
       there was one(typeSensorDaoMock).findListType(any[String])
+      there was one(typeMesureDaoMock).findListMesure(any[String])
+      there was one(typeMesureDaoMock).findListUnite(any[String])
     }
   }
 
@@ -320,7 +324,7 @@ class TypeSensorManagerSpec extends Specification with Mockito {
       f.listDataEmptyStream
 
       val req=FakeRequest(GET, "/inventary/sensors/type").withSession("user" -> "")
-      val action = Action{f.controller.printForm(Results.Ok,TypeSensorManager.form,mock[Call])}
+      val action = Action.async{f.controller.printForm(Results.Ok,TypeSensorManager.form,mock[Call])}
       val r=call(action,req)
 
 
@@ -675,7 +679,7 @@ class TypeSensorManagerSpec extends Specification with Mockito {
 
       fix.typeSensorDaoMock.findById(any[BSONObjectID])(any[ExecutionContext]) returns future{typeSensor}
       fix.typeMesureDaoMock.findById(any[BSONObjectID])(any[ExecutionContext]) returns future_Mock
-      future_Mock.map(any[(Option[TypeMesure])=>Option[TypeMesure]])(any[ExecutionContext]) returns future_Mock
+      future_Mock.flatMap(any[(Option[TypeMesure])=>Future[Option[TypeMesure]]])(any[ExecutionContext]) returns future_Mock
       future_Mock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers (vals => future{vals.asInstanceOf[PartialFunction[Throwable,Result]](throwable)})
 
       val r = fix.controller.typeUpdatePage(bson.stringify).apply(FakeRequest(GET, "/inventary/sensors/"+bson.stringify+"/update").withSession("user" -> ""))
@@ -687,7 +691,7 @@ class TypeSensorManagerSpec extends Specification with Mockito {
 
       there was one(fix.typeSensorDaoMock).findById(any[BSONObjectID])(any[ExecutionContext])
       there was one(fix.typeMesureDaoMock).findById(any[BSONObjectID])(any[ExecutionContext])
-      there was one(future_Mock).map(any[(Option[TypeMesure])=>Option[TypeMesure]])(any[ExecutionContext])
+      there was one(future_Mock).flatMap(any[(Option[TypeMesure])=>Future[Option[TypeMesure]]])(any[ExecutionContext])
       there was one(future_Mock).recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext])
     }
 
