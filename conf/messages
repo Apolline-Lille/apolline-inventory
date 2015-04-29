@@ -19,7 +19,7 @@ inventary.typeSensor.mesure=Type de signaux
 inventary.typeSensor.unite=Unité
 inventary.typeSensor.stock=Stocks
 inventary.typeSensor.error.typeExist=Ce type de capteur existe déjà
-inventary.typeSensor.addType=Ajouter un type
+inventary.typeSensor.addType=Nouveau type
 
 inventary.sensor.id=Identifiant
 inventary.sensor.acquisition=Date d''acquisition
@@ -31,7 +31,7 @@ inventary.sensor.etat=Etat
 inventary.sensor.error.sensorExist=Ce capteur existe déjà
 inventary.sensor.error.firstUseBeforeAcquisition=La date de première utilisation doit être supèrieur à la date d''acquisition
 inventary.sensor.error.expirationBeforeAcquisition=La date d''expiration doit être supèrieur à la date d''acquisition
-inventary.sensor.addSensor=Ajouter un capteur
+inventary.sensor.addSensor=Nouveau capteur
 
 inventary.onglet.sensor=Capteurs
 inventary.onglet.module=Modules
