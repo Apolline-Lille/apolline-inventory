@@ -136,10 +136,10 @@ trait TypeSensorManagerLike extends Controller{
   @ApiResponses(Array(
     new ApiResponse(code=303,message="Move resource to the login page at /login if the user is not log")
   ))
-  def typePage=Action{
+  def typePage=Action.async{
     request =>
       //Verify if user is connect
-      UserManager.doIfconnect(request) {
+      UserManager.doIfconnectAsync(request) {
 
         //Display the form for insert new sensor type
         printForm(Results.Ok,form,routes.TypeSensorManager.typeInsert())
@@ -181,11 +181,11 @@ trait TypeSensorManagerLike extends Controller{
             case Some(typeSensor)=>{
 
               //Find signal associated to the sensor type
-              typeMesureDao.findById(typeSensor.mesure).map(
+              typeMesureDao.findById(typeSensor.mesure).flatMap(
               typeMesureOpt=>typeMesureOpt match {
 
                 //Signal not found redirect to the sensor inventary
-                case None => Redirect(routes.TypeSensorManager.inventary())
+                case None => future{Redirect(routes.TypeSensorManager.inventary())}
 
                 //Signal found
                 case Some(typeMesure) => {
@@ -404,7 +404,7 @@ trait TypeSensorManagerLike extends Controller{
         formWithErrors => {
 
           //the form is redisplay with error descriptions
-          future{printForm(Results.BadRequest,formWithErrors,r)}
+          printForm(Results.BadRequest,formWithErrors,r)
         },
 
         // Else if form no contains errors
@@ -415,7 +415,7 @@ trait TypeSensorManagerLike extends Controller{
           //If don't have valid specie
           if (especes.size == 0) {
             //print form with prefilled data and a bad request
-            future{printForm(Results.BadRequest,form.withError("espece",Messages("global.error.required")).fill(typeData),r)}
+            printForm(Results.BadRequest,form.withError("espece",Messages("global.error.required")).fill(typeData),r)
           } else {
 
             //Find the sensor type
@@ -440,7 +440,7 @@ trait TypeSensorManagerLike extends Controller{
                   })
                 }
                 //print form with prefilled data and a bad request
-                case _ => future{printForm(Results.BadRequest, form.withGlobalError(Messages("inventary.typeSensor.error.typeExist")).fill(typeData), r)}
+                case _ => printForm(Results.BadRequest, form.withGlobalError(Messages("inventary.typeSensor.error.typeExist")).fill(typeData), r)
               }
             ).recover({
               //Send Internal Server Error if have mongoDB error
@@ -483,25 +483,54 @@ trait TypeSensorManagerLike extends Controller{
    * @param r Route call when submit the form
    * @return
    */
-  def printForm(status:Results.Status,form:Form[TypeSensorForm],r:Call): Result ={
-    val listData = getListData()
-    status(views.html.sensors.formType(form, listData.get("modele").get, listData.get("fabricant").get, listData.get("espece").get, listData.get("type").get, r))
+  def printForm(status:Results.Status,form:Form[TypeSensorForm],r:Call): Future[Result] ={
+    getListData().map(listData=>
+      status(
+        views.html.sensors.formType(
+          form,
+          listData.get("modele").get,
+          listData.get("fabricant").get,
+          listData.get("espece").get,
+          listData.get("type").get,
+          listData.get("mesure").get,
+          listData.get("unite").get,
+          r
+        )
+      )
+    )
   }
 
   /**
    * Get data for insert to the datalist
    * @return
    */
-  def getListData():Map[String, List[BSONDocument]]={
+  def getListData():Future[Map[String, List[BSONDocument]]]={
     val future_modele = typeSensorDao.findListModele("modele")
     val future_fabricant = typeSensorDao.findListFabricant("fabricant")
     val future_espece = typeSensorDao.findListEspece("espece")
     val future_type = typeSensorDao.findListType("nomType")
-    val modele = Await.result(future_modele, Duration.Inf)
-    val fabricant = Await.result(future_fabricant, Duration.Inf)
-    val espece = Await.result(future_espece, Duration.Inf)
-    val typesData = Await.result(future_type, Duration.Inf)
-    Map("modele"->modele.toList,"fabricant"->fabricant.toList,"espece"->espece.toList,"type"->typesData.toList)
+    val future_mesure = typeMesureDao.findListMesure("nom")
+    val future_unite = typeMesureDao.findListUnite("unite")
+    future_modele.flatMap(modele=>
+      future_fabricant.flatMap(fabricant=>
+        future_espece.flatMap(espece=>
+          future_type.flatMap(typesData=>
+            future_mesure.flatMap(mesure=>
+              future_unite.map(unite=>
+                Map(
+                  "modele"->modele.toList,
+                  "fabricant"->fabricant.toList,
+                  "espece"->espece.toList,
+                  "type"->typesData.toList,
+                  "mesure"->mesure.toList,
+                  "unite"->unite.toList
+                )
+              )
+            )
+          )
+        )
+      )
+    )
   }
 }
 
