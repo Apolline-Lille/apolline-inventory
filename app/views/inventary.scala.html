@@ -3,6 +3,8 @@
 <nav>
   <ul class="nav nav-tabs">
     <li role="presentation" @if(current.equals("module")){class="active"}><a href="#">@Messages("inventary.onglet.module")</a></li>
-    <li role="presentation" @if(current.equals("capteur")){class="active"}><a href="#">@Messages("inventary.onglet.sensor")</a></li>
+    <li role="presentation" @if(current.equals("capteur")){class="active"}>
+      <a href="@routes.TypeSensorManager.inventary()" @if(current.equals("capteur")){class="pointer"}>@Messages("inventary.onglet.sensor")</a>
+    </li>
   </ul>
 </nav>
