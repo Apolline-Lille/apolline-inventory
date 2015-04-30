@@ -2,6 +2,7 @@
 @import reactivemongo.bson.BSONObjectID
 
 @main(Messages("inventary.typeSensor.title")){
+  <script src="@routes.Assets.at("javascripts/modal-delete.js")" type="text/javascript" defer></script>
   @navigation("inventary")
   <div class="container">
     @inventary("capteur")
@@ -20,7 +21,7 @@
                 }</a>
                   <span>
                     <a href="@routes.TypeSensorManager.typeUpdatePage(types._id.stringify)"><span class="glyphicon glyphicon-pencil"></span></a>
-                    <a href="@routes.TypeSensorManager.delete(types._id.stringify)"><span class="glyphicon glyphicon-trash"></span></a>
+                    <a data-toggle="modal" href="#modal-delete" data-title="@types.nomType / @types.modele" data-link="@routes.TypeSensorManager.delete(types._id.stringify)"><span class="glyphicon glyphicon-trash"></span></a>
                   </span>
                 </h4>
               </div>
@@ -67,4 +68,8 @@
       </nav>
     </section>
   </div>
+  @modal("modal-delete"){<span id="title-delete"></span>}{Êtes-vous sûr de vouloir supprimer ce type de capteur ?} {
+    <a id="accept-delete" href="#" class="btn btn-default">Oui</a>
+    <button type="button" class="btn btn-default" data-dismiss="modal">Non</button>
+  }
 }
