@@ -99,12 +99,15 @@ trait SensorManagerLike extends Controller{
   @ApiImplicitParams(Array(
     new ApiImplicitParam(value = "Id of the sensor type for list sensors associated",required=true,name="id", dataType = "String", paramType = "path")
   ))
-  def inventary(id:String)=Action.async{
+  def inventary(id:String,sort:String="id",sens:Int=1)=Action.async{
     implicit request =>
       //Verify if user is connect
       UserManager.doIfconnectAsync(request) {
         //find all sensors
-        val future_sensors=sensorDao.findAll(Json.obj("delete"->false,"types"->BSONFormats.BSONObjectIDFormat.writes(BSONObjectID(id))))
+        val future_sensors=sensorDao.findAll(
+          Json.obj("delete"->false,"types"->BSONFormats.BSONObjectIDFormat.writes(BSONObjectID(id))),
+          Json.obj(sort->sens)
+        )
 
         //Find the sensor type
         findTypeSensorForPrint(
@@ -115,7 +118,7 @@ trait SensorManagerLike extends Controller{
           findTypeMesureForPrint(future_sensors),
 
           //Get sensors on the future and print the page
-          findSensorsForPrint(future_sensors)
+          findSensorsForPrint(future_sensors,sort,sens)
         )
       }
   }
@@ -395,7 +398,7 @@ trait SensorManagerLike extends Controller{
    * @param listSensor List of sensors
    * @return Return Ok page with the list of sensors
    */
-  def printListSensor(typeSensor:TypeSensor,typeMesure:TypeMesure,listSensor:List[Sensor]):Result=Ok(views.html.sensors.listSensor(typeSensor,typeMesure,listSensor))
+  def printListSensor(typeSensor:TypeSensor,typeMesure:TypeMesure,listSensor:List[Sensor],sort:String,sens:Int):Result=Ok(views.html.sensors.listSensor(typeSensor,typeMesure,listSensor,sort,sens))
 
   /**
    * Get the list of sensors on the future and print it
@@ -405,11 +408,11 @@ trait SensorManagerLike extends Controller{
    * @return Return Ok page with the list of sensors
    *         Return Internal server error if have mongoDB error
    */
-  def findSensorsForPrint(future_sensors:Future[List[Sensor]])(typeSensor:TypeSensor)(typeMesure:TypeMesure): Future[Result] ={
+  def findSensorsForPrint(future_sensors:Future[List[Sensor]],sort:String,sens:Int)(typeSensor:TypeSensor)(typeMesure:TypeMesure): Future[Result] ={
     //Get the list of sensors
     future_sensors.map(listSensor=>
       //Print the list of sensors
-      printListSensor(typeSensor,typeMesure,listSensor)
+      printListSensor(typeSensor,typeMesure,listSensor,sort,sens)
     ).recover({
       //Send Internal Server Error if have mongoDB error
       case e => InternalServerError("error")

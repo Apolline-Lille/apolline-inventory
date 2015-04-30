@@ -24,7 +24,7 @@ class SensorManagerSpec extends Specification with Mockito {
   class SensorManagerTest extends SensorManagerLike
 
   case class matchRegex(a: String) extends Matcher[String]() {
-    override def apply[S <: String](t: Expectable[S]): MatchResult[S] = result(a.r.findFirstIn(t.value).nonEmpty, "okMessage", "not found " + a, t)
+    override def apply[S <: String](t: Expectable[S]): MatchResult[S] = result(a.r.findFirstIn(t.value).nonEmpty, "okMessage",t.value +"not found " + a, t)
   }
 
   case class contains(a: String, b: Int) extends Matcher[String]() {
@@ -144,11 +144,11 @@ class SensorManagerSpec extends Specification with Mockito {
         Sensor(bson3,"Id",bson,None,date,None,false,None)
       )
 
-      f.sensorDaoMock.findAll(any[JsObject],any[JsObject])(any[ExecutionContext]) returns future{list_sensor}
+      f.sensorDaoMock.findAll(any[JsObject],org.mockito.Matchers.eq(Json.obj("acquisition" -> -1)))(any[ExecutionContext]) returns future{list_sensor}
       f.typeMesureDaoMock.findById(org.mockito.Matchers.eq(bson2))(any[ExecutionContext]) returns future{Some(typeMesure)}
       f.typeSensorDaoMock.findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext]) returns  future{Some(typeSensor)}
 
-      val r=f.controller.inventary(bson.stringify).apply(FakeRequest(GET,"/inventary/sensors/"+bson.stringify).withSession("user" -> ""))
+      val r=f.controller.inventary(bson.stringify,"acquisition",-1).apply(FakeRequest(GET,"/inventary/sensors/"+bson.stringify).withSession("user" -> ""))
 
 
       status(r) must equalTo(OK)
@@ -166,7 +166,7 @@ class SensorManagerSpec extends Specification with Mockito {
        val typeMesure=TypeMesure(bson2,"mesure1","unite1")
        val list_sensor=List[Sensor]()
 
-       val action=Action{f.controller.printListSensor(typeSensor,typeMesure,list_sensor)}
+       val action=Action{f.controller.printListSensor(typeSensor,typeMesure,list_sensor,"id",1)}
        val req=FakeRequest(GET,"/inventary/sensors/"+bson.stringify)
        val r=call(action,req)
 
@@ -192,10 +192,9 @@ class SensorManagerSpec extends Specification with Mockito {
         Sensor(bson4,"Id2",bson,Some(date),date,Some(date),true,Some("un com"))
       )
 
-      val action=Action{f.controller.printListSensor(typeSensor,typeMesure,list_sensor)}
+      val action=Action{f.controller.printListSensor(typeSensor,typeMesure,list_sensor,"acquisition",1)}
       val req=FakeRequest(GET,"/inventary/sensors/"+bson.stringify)
       val r=call(action,req)
-
 
       status(r) must equalTo(OK)
       contentType(r) must beSome.which(_ == "text/html")
@@ -218,7 +217,7 @@ class SensorManagerSpec extends Specification with Mockito {
       futureMock.map(any[List[Sensor]=>List[Sensor]])(any[ExecutionContext]) returns futureMock
       futureMock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers (value=>future{value.asInstanceOf[PartialFunction[Throwable,Result]](throwable)})
 
-      val action=Action.async{f.controller.findSensorsForPrint(futureMock)(typeSensor)(typeMesure)}
+      val action=Action.async{f.controller.findSensorsForPrint(futureMock,"id",1)(typeSensor)(typeMesure)}
       val req=FakeRequest(GET,"/inventary/sensors/"+bson.stringify)
       val r=call(action,req)
 
@@ -238,7 +237,7 @@ class SensorManagerSpec extends Specification with Mockito {
 
       futureMock.map(any[List[Sensor]=>Result])(any[ExecutionContext]) answers (value=>future{value.asInstanceOf[List[Sensor]=>Result](list_sensor)})
 
-      val action=Action.async{f.controller.findSensorsForPrint(futureMock)(typeSensor)(typeMesure)}
+      val action=Action.async{f.controller.findSensorsForPrint(futureMock,"id",1)(typeSensor)(typeMesure)}
       val req=FakeRequest(GET,"/inventary/sensors/"+bson.stringify)
       val r=call(action,req)
 

@@ -1,4 +1,4 @@
-@(types:TypeSensor,mesure:TypeMesure,listSensor:List[Sensor])
+@(types:TypeSensor,mesure:TypeMesure,listSensor:List[Sensor],trie:String,sens:Int)
 
 @main(Messages("inventary.typeSensor.title")){
   @navigation("inventary")
@@ -18,6 +18,23 @@
             </div>
         </div>
         @if(listSensor.size>0){
+        <div class="row">
+          <div class="col-sm-offset-10 col-sm-2">
+            <div class="input-group-btn">
+              <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown" aria-expanded="false" style="width: 100%">@Messages("global.sort") <span class="caret"></span></button>
+              <ul class="dropdown-menu" role="menu">
+                @for(col<-List[String]("id","acquisition","expiration","firstUse","etat")){
+                  <li>
+                    <a href="@routes.SensorManager.inventary(types._id.stringify,col,if(trie.equals(col)){-sens}else{1})">
+                      @if(trie.equals(col)){<span class="glyphicon glyphicon-ok"></span>}
+                      @Messages("inventary.sensor."+col)
+                    </a>
+                  </li>
+                }
+              </ul>
+            </div>
+          </div>
+        </div>
         <div class="row table-responsive">
           <table class="table table-hover table-bordered">
             <thead>
@@ -53,10 +70,6 @@
         }
       </article>
       <nav class="col-sm-2">
-        <!--<ul class="nav nav-pills nav-stacked">
-          <li role="presentation" class="active"><a href="#">PID</a></li>
-          <li role="presentation"><a href="#">NDIR</a></li>
-        </ul>-->
         <a href="@routes.SensorManager.sensorPage(types._id.stringify)" class="btn btn-success">
           <span class="glyphicon glyphicon-plus"></span>
           @Messages("inventary.sensor.addSensor")
