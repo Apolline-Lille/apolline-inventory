@@ -861,4 +861,68 @@ class TypeSensorManagerSpec extends Specification with Mockito {
       there was one(fix.typeSensorDaoMock).updateById(any[BSONObjectID],any[TypeSensor],any[GetLastError])(any[Writes[TypeSensor]],any[ExecutionContext])
     }
   }
+
+  "When verify if sensor type found, TypeSensorManager" should {
+    "execute particular function if sensor type found" in new WithApplication{
+      val fix=fixture
+      val func1=mock[Unit=>Future[Result]]
+      val func2=mock[Unit=>Future[Result]]
+
+      fix.typeSensorDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{Some(TypeSensor(bson,"type","mod",bson2,"fab",1,List[String]("esp1"),false))}
+      func1.apply(any[Unit]) returns future{Results.Ok("func found")}
+
+      val req=FakeRequest(GET, "url")
+      val action=Action.async{fix.controller.doIfTypeSensorFound(bson)(func1)(func2)}
+      val r=call(action,req)
+
+      status(r) must equalTo(OK)
+      contentAsString(r) must equalTo("func found")
+
+      there was one(fix.typeSensorDaoMock).findOne(any[JsObject])(any[ExecutionContext])
+      there was one(func1).apply(any[Unit])
+      there was no(func2).apply(any[Unit])
+    }
+
+    "execute particular function if sensor type not found" in new WithApplication{
+      val fix=fixture
+      val func1=mock[Unit=>Future[Result]]
+      val func2=mock[Unit=>Future[Result]]
+
+      fix.typeSensorDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{None}
+      func2.apply(any[Unit]) returns future{Results.Ok("func not found")}
+
+      val req=FakeRequest(GET, "url")
+      val action=Action.async{fix.controller.doIfTypeSensorFound(bson)(func1)(func2)}
+      val r=call(action,req)
+
+      status(r) must equalTo(OK)
+      contentAsString(r) must equalTo("func not found")
+
+      there was one(fix.typeSensorDaoMock).findOne(any[JsObject])(any[ExecutionContext])
+      there was one(func2).apply(any[Unit])
+      there was no(func1).apply(any[Unit])
+    }
+
+    "send Internal server error if error mongoDB" in new WithApplication{
+      val fix=fixture
+      val func1=mock[Unit=>Future[Result]]
+      val func2=mock[Unit=>Future[Result]]
+      val futureMock=mock[Future[Option[TypeSensor]]]
+      val throwable=mock[Throwable]
+
+      fix.typeSensorDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns futureMock
+      futureMock.flatMap(any[Option[TypeSensor]=>Future[Option[TypeSensor]]])(any[ExecutionContext]) returns futureMock
+      futureMock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers {value => future{value.asInstanceOf[PartialFunction[Throwable,Result]](throwable)}}
+
+      val req=FakeRequest(GET, "url")
+      val action=Action.async{fix.controller.doIfTypeSensorFound(bson)(func1)(func2)}
+      val r=call(action,req)
+
+      status(r) must equalTo(INTERNAL_SERVER_ERROR)
+
+      there was one(fix.typeSensorDaoMock).findOne(any[JsObject])(any[ExecutionContext])
+      there was one(futureMock).flatMap(any[Option[TypeSensor]=>Future[Option[TypeSensor]]])(any[ExecutionContext])
+      there was one(futureMock).recover(any[PartialFunction[Throwable,Future[Result]]])(any[ExecutionContext])
+    }
+  }
 }

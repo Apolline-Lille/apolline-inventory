@@ -469,6 +469,30 @@ trait TypeSensorManagerLike extends Controller{
   }
 
   /**
+   * Verify if sensor type found and execute a function if sensor type found or not
+   * @param id Sensor type id
+   * @param found Function executed if sensor type found
+   * @param notFound Function executed if sensor type not found
+   * @return Return the result of executed function
+   */
+  def doIfTypeSensorFound(id:BSONObjectID)(found:Unit=>Future[Result])(notFound:Unit=>Future[Result]):Future[Result]={
+    //Find the sensor type
+    typeSensorDao.findOne(Json.obj("_id"->BSONFormats.BSONObjectIDFormat.writes(id),"delete"->false)).flatMap(
+      typeSensorOpt => typeSensorOpt match{
+
+          //If the sensor type not found execute function not found
+        case None => notFound()
+
+          //If the sensor type found execute function found
+        case Some(typeSensor) => found()
+      }
+    ).recover({
+      //Send Internal Server Error if have mongoDB error
+      case _=> InternalServerError("error")
+    })
+  }
+
+  /**
    * This method insert signal into the database and after execute dedicated function
    * @param typeData Data received from the form
    * @param especes List of valid specie
