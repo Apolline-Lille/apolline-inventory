@@ -1,4 +1,4 @@
-@(sort:String,listType:List[TypeSensor],listMesure:List[TypeMesure],listCategorie:List[String],stock:List[reactivemongo.bson.BSONDocument],filtre:List[reactivemongo.bson.BSONDocument])
+@(filtreSto:String,sort:String,funcFiltre:Int=>Boolean,listType:List[TypeSensor],listMesure:List[TypeMesure],listCategorie:List[String],stock:List[reactivemongo.bson.BSONDocument],filtre:List[reactivemongo.bson.BSONDocument])
 @import reactivemongo.bson.BSONObjectID
 
 @main(Messages("inventary.typeSensor.title")){
@@ -19,36 +19,38 @@
                 }else{
                   0
                 }) { sto =>
-                  <div class="col-sm-12">
-                    <h4><a href="@routes.SensorManager.inventary(types._id.stringify)">@{
-                      types.nomType
-                    } / @{
-                      types.modele
-                    }</a>
-                      <span>
-                        <a href="@routes.TypeSensorManager.typeUpdatePage(types._id.stringify)"><span class="glyphicon glyphicon-pencil"></span></a>
-                        @if(sto==0){
-                          <a data-toggle="modal" href="#modal-delete" data-title="@types.nomType / @types.modele" data-link="@routes.TypeSensorManager.delete(types._id.stringify)">
-                            <span class="glyphicon glyphicon-trash"></span>
-                          </a>
-                        }
-                      </span>
-                    </h4>
-                  </div>
-                  <div class="col-sm-11 col-sm-offset-1">
-                    <div class="row"> <span class="bold">@Messages("inventary.typeSensor.fabricant")</span> : @{
-                      types.fabricant
-                    } </div>
-                    <div class="row"> <span class="bold">@Messages("inventary.typeSensor.nbSignaux")</span> : @{
-                      types.nbSignaux
-                    } (@{
-                      listMesure.filter(m => m._id == types.mesure).head.nom
-                    }) </div>
-                    <div class="row"> <span class="bold">@Messages("inventary.typeSensor.espece")</span> : @{
-                      types.espece.mkString(", ")
-                    } </div>
-                    <div class="row"> <span class="bold">@Messages("inventary.typeSensor.stock")</span> : @sto</div>
-                  </div>
+                  @if(funcFiltre(sto)) {
+                    <div class="col-sm-12">
+                      <h4><a href="@routes.SensorManager.inventary(types._id.stringify)">@{
+                        types.nomType
+                      } / @{
+                        types.modele
+                      }</a>
+                        <span>
+                          <a href="@routes.TypeSensorManager.typeUpdatePage(types._id.stringify)"><span class="glyphicon glyphicon-pencil"></span></a>
+                          @if(sto == 0) {
+                            <a data-toggle="modal" href="#modal-delete" data-title="@types.nomType / @types.modele" data-link="@routes.TypeSensorManager.delete(types._id.stringify)">
+                              <span class="glyphicon glyphicon-trash"></span>
+                            </a>
+                          }
+                        </span>
+                      </h4>
+                    </div>
+                    <div class="col-sm-11 col-sm-offset-1">
+                      <div class="row"> <span class="bold">@Messages("inventary.typeSensor.fabricant")</span> : @{
+                        types.fabricant
+                      } </div>
+                      <div class="row"> <span class="bold">@Messages("inventary.typeSensor.nbSignaux")</span> : @{
+                        types.nbSignaux
+                      } (@{
+                        listMesure.filter(m => m._id == types.mesure).head.nom
+                      }) </div>
+                      <div class="row"> <span class="bold">@Messages("inventary.typeSensor.espece")</span> : @{
+                        types.espece.mkString(", ")
+                      } </div>
+                      <div class="row"> <span class="bold">@Messages("inventary.typeSensor.stock")</span> : @sto</div>
+                    </div>
+                  }
                 }
               }
             }
@@ -56,15 +58,25 @@
         </div>
       </article>
       <nav class="col-sm-2">
-        <ul class="nav nav-pills nav-stacked">
-          @if(filtre.size>1) {
-            <li role="presentation" @if(sort==null){class="active"}><a href="@routes.TypeSensorManager.inventary()" style="padding : 0px 15px !important">All</a></li>
+        @if(filtre.size>1) {
+          <span class="bold">@Messages("inventary.typeSensor.type")</span>
+          <ul class="nav nav-pills nav-stacked">
+            <li role="presentation" @if(sort.isEmpty) {
+              class="active"}><a href="@routes.TypeSensorManager.inventary("",filtreSto)" style="padding:0px 15px !important">
+            @Messages("global.all")</a></li>
             @for(types <- filtre) {
               @defining(types.getAs[String]("_id").get) { nomType =>
-                <li role="presentation" @if(sort!=null && sort.equals(nomType)){class="active"}><a href="@routes.TypeSensorManager.inventary(nomType)" style="padding : 0px 15px !important">@nomType</a></li>
+                <li role="presentation" @if(sort.equals(nomType)) {
+                  class="active"}><a href="@routes.TypeSensorManager.inventary(nomType,filtreSto)" style="padding:0px 15px !important">@nomType</a></li>
               }
             }
-          }
+          </ul>
+        }
+        <span class="bold">@Messages("inventary.typeSensor.stock")</span>
+        <ul class="nav nav-pills nav-stacked">
+          <li role="presentation" @if(filtreSto.isEmpty){class="active"}><a href="@routes.TypeSensorManager.inventary(sort)" style="padding : 0px 15px !important">@Messages("global.all")</a></li>
+          <li role="presentation" @if(filtreSto.equals("yes")){class="active"}><a href="@routes.TypeSensorManager.inventary(sort,"yes")" style="padding : 0px 15px !important">@Messages("global.yes")</a></li>
+          <li role="presentation" @if(filtreSto.equals("no")){class="active"}><a href="@routes.TypeSensorManager.inventary(sort,"no")" style="padding : 0px 15px !important">@Messages("global.no")</a></li>
         </ul>
         <a href="@routes.TypeSensorManager.typePage" class="btn btn-success">
           <span class="glyphicon glyphicon-plus"></span>
