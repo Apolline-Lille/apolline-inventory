@@ -36,7 +36,7 @@ GET         /inventary/sensors/:id/:id2/clone         controllers.SensorManager.
 
 #Module page
 GET         /inventary/modules                          controllers.TypeModuleManager.inventary(sort:String ?= "")
-
+GET         /inventary/modules/type                   controllers.TypeModuleManager.typePage
 
 # Map static resources from the /public folder to the /assets URL path
 GET         /assets/*file                             controllers.Assets.at(path="/public", file)

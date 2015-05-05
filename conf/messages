@@ -35,6 +35,8 @@ inventary.sensor.addSensor=Ajouter un capteur
 
 inventary.typeModule.title=Inventaire des modules
 inventary.typeModule.addType=Nouveau type
+inventary.typeModule.modele=Modèle
+inventary.typeModule.types=Type de module
 
 inventary.onglet.sensor=Capteurs
 inventary.onglet.module=Modules
