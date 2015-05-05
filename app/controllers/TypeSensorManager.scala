@@ -418,9 +418,16 @@ trait TypeSensorManagerLike extends Controller{
 
         //If form contains errors
         formWithErrors => {
+          val especes = formWithErrors.data.getOrElse("espece",List[String]()).asInstanceOf[List[String]].filter(p => p.length > 0)
 
-          //the form is redisplay with error descriptions
-          printForm(Results.BadRequest,formWithErrors,r)
+          //If don't have valid specie
+          if (especes.size == 0) {
+            //print form with prefilled data and a bad request
+            printForm(Results.BadRequest,formWithErrors.withError("espece",Messages("global.error.required")),r)
+          }else {
+            //the form is redisplay with error descriptions
+            printForm(Results.BadRequest, formWithErrors, r)
+          }
         },
 
         // Else if form no contains errors

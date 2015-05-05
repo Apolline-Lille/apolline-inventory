@@ -699,8 +699,8 @@ class SensorManagerSpec extends Specification with Mockito {
       contentType(r) must beSome.which(_ == "text/html")
       val content = contentAsString(r)
       content must contain("<title>Inventaire des capteurs</title>")
-      content must contains("<span class=\"errors\">This field is required</span>",2)
-      content must not contain("<span class=\"errors\">Valid date required</span>")
+      content must contains("<span class=\"control-label errors\">This field is required</span>",2)
+      content must not contain("<span class=\"control-label errors\">Valid date required</span>")
 
       there was one(f.typeSensorController).doIfTypeSensorFound(org.mockito.Matchers.eq(bson))(any[Unit=>Future[Result]])(any[Unit=>Future[Result]])
     }
@@ -722,8 +722,8 @@ class SensorManagerSpec extends Specification with Mockito {
       contentType(r) must beSome.which(_ == "text/html")
       val content = contentAsString(r)
       content must contain("<title>Inventaire des capteurs</title>")
-      content must not contain("<span class=\"errors\">This field is required</span>")
-      content must contains("<span class=\"errors\">Valid date required</span>",3)
+      content must not contain("<span class=\"control-label errors\">This field is required</span>")
+      content must contains("<span class=\"control-label errors\">Valid date required</span>",3)
 
       there was one(f.typeSensorController).doIfTypeSensorFound(org.mockito.Matchers.eq(bson))(any[Unit=>Future[Result]])(any[Unit=>Future[Result]])
     }
@@ -775,9 +775,9 @@ class SensorManagerSpec extends Specification with Mockito {
       contentType(r) must beSome.which(_ == "text/html")
       val content = contentAsString(r)
       content must contain("<title>Inventaire des capteurs</title>")
-      content must not contain("<span class=\"errors\">This field is required</span>")
-      content must contain("<span class=\"errors\">La date de première utilisation doit être supèrieur à la date d&#x27;acquisition</span>")
-      content must contain("<span class=\"errors\">La date d&#x27;expiration doit être supèrieur à la date d&#x27;acquisition</span>")
+      content must not contain("<span class=\"control-panel errors\">This field is required</span>")
+      content must contain("<span class=\"control-label errors\">La date de première utilisation doit être supèrieur à la date d&#x27;acquisition</span>")
+      content must contain("<span class=\"control-label errors\">La date d&#x27;expiration doit être supèrieur à la date d&#x27;acquisition</span>")
 
       there was one(f.typeSensorController).doIfTypeSensorFound(org.mockito.Matchers.eq(bson))(any[Unit=>Future[Result]])(any[Unit=>Future[Result]])
     }
