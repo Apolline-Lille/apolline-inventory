@@ -7,7 +7,7 @@ GET         /swagger                                  controllers.Application.sw
 GET         /api-docs.json                            controllers.ApiHelpController.getResources
 GET         /api-docs.json/user                       controllers.ApiHelpController.getResource(path = "/user")
 GET         /api-docs.json/typeSensor                 controllers.ApiHelpController.getResource(path = "/typeSensor")
-GET         /api-docs.json/sensors                 controllers.ApiHelpController.getResource(path = "/sensors")
+GET         /api-docs.json/sensors                    controllers.ApiHelpController.getResource(path = "/sensors")
 
 #Dashboard page
 GET         /                                         controllers.Dashboard.index
@@ -33,6 +33,9 @@ GET         /inventary/sensors/:id/:id2               controllers.SensorManager.
 POST        /inventary/sensors/:id/:id2               controllers.SensorManager.sensorUpdate(id:String,id2:String)
 GET         /inventary/sensors/:id/:id2/delete        controllers.SensorManager.delete(id:String,id2:String)
 GET         /inventary/sensors/:id/:id2/clone         controllers.SensorManager.sensorClonePage(id:String,id2:String)
+
+#Module page
+GET         /inventary/modules                          controllers.TypeModuleManager.inventary(sort:String ?= "")
 
 
 # Map static resources from the /public folder to the /assets URL path

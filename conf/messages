@@ -33,6 +33,9 @@ inventary.sensor.error.firstUseBeforeAcquisition=La date de première utilisatio
 inventary.sensor.error.expirationBeforeAcquisition=La date d''expiration doit être supèrieur à la date d''acquisition
 inventary.sensor.addSensor=Ajouter un capteur
 
+inventary.typeModule.title=Inventaire des modules
+inventary.typeModule.addType=Nouveau type
+
 inventary.onglet.sensor=Capteurs
 inventary.onglet.module=Modules
 
