@@ -6,6 +6,9 @@ import play.api.libs.json.{Json, Format}
 import play.modules.reactivemongo.ReactiveMongoPlugin
 import reactivemongo.bson.BSONObjectID
 import reactivemongo.extensions.json.dao.JsonDao
+import play.modules.reactivemongo.json.BSONFormats.BSONObjectIDFormat
+import play.api.Play.current
+import scala.concurrent.ExecutionContext.Implicits.global
 
 case class Module(_id:BSONObjectID=BSONObjectID.generate,id:String,types:BSONObjectID,firmware:BSONObjectID,acquisition:Date,firstUse:Option[Date],agregateur:Boolean,apolline:Option[String],hs:String,commentaire:Option[String],delete:Boolean=false)
 
