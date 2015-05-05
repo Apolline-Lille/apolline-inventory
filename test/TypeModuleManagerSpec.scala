@@ -1,15 +1,17 @@
 
-import controllers.{TypeModuleManager, TypeModuleManagerLike}
-import models.TypeModuleDao
+import controllers.{TypeModuleForm, TypeModuleManager, TypeModuleManagerLike}
+import models.{TypeModule, TypeModuleDao}
 import org.junit.runner.RunWith
 import org.specs2.matcher.{MatchResult, Expectable, Matcher}
 import org.specs2.mock.Mockito
 import org.specs2.mutable.Specification
 import org.specs2.runner.JUnitRunner
+import play.api.libs.json.{Json, JsObject}
 import play.api.mvc.{Result, Action, Results, Call}
 import play.api.test.Helpers._
 import play.api.test.{FakeRequest, WithApplication}
 import reactivemongo.bson.BSONDocument
+import reactivemongo.core.commands.{GetLastError, LastError}
 import scala.concurrent._
 
 @RunWith(classOf[JUnitRunner])
@@ -54,9 +56,20 @@ class TypeModuleManagerSpec extends Specification with Mockito {
           failure("Pas de retour de la fonction")
         )
     }
+
+    "redirect to login for POST resource /inventary/modules/type" in new WithApplication{
+      route(FakeRequest(POST, "/inventary/modules/type")).map(
+        r=>{
+          status(r) must equalTo(SEE_OTHER)
+          header("Location",r) must equalTo(Some("/login"))
+        }
+      ).getOrElse(
+          failure("Pas de retour de la fonction")
+        )
+    }
   }
 
-  "When method printForm is called, TypeSensorManager" should{
+  "When method printForm is called, TypeModuleManager" should{
     "print an empty form" in new WithApplication{
       val f=fixture
 
@@ -118,6 +131,140 @@ class TypeModuleManagerSpec extends Specification with Mockito {
       there was one(f.typeModuleDaoMock).findListType()
       there was one(futureMock).map(any[Stream[BSONDocument]=>Stream[BSONDocument]])(any[ExecutionContext])
       there was one(futureMock).recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext])
+    }
+  }
+
+  "When user submit a form, TypeModuleManager" should {
+    "send bad_request with form and empty input" in new WithApplication {
+      val route=mock[Call]
+      val function=mock[TypeModuleForm=>Future[Result]]
+      val function2=mock[TypeModuleForm=>JsObject]
+      val f=fixture
+
+      f.typeModuleDaoMock.findListModele() returns future{Stream[BSONDocument]()}
+      f.typeModuleDaoMock.findListType() returns future{Stream[BSONDocument]()}
+
+      val r = f.controller.submitForm(route)(function2)(function)(FakeRequest(POST, "url").withSession("user" -> """{"login":"test"}"""))
+
+      status(r) must equalTo(BAD_REQUEST)
+      contentType(r) must beSome.which(_ == "text/html")
+      val content = contentAsString(r)
+      content must contain("<title>Inventaire des modules</title>")
+      content must contains("<span class=\"control-label errors\">This field is required</span>", 2)
+
+      there was one(f.typeModuleDaoMock).findListModele()
+      there was one(f.typeModuleDaoMock).findListType()
+    }
+
+    "send Bad_Request for existing type" in new WithApplication {
+      val formData = Json.parse("""{"modele":"mod","types":"typ"}""")
+      val route=mock[Call]
+      val function=mock[TypeModuleForm=>Future[Result]]
+      val function2=mock[TypeModuleForm=>JsObject]
+      val f=fixture
+      val typeModule=mock[TypeModule]
+
+      function2.apply(any[TypeModuleForm]) returns Json.obj()
+      f.typeModuleDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{Some(typeModule)}
+      f.typeModuleDaoMock.findListModele() returns future{Stream[BSONDocument]()}
+      f.typeModuleDaoMock.findListType() returns future{Stream[BSONDocument]()}
+
+      val r = f.controller.submitForm(route)(function2)(function)(FakeRequest(POST, "url").withJsonBody(formData).withSession("user" -> """{"login":"test"}"""))
+
+      status(r) must equalTo(BAD_REQUEST)
+      contentType(r) must beSome.which(_ == "text/html")
+      val content = contentAsString(r)
+      content must contain("<div class=\"alert alert-danger\" role=\"alert\">Ce type de module existe déjà</div>")
+
+      there was one(f.typeModuleDaoMock).findOne(any[JsObject])(any[ExecutionContext])
+      there was one(function2).apply(any[TypeModuleForm])
+      there was one(f.typeModuleDaoMock).findListModele()
+      there was one(f.typeModuleDaoMock).findListType()
+    }
+
+    "send 500 Internal error for mongoDB error" in new WithApplication {
+      val formData = Json.parse("""{"modele":"mod","types":"typ"}""")
+      val route=mock[Call]
+      val function=mock[TypeModuleForm=>Future[Result]]
+      val function2=mock[TypeModuleForm=>JsObject]
+      val futureMock=mock[Future[Option[TypeModule]]]
+      val fix=fixture
+      val throwable=mock[Throwable]
+
+      function2.apply(any[TypeModuleForm]) returns Json.obj()
+      fix.typeModuleDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns futureMock
+      futureMock.flatMap(any[Option[TypeModule]=>Future[Option[TypeModule]]])(any[ExecutionContext]) returns futureMock
+      futureMock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers (vals => future{vals.asInstanceOf[PartialFunction[Throwable,Result]](throwable)})
+
+
+      val r = fix.controller.submitForm(route)(function2)(function)(FakeRequest(POST, "url").withJsonBody(formData).withSession("user" -> """{"login":"test"}"""))
+
+
+      status(r) must equalTo(INTERNAL_SERVER_ERROR)
+
+      there was one(function2).apply(any[TypeModuleForm])
+      there was one(fix.typeModuleDaoMock).findOne(any[JsObject])(any[ExecutionContext])
+      there was one(futureMock).flatMap(any[Option[TypeModule]=>Future[Option[TypeModule]]])(any[ExecutionContext])
+      there was one(futureMock).recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext])
+    }
+  }
+
+  "When user is on the resource /inventary/modules/type , TypeModuleManager" should {
+    "send 200 on OK with an empty form" in new WithApplication {
+      val f=fixture
+
+      f.typeModuleDaoMock.findListModele() returns future{Stream[BSONDocument]()}
+      f.typeModuleDaoMock.findListType() returns future{Stream[BSONDocument]()}
+
+      val r = f.controller.typePage.apply(FakeRequest(GET, "/inventary/modules/type").withSession("user" -> """{"login":"test"}"""))
+
+      status(r) must equalTo(OK)
+      contentType(r) must beSome.which(_ == "text/html")
+      val content = contentAsString(r)
+      content must contain("<title>Inventaire des modules</title>")
+      content must contain("<input id=\"modele\" name=\"modele\" class=\"form-control\" list=\"list_modele\" type=\"text\" autocomplete=\"off\" value=\"\"/>")
+      content must contain("<input id=\"types\" name=\"types\" class=\"form-control\" list=\"list_type\" type=\"text\" autocomplete=\"off\" value=\"\"/>")
+
+      there was one(f.typeModuleDaoMock).findListModele()
+      there was one(f.typeModuleDaoMock).findListType()
+    }
+
+    "send redirect after type module" in new WithApplication {
+      val formData = Json.parse("""{"modele":"mod","types":"typ"}""")
+      val lastError=mock[LastError]
+      val f=fixture
+
+      f.typeModuleDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{None}
+      f.typeModuleDaoMock.insert(any[TypeModule],any[GetLastError])(any[ExecutionContext]) returns future{lastError}
+
+      val r = f.controller.typeInsert.apply(FakeRequest(POST, "/inventary/modules/type").withJsonBody(formData).withSession("user" -> """{"login":"test"}"""))
+
+      status(r) must equalTo(SEE_OTHER)
+      header("Location",r) must beSome("/inventary/modules")
+
+      there was one(f.typeModuleDaoMock).findOne(any[JsObject])(any[ExecutionContext])
+      there was one(f.typeModuleDaoMock).insert(any[TypeModule],any[GetLastError])(any[ExecutionContext])
+    }
+
+    "send internal server error if mongoDB error when insert module type" in new WithApplication {
+      val formData = Json.parse("""{"modele":"mod","types":"typ"}""")
+      val lastError=mock[Future[LastError]]
+      val f=fixture
+      val throwable=mock[Throwable]
+
+      f.typeModuleDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{None}
+      f.typeModuleDaoMock.insert(any[TypeModule],any[GetLastError])(any[ExecutionContext]) returns lastError
+      lastError.map(any[LastError=>LastError])(any[ExecutionContext]) returns lastError
+      lastError.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers {value => future{value.asInstanceOf[PartialFunction[Throwable,Result]](throwable)}}
+
+      val r = f.controller.typeInsert.apply(FakeRequest(POST, "/inventary/modules/type").withJsonBody(formData).withSession("user" -> """{"login":"test"}"""))
+
+      status(r) must equalTo(INTERNAL_SERVER_ERROR)
+
+      there was one(f.typeModuleDaoMock).findOne(any[JsObject])(any[ExecutionContext])
+      there was one(f.typeModuleDaoMock).insert(any[TypeModule],any[GetLastError])(any[ExecutionContext])
+      there was one(lastError).map(any[LastError=>LastError])(any[ExecutionContext])
+      there was one(lastError).recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext])
     }
   }
 }
