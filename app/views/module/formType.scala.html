@@ -1,0 +1,47 @@
+@(form:Form[TypeModuleForm],
+        modele:List[reactivemongo.bson.BSONDocument],
+        types:List[reactivemongo.bson.BSONDocument],
+        route:Call
+)
+
+@import models.template.InlineInput.inlineInput
+
+@main(Messages("inventary.typeModule.title")){
+  @navigation("inventary")
+  <div class="container">
+    @inventary("module")
+    <section>
+      <article>
+        <a href="@routes.TypeModuleManager.inventary()">Retour</a>
+        @helper.form(action=route){
+          @for(error<-form.globalErrors){
+            <div class="alert alert-danger" role="alert">@error.message</div>
+          }
+          <h5 style="color:red;float:right"><em>*</em> @Messages("global.fieldRequired")</h5>
+          <div class="col-sm-12">
+            @helper.input(form("modele"),'_label->Messages("inventary.typeModule.modele"),'required->true) { (id, name, value, args) =>
+              <input id="@id" name="@name" class="form-control" list="list_modele" type="text" autocomplete="off" @if(value!=null){value="@value"}/>
+              <datalist id="list_modele">
+              @for(mod<-modele){
+                <option value="@{mod.getAs[String]("_id")}"></option>
+              }
+              </datalist>
+            }
+            @helper.input(form("types"),'_label->Messages("inventary.typeModule.types"),'required->true) { (id, name, value, args) =>
+              <input id="@id" name="@name" class="form-control" list="list_type" type="text" autocomplete="off" @if(value!=null){value="@value"}/>
+              <datalist id="list_type">
+              @for(t<-types){
+                <option value="@t.getAs[String]("_id")"></option>
+              }
+              </datalist>
+            }
+          </div>
+          <div class="col-sm-12">
+            <div style="float:right"> <input value="@Messages("global.btn.reset")" class="btn btn-default"
+            type="reset"> <input value="@Messages("global.btn.submit")" class="btn btn-default" type="submit"></div>
+          </div>
+        }
+      </article>
+    </section>
+  </div>
+}
