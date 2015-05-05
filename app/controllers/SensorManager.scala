@@ -124,7 +124,7 @@ trait SensorManagerLike extends Controller{
           findTypeMesureForPrint(future_sensors),
 
           //Get sensors on the future and print the page
-          findSensorsForPrint(future_sensors,sort,sens)
+          findSensorsForPrint(future_sensors,sort,sens,request)
         )
       }
   }
@@ -146,7 +146,7 @@ trait SensorManagerLike extends Controller{
     new ApiImplicitParam(value = "Id of the sensor type for list sensors associated",required=true,name="id", dataType = "String", paramType = "path")
   ))
   def sensorPage(id:String)=Action.async{
-    request =>
+    implicit request =>
     //Verify if user is connect
     UserManager.doIfconnectAsync(request) {
       //Verify if sensor type found
@@ -416,7 +416,7 @@ trait SensorManagerLike extends Controller{
    * @param listSensor List of sensors
    * @return Return Ok page with the list of sensors
    */
-  def printListSensor(typeSensor:TypeSensor,typeMesure:TypeMesure,listSensor:List[Sensor],sort:String,sens:Int):Result=Ok(views.html.sensors.listSensor(typeSensor,typeMesure,listSensor,sort,sens))
+  def printListSensor(typeSensor:TypeSensor,typeMesure:TypeMesure,listSensor:List[Sensor],sort:String,sens:Int)(implicit request:Request[AnyContent]):Result=Ok(views.html.sensors.listSensor(typeSensor,typeMesure,listSensor,sort,sens))
 
   /**
    * Get the list of sensors on the future and print it
@@ -426,11 +426,11 @@ trait SensorManagerLike extends Controller{
    * @return Return Ok page with the list of sensors
    *         Return Internal server error if have mongoDB error
    */
-  def findSensorsForPrint(future_sensors:Future[List[Sensor]],sort:String,sens:Int)(typeSensor:TypeSensor)(typeMesure:TypeMesure): Future[Result] ={
+  def findSensorsForPrint(future_sensors:Future[List[Sensor]],sort:String,sens:Int,request:Request[AnyContent])(typeSensor:TypeSensor)(typeMesure:TypeMesure): Future[Result] ={
     //Get the list of sensors
     future_sensors.map(listSensor=>
       //Print the list of sensors
-      printListSensor(typeSensor,typeMesure,listSensor,sort,sens)
+      printListSensor(typeSensor,typeMesure,listSensor,sort,sens)(request)
     ).recover({
       //Send Internal Server Error if have mongoDB error
       case e => InternalServerError("error")
@@ -638,7 +638,7 @@ trait SensorManagerLike extends Controller{
    * Update a sensor
    * @param idType Sensor type Id
    * @param id Sensor id
-   * @param sensorData Sensor information received from the form
+   * @param sensorData Sensor information received from the formf4C8gP2q
    * @param delete Flag for says if sensors was delete
    * @return
    */

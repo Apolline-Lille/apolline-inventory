@@ -9,7 +9,7 @@ object Dashboard extends Controller with MongoController {
 
 
   def index = Action {
-    request =>
+    implicit request =>
       request.session.get("user").map { user => Ok(views.html.dashboard())
       }.getOrElse {
         Redirect(routes.UserManager.loginPage())
@@ -17,7 +17,7 @@ object Dashboard extends Controller with MongoController {
   }
 
   def notFound(path:String) = Action {
-    request =>
+    implicit request =>
       request.session.get("user").map { user => Ok(views.html.dashboard())
       }.getOrElse {
         Redirect(routes.UserManager.loginPage())

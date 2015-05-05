@@ -1,4 +1,6 @@
-@(actif:String)
+@(actif:String)(implicit request: Request[AnyContent])
+
+@import play.api.libs.json.Json
 
 @active(value:String)={
     @if(actif.equals(value)){
@@ -18,9 +20,16 @@
                 <li @active("dashboard")><a href="@routes.Dashboard.index()">@{Messages("global.dashboard")}</a></li>
                 <li @active("inventaire")><a href="@routes.TypeSensorManager.inventary()">@{Messages("global.sensors")}</a></li>
             </ul>
-            <!--<ul class="nav navbar-nav navbar-right">
-                <li><a href="#">username</a></li>
-            </ul>-->
+            <ul class="nav navbar-nav navbar-right">
+                @defining(Json.parse(request.session.get("user").getOrElse("{}"))){ user =>
+                    <li class="dropdown">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">@{(user\"login").as[String]} <span class="caret"></span></a>
+                        <ul class="dropdown-menu" role="menu">
+                            <li><a href="@routes.UserManager.disconnect">@Messages("global.disconnect")</a></li>
+                        </ul>
+                    </li>
+                }
+            </ul>
         </div>
     </div>
 </nav>
