@@ -17,7 +17,7 @@ import scala.concurrent._
 import scala.concurrent.duration.Duration
 
 @RunWith(classOf[JUnitRunner])
-class TypeSensorManagerSpec extends Specification with Mockito {
+class TypeSensorManagerSpec extends Specification with Mockito{
   class TypeSensorManagerTest extends TypeSensorManagerLike
 
   case class matchRegex(a: String) extends Matcher[String](){
@@ -399,12 +399,11 @@ class TypeSensorManagerSpec extends Specification with Mockito {
 
       val r = f.controller.submitForm(route)(function)(FakeRequest(POST, "url").withSession("user" -> ""))
 
-
       status(r) must equalTo(BAD_REQUEST)
       contentType(r) must beSome.which(_ == "text/html")
       val content = contentAsString(r)
       content must contain("<title>Inventaire des capteurs</title>")
-      content must contains("<span class=\"errors\">This field is required</span>", 6)
+      content must contains("<span class=\"control-label errors\">This field is required</span>", 6)
 
       f.verifyCallListData
     }
@@ -424,8 +423,8 @@ class TypeSensorManagerSpec extends Specification with Mockito {
       contentType(r) must beSome.which(_ == "text/html")
       val content = contentAsString(r)
       content must contain("<title>Inventaire des capteurs</title>")
-      content must contains("<span class=\"errors\">This field is required</span>", 5)
-      content must contains("<span class=\"errors\">Numeric value expected</span>",1)
+      content must contains("<span class=\"control-label errors\">This field is required</span>", 5)
+      content must contains("<span class=\"control-label errors\">Numeric value expected</span>",1)
 
       f.verifyCallListData
     }
@@ -445,8 +444,8 @@ class TypeSensorManagerSpec extends Specification with Mockito {
       contentType(r) must beSome.which(_ == "text/html")
       val content = contentAsString(r)
       content must contain("<title>Inventaire des capteurs</title>")
-      content must contains("<span class=\"errors\">This field is required</span>", 5)
-      content must contains("<span class=\"errors\">Must be greater or equal to 1</span>",1)
+      content must contains("<span class=\"control-label errors\">This field is required</span>", 5)
+      content must contains("<span class=\"control-label errors\">Must be greater or equal to 1</span>",1)
 
       f.verifyCallListData
     }

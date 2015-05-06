@@ -19,7 +19,7 @@ import scala.concurrent._
 import scala.concurrent.duration.Duration
 
 @RunWith(classOf[JUnitRunner])
-class SensorManagerSpec extends Specification with Mockito {
+class SensorManagerSpec extends Specification with Mockito{
 
   class SensorManagerTest extends SensorManagerLike
 
@@ -624,8 +624,8 @@ class SensorManagerSpec extends Specification with Mockito {
       contentType(r) must beSome.which(_ == "text/html")
       val content = contentAsString(r)
       content must contain("<title>Inventaire des capteurs</title>")
-      content must contains("<span class=\"errors\">This field is required</span>",2)
-      content must not contain("<span class=\"errors\">Valid date required</span>")
+      content must contains("<span class=\"control-label errors\">This field is required</span>",2)
+      content must not contain("<span class=\"control-label errors\">Valid date required</span>")
     }
 
     "send bad request when the form was submit with not valid date" in new WithApplication{
@@ -644,8 +644,8 @@ class SensorManagerSpec extends Specification with Mockito {
       contentType(r) must beSome.which(_ == "text/html")
       val content = contentAsString(r)
       content must contain("<title>Inventaire des capteurs</title>")
-      content must not contain("<span class=\"errors\">This field is required</span>")
-      content must contains("<span class=\"errors\">Valid date required</span>",3)
+      content must not contain("<span class=\"control-label errors\">This field is required</span>")
+      content must contains("<span class=\"control-label errors\">Valid date required</span>",3)
     }
 
     "Verify if the acquisition date is before expiration date" in new WithApplication{
@@ -694,9 +694,9 @@ class SensorManagerSpec extends Specification with Mockito {
       contentType(r) must beSome.which(_ == "text/html")
       val content = contentAsString(r)
       content must contain("<title>Inventaire des capteurs</title>")
-      content must not contain("<span class=\"errors\">This field is required</span>")
-      content must contain("<span class=\"errors\">La date de première utilisation doit être supèrieur à la date d&#x27;acquisition</span>")
-      content must contain("<span class=\"errors\">La date d&#x27;expiration doit être supèrieur à la date d&#x27;acquisition</span>")
+      content must not contain("<span class=\"control-label errors\">This field is required</span>")
+      content must contain("<span class=\"control-label errors\">La date de première utilisation doit être supèrieur à la date d&#x27;acquisition</span>")
+      content must contain("<span class=\"control-label errors\">La date d&#x27;expiration doit être supèrieur à la date d&#x27;acquisition</span>")
     }
 
     "send 500 internal error if mongoDB error when find sensor" in new WithApplication{
