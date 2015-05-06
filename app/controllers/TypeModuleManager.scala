@@ -7,6 +7,7 @@ import play.api.libs.json.{Json, JsObject}
 import play.api.mvc._
 import play.api.data._
 import play.api.data.Forms._
+import reactivemongo.bson.BSONDocument
 import scala.concurrent._
 
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
@@ -52,12 +53,25 @@ trait TypeModuleManagerLike extends Controller {
   @ApiImplicitParams(Array(
     new ApiImplicitParam(value = "Module type name for filter all modules type", name = "sort", dataType = "String", paramType = "query")
   ))
-  def inventary(sort: String = "") = Action.async {
+  def inventary(sort: String = "",filtreSto:String = "") = Action.async {
     request =>
       //Verify if user is connect
       UserManager.doIfconnectAsync(request) {
-        future{Ok(views.html.module.listTypeModule())}
+        //Create selector for select module type
+        val selector=if(sort.isEmpty){Json.obj("delete"->false)}else{Json.obj("delete"->false,"types"->sort)}
 
+        //Find all module type name
+        val futureListType=typeModuleDao.findListType()
+
+        //Find all module type
+        typeModuleDao.findAll(selector).flatMap(listType=>
+          futureListType.map(filtre=>
+
+            //Print the list of module type
+            Ok(views.html.module.listTypeModule(filtreSto,sort,filtreStock(filtreSto),listType,List[BSONDocument](),filtre.toList))
+
+          ).recover({case _=>InternalServerError("error")})
+        ).recover({case _=>InternalServerError("error")})
       }
   }
 
@@ -78,9 +92,8 @@ trait TypeModuleManagerLike extends Controller {
     implicit request =>
       //Verify if user is connect
       UserManager.doIfconnectAsync(request) {
-
-        //Display the form for insert new module type
-        printForm(Results.Ok,form,routes.TypeModuleManager.typeInsert())
+          //Display the form for insert new module type
+          printForm(Results.Ok,form,routes.TypeModuleManager.typeInsert())
       }
   }
 
@@ -177,6 +190,12 @@ trait TypeModuleManagerLike extends Controller {
         }
       )
     }
+  }
+
+  def filtreStock(filtre:String)(v:Int)=filtre match{
+    case "yes" => v>0
+    case "no" => v==0
+    case _ => v>=0
   }
 }
 

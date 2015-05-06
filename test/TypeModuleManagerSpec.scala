@@ -10,7 +10,7 @@ import play.api.libs.json.{Json, JsObject}
 import play.api.mvc.{Result, Action, Results, Call}
 import play.api.test.Helpers._
 import play.api.test.{FakeRequest, WithApplication}
-import reactivemongo.bson.BSONDocument
+import reactivemongo.bson.{BSONObjectID, BSONDocument}
 import reactivemongo.core.commands.{GetLastError, LastError}
 import scala.concurrent._
 
@@ -26,6 +26,8 @@ class TypeModuleManagerSpec extends Specification with Mockito {
   case class contains(a: String, b: Int) extends Matcher[String]() {
     override def apply[S <: String](t: Expectable[S]): MatchResult[S] = result(a.r.findAllMatchIn(t.value).size == b, "okMessage", "not found " + b + " times but " + a.r.findAllMatchIn(t.value).size + " times " + a, t)
   }
+
+  val bson=BSONObjectID.generate
 
   def fixture = new {
     val typeModuleDaoMock = mock[TypeModuleDao]
@@ -66,6 +68,109 @@ class TypeModuleManagerSpec extends Specification with Mockito {
       ).getOrElse(
           failure("Pas de retour de la fonction")
         )
+    }
+  }
+
+  "When user is on the resource /inventary/modules , TypeModuleManager" should {
+    "send 200 on OK with the message 'Aucun résultat trouvé'" in new WithApplication {
+      val f=fixture
+
+      f.typeModuleDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns future{List[TypeModule]()}
+      f.typeModuleDaoMock.findListType() returns future{Stream[BSONDocument]()}
+
+      val r = f.controller.inventary().apply(FakeRequest(GET, "/inventary/modules").withSession("user" -> """{"login":"test"}"""))
+      status(r) must equalTo(OK)
+      contentType(r) must beSome.which(_ == "text/html")
+      val content = contentAsString(r)
+      content must contain("<title>Inventaire des modules</title>")
+      content must contain("<h3 style=\"text-align:center\">Aucun résultat trouvé</h3>")
+
+      there was one(f.typeModuleDaoMock).findAll(any[JsObject], any[JsObject])(any[ExecutionContext])
+      there was one(f.typeModuleDaoMock).findListType()
+    }
+
+    "send 200 on OK with 1 result" in new WithApplication {
+      val f=fixture
+
+      f.typeModuleDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns future{List[TypeModule](TypeModule(bson,"mod","type"))}
+      f.typeModuleDaoMock.findListType() returns future{Stream[BSONDocument]()}
+
+      val r = f.controller.inventary().apply(FakeRequest(GET, "/inventary/modules").withSession("user" -> """{"login":"test"}"""))
+      status(r) must equalTo(OK)
+      contentType(r) must beSome.which(_ == "text/html")
+      val content = contentAsString(r)
+      content must contain("<title>Inventaire des modules</title>")
+      content must not contain("<h3 style=\"text-align:center\">Aucun résultat trouvé</h3>")
+      content must matchRegex("type\\s*/\\s*mod")
+      content must matchRegex("<span class=\"bold\">\\s*Stocks\\s*</span>\\s*:\\s*0")
+
+      there was one(f.typeModuleDaoMock).findAll(any[JsObject], any[JsObject])(any[ExecutionContext])
+      there was one(f.typeModuleDaoMock).findListType()
+    }
+
+    "send 200 on OK with 2 results" in new WithApplication {
+      val f=fixture
+
+      f.typeModuleDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns future{List[TypeModule](
+        TypeModule(bson,"mod","type"),
+        TypeModule(bson,"mod2","type2")
+      )}
+      f.typeModuleDaoMock.findListType() returns future{Stream[BSONDocument]()}
+
+      val r = f.controller.inventary().apply(FakeRequest(GET, "/inventary/modules").withSession("user" -> """{"login":"test"}"""))
+
+      status(r) must equalTo(OK)
+      contentType(r) must beSome.which(_ == "text/html")
+      val content = contentAsString(r)
+      content must contain("<title>Inventaire des modules</title>")
+      content must not contain("<h3 style=\"text-align:center\">Aucun résultat trouvé</h3>")
+      content must matchRegex("type\\s*/\\s*mod")
+      content must matchRegex("<span class=\"bold\">\\s*Stocks\\s*</span>\\s*:\\s*0")
+
+      content must matchRegex("type2\\s*/\\s*mod2")
+
+      there was one(f.typeModuleDaoMock).findAll(any[JsObject], any[JsObject])(any[ExecutionContext])
+      there was one(f.typeModuleDaoMock).findListType()
+    }
+
+    "send 500 internal error if mongoDB error when find all module type" in new WithApplication{
+      val f=fixture
+      val futureMock=mock[Future[List[TypeModule]]]
+      val throwable=mock[Throwable]
+
+      f.typeModuleDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns futureMock
+      futureMock.flatMap(any[List[TypeModule]=>Future[List[TypeModule]]])(any[ExecutionContext]) returns futureMock
+      futureMock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers {value=>future{value.asInstanceOf[PartialFunction[Throwable,Result]](throwable)}}
+      f.typeModuleDaoMock.findListType() returns future{Stream[BSONDocument]()}
+
+      val r = f.controller.inventary().apply(FakeRequest(GET, "/inventary/modules").withSession("user" -> """{"login":"test"}"""))
+
+      status(r) must equalTo(INTERNAL_SERVER_ERROR)
+
+      there was one(f.typeModuleDaoMock).findAll(any[JsObject], any[JsObject])(any[ExecutionContext])
+      there was one(futureMock).flatMap(any[List[TypeModule]=>Future[List[TypeModule]]])(any[ExecutionContext])
+      there was one(futureMock).recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext])
+      there was one(f.typeModuleDaoMock).findListType()
+    }
+
+    "send 500 internal error if mongoDB error when find all module type name" in new WithApplication{
+      val f=fixture
+      val futureMock=mock[Future[Stream[BSONDocument]]]
+      val throwable=mock[Throwable]
+
+      f.typeModuleDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns future{List[TypeModule]()}
+      f.typeModuleDaoMock.findListType() returns futureMock
+      futureMock.map(any[Stream[BSONDocument]=>Stream[BSONDocument]])(any[ExecutionContext]) returns futureMock
+      futureMock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers {value=>future{value.asInstanceOf[PartialFunction[Throwable,Result]](throwable)}}
+
+      val r = f.controller.inventary().apply(FakeRequest(GET, "/inventary/modules").withSession("user" -> """{"login":"test"}"""))
+
+      status(r) must equalTo(INTERNAL_SERVER_ERROR)
+
+      there was one(f.typeModuleDaoMock).findAll(any[JsObject], any[JsObject])(any[ExecutionContext])
+      there was one(futureMock).map(any[Stream[BSONDocument]=>Stream[BSONDocument]])(any[ExecutionContext])
+      there was one(futureMock).recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext])
+      there was one(f.typeModuleDaoMock).findListType()
     }
   }
 

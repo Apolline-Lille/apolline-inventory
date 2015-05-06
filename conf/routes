@@ -35,7 +35,7 @@ GET         /inventary/sensors/:id/:id2/delete        controllers.SensorManager.
 GET         /inventary/sensors/:id/:id2/clone         controllers.SensorManager.sensorClonePage(id:String,id2:String)
 
 #Module page
-GET         /inventary/modules                        controllers.TypeModuleManager.inventary(sort:String ?= "")
+GET         /inventary/modules                        controllers.TypeModuleManager.inventary(sort:String ?= "", stock:String ?= "")
 GET         /inventary/modules/type                   controllers.TypeModuleManager.typePage
 POST        /inventary/modules/type                   controllers.TypeModuleManager.typeInsert
 

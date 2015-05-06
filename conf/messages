@@ -5,6 +5,12 @@ global.sensors=Inventaire
 global.error.required=This field is required
 global.error.noResult=Aucun résultat trouvé
 
+global.fieldRequired=Champs requis
+global.sort=Trie
+global.all=All
+global.yes=Oui
+global.no=Non
+
 global.btn.submit=Envoyer
 global.btn.reset=Reset
 global.btn.submitAndContinue=Envoyer et continuer
@@ -38,6 +44,8 @@ inventary.typeModule.addType=Nouveau type
 inventary.typeModule.modele=Modèle
 inventary.typeModule.types=Type de module
 inventary.typeModule.error.typeExist=Ce type de module existe déjà
+inventary.typeModule.stock=Stocks
+inventary.typeModule.confirmDelete=Êtes-vous sûr de vouloir supprimer ce type de module ?
 
 inventary.onglet.sensor=Capteurs
 inventary.onglet.module=Modules
