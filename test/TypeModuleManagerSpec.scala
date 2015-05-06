@@ -6,7 +6,7 @@ import org.specs2.matcher.{MatchResult, Expectable, Matcher}
 import org.specs2.mock.Mockito
 import org.specs2.mutable.Specification
 import org.specs2.runner.JUnitRunner
-import play.api.libs.json.{Json, JsObject}
+import play.api.libs.json.{Writes, Json, JsObject}
 import play.api.mvc.{Result, Action, Results, Call}
 import play.api.test.Helpers._
 import play.api.test.{FakeRequest, WithApplication}
@@ -72,6 +72,17 @@ class TypeModuleManagerSpec extends Specification with Mockito {
 
     "redirect to login for GET resource /inventary/modules/:id/update" in new WithApplication{
       route(FakeRequest(GET, "/inventary/modules/"+bson.stringify+"/update")).map(
+        r=>{
+          status(r) must equalTo(SEE_OTHER)
+          header("Location",r) must equalTo(Some("/login"))
+        }
+      ).getOrElse(
+          failure("Pas de retour de la fonction")
+        )
+    }
+
+    "redirect to login for POST resource /inventary/modules/:id/update" in new WithApplication{
+      route(FakeRequest(POST, "/inventary/modules/"+bson.stringify+"/update")).map(
         r=>{
           status(r) must equalTo(SEE_OTHER)
           header("Location",r) must equalTo(Some("/login"))
@@ -390,7 +401,7 @@ class TypeModuleManagerSpec extends Specification with Mockito {
 
       val fix = fixture
 
-      fix.typeModuleDaoMock.findById(any[BSONObjectID])(any[ExecutionContext]) returns future{typeModule}
+      fix.typeModuleDaoMock.findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext]) returns future{typeModule}
       fix.typeModuleDaoMock.findListModele() returns future{Stream[BSONDocument]()}
       fix.typeModuleDaoMock.findListType() returns future{Stream[BSONDocument]()}
 
@@ -403,9 +414,80 @@ class TypeModuleManagerSpec extends Specification with Mockito {
       content must contain("<input id=\"modele\" name=\"modele\" class=\"form-control\" list=\"list_modele\" type=\"text\" autocomplete=\"off\" value=\"mod\"/>")
       content must contain("<input id=\"types\" name=\"types\" class=\"form-control\" list=\"list_type\" type=\"text\" autocomplete=\"off\" value=\"typ\"/>")
 
-      there was one(fix.typeModuleDaoMock).findById(any[BSONObjectID])(any[ExecutionContext])
+      there was one(fix.typeModuleDaoMock).findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext])
       there was one(fix.typeModuleDaoMock).findListModele()
       there was one(fix.typeModuleDaoMock).findListType()
+    }
+
+    "send Redirect for type module not found" in new WithApplication {
+      val fix=fixture
+
+      fix.typeModuleDaoMock.findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext]) returns future{None}
+
+      val r = fix.controller.typeUpdatePage(bson.stringify).apply(FakeRequest(GET, "/inventary/modules/"+bson.stringify+"/update").withSession("user" -> """{"login":"test"}"""))
+
+      status(r) must equalTo(SEE_OTHER)
+      header("Location",r) must equalTo(Some("/inventary/modules"))
+
+      there was one(fix.typeModuleDaoMock).findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext])
+    }
+
+    "send 500 Internal error for mongoDB error when find the module type" in new WithApplication {
+      val future_Mock=mock[Future[Option[TypeModule]]]
+      val throwable=mock[Throwable]
+
+      val fix=fixture
+
+      fix.typeModuleDaoMock.findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext]) returns future_Mock
+      future_Mock.flatMap(any[(Option[TypeModule])=>Future[Option[TypeModule]]])(any[ExecutionContext]) returns future_Mock
+      future_Mock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers (vals => future{vals.asInstanceOf[PartialFunction[Throwable,Result]](throwable)})
+
+      val r = fix.controller.typeUpdatePage(bson.stringify).apply(FakeRequest(GET, "/inventary/modules/"+bson.stringify+"/update").withSession("user" -> """{"login":"test"}"""))
+
+      status(r) must equalTo(INTERNAL_SERVER_ERROR)
+
+      there was one(fix.typeModuleDaoMock).findById(any[BSONObjectID])(any[ExecutionContext])
+      there was one(future_Mock).flatMap(any[(Option[TypeModule])=>Future[Option[TypeModule]]])(any[ExecutionContext])
+      there was one(future_Mock).recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext])
+    }
+
+    "send redirect after update type module" in new WithApplication {
+      val formData = Json.parse("""{"modele":"mod","types":"typ"}""")
+      val fix=fixture
+      val lastError=mock[LastError]
+
+      fix.typeModuleDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{None}
+      fix.typeModuleDaoMock.updateById(org.mockito.Matchers.eq(bson),any[TypeModule],any[GetLastError])(any[Writes[TypeModule]],any[ExecutionContext]) returns future{lastError}
+
+      val r = fix.controller.typeUpdate(bson.stringify).apply(FakeRequest(POST, "/inventary/modules/"+bson.stringify+"/update").withJsonBody(formData).withSession("user" -> """{"login":"test"}"""))
+
+      status(r) must equalTo(SEE_OTHER)
+      header("Location",r) must equalTo(Some("/inventary/modules"))
+
+      there was one(fix.typeModuleDaoMock).findOne(any[JsObject])(any[ExecutionContext])
+      there was one(fix.typeModuleDaoMock).updateById(org.mockito.Matchers.eq(bson),any[TypeModule],any[GetLastError])(any[Writes[TypeModule]],any[ExecutionContext])
+    }
+
+    "send 500 Internal error for mongoDB error when update the module type" in new WithApplication {
+      val future_Mock=mock[Future[LastError]]
+      val formData = Json.parse("""{"modele":"mod","types":"typ"}""")
+      val throwable=mock[Throwable]
+
+      val fix=fixture
+
+      fix.typeModuleDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{None}
+      fix.typeModuleDaoMock.updateById(org.mockito.Matchers.eq(bson),any[TypeModule],any[GetLastError])(any[Writes[TypeModule]],any[ExecutionContext]) returns future_Mock
+      future_Mock.map(any[LastError=>LastError])(any[ExecutionContext]) returns future_Mock
+      future_Mock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers (vals => future{vals.asInstanceOf[PartialFunction[Throwable,Result]](throwable)})
+
+      val r = fix.controller.typeUpdate(bson.stringify).apply(FakeRequest(POST, "/inventary/modules/"+bson.stringify+"/update").withJsonBody(formData).withSession("user" -> """{"login":"test"}"""))
+
+      status(r) must equalTo(INTERNAL_SERVER_ERROR)
+
+      there was one(fix.typeModuleDaoMock).findOne(any[JsObject])(any[ExecutionContext])
+      there was one(fix.typeModuleDaoMock).updateById(org.mockito.Matchers.eq(bson),any[TypeModule],any[GetLastError])(any[Writes[TypeModule]],any[ExecutionContext])
+      there was one(future_Mock).map(any[LastError=>LastError])(any[ExecutionContext])
+      there was one(future_Mock).recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext])
     }
   }
 }

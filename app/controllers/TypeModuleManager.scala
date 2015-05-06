@@ -7,6 +7,7 @@ import play.api.libs.json.{Json, JsObject}
 import play.api.mvc._
 import play.api.data._
 import play.api.data.Forms._
+import play.modules.reactivemongo.json.BSONFormats
 import reactivemongo.bson.{BSONObjectID, BSONDocument}
 import scala.concurrent._
 
@@ -135,7 +136,7 @@ trait TypeModuleManagerLike extends Controller {
               val typeModuleData = TypeModuleForm(typeModule.modele,typeModule.types)
 
               //Display the form for update module type
-              printForm(Results.Ok,form.fill(typeModuleData),routes.TypeSensorManager.typeUpdate(id))
+              printForm(Results.Ok,form.fill(typeModuleData),routes.TypeModuleManager.typeUpdate(id))
             }
           }
         ).recover({
@@ -184,6 +185,53 @@ trait TypeModuleManagerLike extends Controller {
           case e => InternalServerError("error")
         })
 
+      }
+      }
+  }
+
+  /**
+   * This method is call when the user submit a form for update a module type
+   * @param id Sensor type id
+   * @return Return Bad Request Action if the form was submit with data error
+   *         Return Redirect Action when the user is not log in or module type is update
+   *         Return Internal Server Error Action when have mongoDB error
+   */
+  @ApiOperation(
+    nickname = "inventary/modules/:id/update",
+    value = "Update a module type",
+    notes = "Update a module type to the mongoDB database",
+    httpMethod = "POST")
+  @ApiResponses(Array(
+    new ApiResponse(code=303,message="<ul><li>Move resource to the login page at /login if the user is not log</li><li>Move resource to the module inventary page at /inventary/modules when module type is update"),
+    new ApiResponse(code=400,message="Fields required or not valid"),
+    new ApiResponse(code=500,message="Have a mongoDB error")
+  ))
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(value = "Id of the module type",required=true,name="id", dataType = "String", paramType = "path"),
+    new ApiImplicitParam (value = "Name of the module model",required=true,name="modele", dataType = "String", paramType = "form"),
+    new ApiImplicitParam (value = "Name of the module type",required=true,name="types", dataType = "String", paramType = "form")
+  ))
+  def typeUpdate(id:String)=Action.async{
+    implicit request=>
+
+      //Verify if the user is connect and if data received are valid
+      submitForm(routes.TypeModuleManager.typeUpdate(id)){
+        typeData => Json.obj("_id"->Json.obj("$ne"->BSONFormats.BSONObjectIDFormat.writes(BSONObjectID(id))),"modele" -> typeData.modele, "types" -> typeData.types)
+      }{typeData=>{
+
+        //Update module type
+        typeModuleDao.updateById(BSONObjectID(id),
+          TypeModule(
+            _id=BSONObjectID(id),
+            types=typeData.types,
+            modele=typeData.modele
+          )).map(
+            //Redirect to the inventary if module type was update
+            e => Redirect(routes.TypeModuleManager.inventary())
+          ).recover({
+          //Send Internal Server Error if have mongoDB error
+          case e => InternalServerError("error")
+        })
       }
       }
   }
