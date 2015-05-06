@@ -69,6 +69,17 @@ class TypeModuleManagerSpec extends Specification with Mockito {
           failure("Pas de retour de la fonction")
         )
     }
+
+    "redirect to login for GET resource /inventary/modules/:id/update" in new WithApplication{
+      route(FakeRequest(GET, "/inventary/modules/"+bson.stringify+"/update")).map(
+        r=>{
+          status(r) must equalTo(SEE_OTHER)
+          header("Location",r) must equalTo(Some("/login"))
+        }
+      ).getOrElse(
+          failure("Pas de retour de la fonction")
+        )
+    }
   }
 
   "When user is on the resource /inventary/modules , TypeModuleManager" should {
@@ -370,6 +381,31 @@ class TypeModuleManagerSpec extends Specification with Mockito {
       there was one(f.typeModuleDaoMock).insert(any[TypeModule],any[GetLastError])(any[ExecutionContext])
       there was one(lastError).map(any[LastError=>LastError])(any[ExecutionContext])
       there was one(lastError).recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext])
+    }
+  }
+
+  "When user is on the resource /inventary/modules/:id/update , TypeModuleManager" should {
+    "send 200 on OK with a form" in new WithApplication {
+      val typeModule = Some(TypeModule(bson, "mod", "typ"))
+
+      val fix = fixture
+
+      fix.typeModuleDaoMock.findById(any[BSONObjectID])(any[ExecutionContext]) returns future{typeModule}
+      fix.typeModuleDaoMock.findListModele() returns future{Stream[BSONDocument]()}
+      fix.typeModuleDaoMock.findListType() returns future{Stream[BSONDocument]()}
+
+      val r = fix.controller.typeUpdatePage(bson.stringify).apply(FakeRequest(GET, "/inventary/modules/" + bson.stringify + "/update").withSession("user" -> """{"login":"test"}"""))
+
+      status(r) must equalTo(OK)
+      contentType(r) must beSome.which(_ == "text/html")
+      val content = contentAsString(r)
+      content must contain("<title>Inventaire des modules</title>")
+      content must contain("<input id=\"modele\" name=\"modele\" class=\"form-control\" list=\"list_modele\" type=\"text\" autocomplete=\"off\" value=\"mod\"/>")
+      content must contain("<input id=\"types\" name=\"types\" class=\"form-control\" list=\"list_type\" type=\"text\" autocomplete=\"off\" value=\"typ\"/>")
+
+      there was one(fix.typeModuleDaoMock).findById(any[BSONObjectID])(any[ExecutionContext])
+      there was one(fix.typeModuleDaoMock).findListModele()
+      there was one(fix.typeModuleDaoMock).findListType()
     }
   }
 }

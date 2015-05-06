@@ -38,6 +38,7 @@ GET         /inventary/sensors/:id/:id2/clone         controllers.SensorManager.
 GET         /inventary/modules                        controllers.TypeModuleManager.inventary(sort:String ?= "", stock:String ?= "")
 GET         /inventary/modules/type                   controllers.TypeModuleManager.typePage
 POST        /inventary/modules/type                   controllers.TypeModuleManager.typeInsert
+GET         /inventary/modules/:id/update             controllers.TypeModuleManager.typeUpdatePage(id:String)
 
 # Map static resources from the /public folder to the /assets URL path
 GET         /assets/*file                             controllers.Assets.at(path="/public", file)

@@ -7,7 +7,7 @@ import play.api.libs.json.{Json, JsObject}
 import play.api.mvc._
 import play.api.data._
 import play.api.data.Forms._
-import reactivemongo.bson.BSONDocument
+import reactivemongo.bson.{BSONObjectID, BSONDocument}
 import scala.concurrent._
 
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
@@ -94,6 +94,54 @@ trait TypeModuleManagerLike extends Controller {
       UserManager.doIfconnectAsync(request) {
           //Display the form for insert new module type
           printForm(Results.Ok,form,routes.TypeModuleManager.typeInsert())
+      }
+  }
+
+  /**
+   * This method is call when the user is on the page /inventary/modules/:id/update. It display a form for update module type
+   * @param id Module type id
+   * @return Return Ok Action when the user is on the page /inventary/modules/:id/update with the form
+   *         Return Redirect Action when the user is not log in or module type information not found
+   *         Return Internal Server Error Action when have mongoDB error
+   */
+  @ApiOperation(
+    nickname = "inventary/modules/:id/update",
+    value = "Get the html page for update module type",
+    notes = "Get the html page for update module type",
+    httpMethod = "GET")
+  @ApiResponses(Array(
+    new ApiResponse(code=303,message="<ul><li>Move resource to the login page at /login if the user is not log</li><li>Move resource to the module inventary page at /inventary/modules when module type not found"),
+    new ApiResponse(code=500,message="Have a mongoDB error")
+  ))
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(value = "Id of the module type",required=true,name="id", dataType = "String", paramType = "path")
+  ))
+  def typeUpdatePage(id:String)=Action.async{
+    implicit request =>
+      //Verify if user is connect
+      UserManager.doIfconnectAsync(request) {
+
+        //Find the module type
+        typeModuleDao.findById(BSONObjectID(id)).flatMap(
+          typeModuleOpt=> typeModuleOpt match{
+
+            //Module type not found redirect to the module inventary
+            case None=>future{Redirect(routes.TypeModuleManager.inventary())}
+
+            //Module type found
+            case Some(typeModule)=>{
+
+              //Prepare data for prefilled the form
+              val typeModuleData = TypeModuleForm(typeModule.modele,typeModule.types)
+
+              //Display the form for update module type
+              printForm(Results.Ok,form.fill(typeModuleData),routes.TypeSensorManager.typeUpdate(id))
+            }
+          }
+        ).recover({
+          //Send an Internal Server Error for mongoDB error
+          case e=>InternalServerError("error")
+        })
       }
   }
 
