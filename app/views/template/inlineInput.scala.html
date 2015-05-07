@@ -2,7 +2,7 @@
 
 @html=@{new Html(elements.input.toString().replace("required=\"true\" ",""))}
 
-<div class="col-sm-12 @if(elements.hasErrors) {has-error}">
+<div id="block_@elements.id" class="col-sm-12 @if(elements.hasErrors) {has-error}" style="@elements.args.getOrElse('style,"")">
   <label class="col-sm-3 control-label" for="@elements.id">
     @elements.label
     @if(elements.args.getOrElse('required,false)==true){

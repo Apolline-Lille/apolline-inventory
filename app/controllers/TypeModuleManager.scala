@@ -288,6 +288,30 @@ trait TypeModuleManagerLike extends Controller {
     }
   }
 
+  /**
+   * Verify if module type found and execute a function if module type found or not
+   * @param id Module type id
+   * @param found Function executed if module type found
+   * @param notFound Function executed if module type not found
+   * @return Return the result of executed function
+   */
+  def doIfTypeModuleFound(id:BSONObjectID)(found:Unit=>Future[Result])(notFound:Unit=>Future[Result]):Future[Result]={
+    //Find the module type
+    typeModuleDao.findOne(Json.obj("_id"->BSONFormats.BSONObjectIDFormat.writes(id),"delete"->false)).flatMap(
+      typeModuleOpt => typeModuleOpt match{
+
+        //If the module type not found execute function not found
+        case None => notFound()
+
+        //If the module type found execute function found
+        case Some(_) => found()
+      }
+    ).recover({
+      //Send Internal Server Error if have mongoDB error
+      case _=> InternalServerError("error")
+    })
+  }
+
   def filtreStock(filtre:String)(v:Int)=filtre match{
     case "yes" => v>0
     case "no" => v==0

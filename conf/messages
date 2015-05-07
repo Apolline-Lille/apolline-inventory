@@ -46,11 +46,17 @@ inventary.typeModule.types=Type de module
 inventary.typeModule.error.typeExist=Ce type de module existe déjà
 inventary.typeModule.stock=Stocks
 inventary.typeModule.confirmDelete=Êtes-vous sûr de vouloir supprimer ce type de module ?
+inventary.typeModule.error.typeNotExist=Ce type de module n''existe pas
 
 inventary.module.id=Identifiant
 inventary.module.acquisition=Date d''acquisition
 inventary.module.firstUse=Date de première utilisation
+inventary.module.agregateur=Agrégateur
+inventary.module.firmware=Firmware
+inventary.module.versionFirmware=Version du firmware
 inventary.module.apolline=Version d''apolline
+inventary.module.hs=Hors service
+inventary.module.commentaire=Commentaire
 inventary.module.etat=Etat
 inventary.module.addModule=Nouveau module
 

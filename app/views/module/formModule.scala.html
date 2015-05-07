@@ -1,0 +1,62 @@
+@(form:Form[ModuleForm],id:String,routeSubmit:Call,apolline:List[reactivemongo.bson.BSONDocument],firmware:List[reactivemongo.bson.BSONDocument],vFirmware:List[reactivemongo.bson.BSONDocument])
+
+@import models.template.InlineInput.inlineInput
+
+@main(Messages("inventary.typeModule.title")){
+  @navigation("inventary")
+  <div class="container">
+    @inventary("module")
+    <section>
+      <article>
+        <a href="@routes.ModuleManager.inventary(id)">Retour</a>
+        @helper.form(action=routeSubmit){
+          @for(error<-form.globalErrors){
+            <div class="alert alert-danger" role="alert">@error.message</div>
+          }
+          <h5 style="color:red;float:right"><em>*</em> @Messages("global.fieldRequired")</h5>
+          <div class="col-sm-12">
+            @helper.inputText(form("id"),'_label->Messages("inventary.module.id"),'required->true,'class->"form-control")
+            @helper.inputDate(form("acquisition"),'_label->Messages("inventary.module.acquisition"),'required->true,'class->"form-control")
+            @helper.inputDate(form("firstUse"),'_label->Messages("inventary.module.firstUse"),'class->"form-control")
+            @helper.checkbox(form("agregateur"),'_label->Messages("inventary.module.agregateur"))
+            @helper.input(form("apolline"),'_label->Messages("inventary.module.apolline")){(id,name,value,args)=>
+              <input type="text" id="@id" name="@name" class="form-control" value="@value" autocomplete="off" list="list_apolline"/>
+              <datalist id="list_apolline">
+                @for(app<-apolline){
+                  <option value="@{app.getAs[String]("_id")}"></option>
+                }
+              </datalist>
+            }
+            @helper.input(form("firmware"),'_label->Messages("inventary.module.firmware"),'required->true){(id,name,value,args)=>
+              <input type="text" id="@id" name="@name" class="form-control" value="@value" autocomplete="off" list="list_firmware"/>
+              <datalist id="list_firmware">
+                @for(firm<-firmware){
+                  <option value="@{firm.getAs[String]("_id")}"></option>
+                }
+              </datalist>
+            }
+            @helper.input(form("versionFirmware"),'_label->Messages("inventary.module.versionFirmware"),'required->true){(id,name,value,args)=>
+              <input type="text" id="@id" name="@name" class="form-control" value="@value" autocomplete="off" list="list_versionFirmware"/>
+              <datalist id="list_versionFirmware">
+                @for(vFirm<-vFirmware){
+                  <option value="@{vFirm.getAs[String]("_id")}"></option>
+                }
+              </datalist>
+            }
+            @helper.checkbox(form("hs"),'_label->Messages("inventary.module.hs"))
+            @helper.textarea(form("commentaire"),'_label->Messages("inventary.module.commentaire"),'class->"form-control")
+          </div>
+          <div class="col-sm-12">
+            <div style="float:right">
+              <input value="@Messages("global.btn.reset")" class="btn btn-default" type="reset"/>
+              <input value="@Messages("global.btn.submit")" class="btn btn-default" type="submit" name="send"/>
+              @if(routeSubmit.toString().endsWith("/sensor")){
+                <input value="@Messages("global.btn.submitAndContinue")" class="btn btn-default" type="submit" name="send"/>
+              }
+            </div>
+          </div>
+        }
+      </article>
+    </section>
+  </div>
+}
