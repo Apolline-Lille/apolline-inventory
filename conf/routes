@@ -42,6 +42,7 @@ GET         /inventary/modules/:id/update             controllers.TypeModuleMana
 POST        /inventary/modules/:id/update             controllers.TypeModuleManager.typeUpdate(id:String)
 GET         /inventary/modules/:id                    controllers.ModuleManager.inventary(id:String)
 GET         /inventary/modules/:id/module             controllers.ModuleManager.modulePage(id:String)
+POST        /inventary/modules/:id/module             controllers.ModuleManager.moduleInsert(id:String)
 
 
 # Map static resources from the /public folder to the /assets URL path

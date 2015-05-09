@@ -10,7 +10,7 @@ import play.api.Play.current
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
-case class Firmware(_id:BSONObjectID,nom:String,version:String)
+case class Firmware(_id:BSONObjectID=BSONObjectID.generate,nom:String,version:String)
 
 object Firmware{
   implicit val firmwareFormat:Format[Firmware]=Json.format[Firmware]

@@ -12,7 +12,7 @@ import play.api.Play.current
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
-case class Module(_id:BSONObjectID=BSONObjectID.generate,id:String,types:BSONObjectID,firmware:BSONObjectID,acquisition:Date,firstUse:Option[Date],agregateur:Boolean,apolline:Option[String],hs:String,commentaire:Option[String],delete:Boolean=false)
+case class Module(_id:BSONObjectID=BSONObjectID.generate,id:String,types:BSONObjectID,firmware:BSONObjectID,acquisition:Date,firstUse:Option[Date],agregateur:Boolean,apolline:Option[String],hs:Boolean,commentaire:Option[String],delete:Boolean=false)
 
 object Module{
   implicit val moduleFormat:Format[Module]=Json.format[Module]

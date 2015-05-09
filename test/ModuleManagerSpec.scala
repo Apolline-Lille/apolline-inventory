@@ -1,16 +1,19 @@
 import java.util.Date
 
-import controllers.{ModuleManager, TypeModuleManagerLike, ModuleManagerLike}
-import models.{FirmwareDao, ModuleDao, TypeModule, TypeModuleDao}
+import controllers.{ModuleForm, ModuleManager, TypeModuleManagerLike, ModuleManagerLike}
+import models._
 import org.junit.runner.RunWith
 import org.specs2.matcher.{MatchResult, Expectable, Matcher}
 import org.specs2.mock.Mockito
 import org.specs2.mutable.Specification
 import org.specs2.runner.JUnitRunner
+import play.api.data.Form
+import play.api.libs.json.{JsObject, Json}
 import play.api.mvc.{Call, Results, Action, Result}
 import play.api.test.Helpers._
 import play.api.test.{FakeRequest, WithApplication}
 import reactivemongo.bson.{BSONDocument, BSONObjectID}
+import reactivemongo.core.commands.{LastError, GetLastError}
 
 import scala.concurrent._
 
@@ -30,6 +33,7 @@ class ModuleManagerSpec extends Specification with Mockito {
   }
 
   val date = new Date(115, 3, 22)
+  val date2 = new Date(115, 3, 23)
 
   val bson = BSONObjectID.generate
   val bson2 = BSONObjectID.generate
@@ -75,6 +79,18 @@ class ModuleManagerSpec extends Specification with Mockito {
 
     "redirect to login for resource /inventary/modules/:id/module" in new WithApplication{
       route(FakeRequest(GET, "/inventary/modules/"+bson.stringify+"/module")).map(
+        r=> {
+
+          status(r) must equalTo(SEE_OTHER)
+          header("Location", r) must equalTo(Some("/login"))
+        }
+      ).getOrElse(
+          failure("Pas de retour de la fonction")
+        )
+    }
+
+    "redirect to login for resource /inventary/modules/:id/module" in new WithApplication{
+      route(FakeRequest(POST, "/inventary/modules/"+bson.stringify+"/module")).map(
         r=> {
 
           status(r) must equalTo(SEE_OTHER)
@@ -243,6 +259,303 @@ class ModuleManagerSpec extends Specification with Mockito {
     }
   }
 
+  "When method insertFirmwareIfNotFound is called, ModuleManager" should{
+    "applied function in parameter if firmware exist" in new WithApplication{
+      val f=fixture
+      val moduleForm=mock[ModuleForm]
+      val func=mock[(ModuleForm,BSONObjectID)=>Future[Result]]
+      val firmware=Firmware(bson,"firm","v01")
+
+      moduleForm.firmware returns "firm"
+      moduleForm.versionFirmware returns "v01"
+      f.firmwareDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("nom"->"firm","version"->"v01")))(any[ExecutionContext]) returns future{Some(firmware)}
+      func.apply(org.mockito.Matchers.eq(moduleForm),org.mockito.Matchers.eq(bson)) returns future{Results.Ok("exec func")}
+
+      val req=FakeRequest(GET, "/inventary/modules/" + bson.stringify).withSession("user" -> """{"login":"test"}""")
+      val action=Action.async{f.controller.insertFirmwareIfNotFound(moduleForm,func)}
+      val r=call(action,req)
+
+      status(r) must beEqualTo(OK)
+      contentAsString(r) must beEqualTo("exec func")
+
+      there was one(moduleForm).firmware
+      there was one(moduleForm).versionFirmware
+      there was one(f.firmwareDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("nom"->"firm","version"->"v01")))(any[ExecutionContext])
+      there was one(func).apply(org.mockito.Matchers.eq(moduleForm),org.mockito.Matchers.eq(bson))
+    }
+
+    "insert firmware into the database and applied function in parameter if firmware not exist" in new WithApplication{
+      val f=fixture
+      val moduleForm=mock[ModuleForm]
+      val func=mock[(ModuleForm,BSONObjectID)=>Future[Result]]
+      val lastError=mock[LastError]
+
+      moduleForm.firmware returns "firm"
+      moduleForm.versionFirmware returns "v01"
+      f.firmwareDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("nom"->"firm","version"->"v01")))(any[ExecutionContext]) returns future{None}
+      f.firmwareDaoMock.insert(any[Firmware],any[GetLastError])(any[ExecutionContext]) returns future{lastError}
+      func.apply(org.mockito.Matchers.eq(moduleForm),any[BSONObjectID]) returns future{Results.Ok("exec func")}
+
+      val req=FakeRequest(GET, "/inventary/modules/" + bson.stringify).withSession("user" -> """{"login":"test"}""")
+      val action=Action.async{f.controller.insertFirmwareIfNotFound(moduleForm,func)}
+      val r=call(action,req)
+
+      println(contentAsString(r))
+      status(r) must beEqualTo(OK)
+      contentAsString(r) must beEqualTo("exec func")
+
+      there was 2.times(moduleForm).firmware
+      there was 2.times(moduleForm).versionFirmware
+      there was one(f.firmwareDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("nom"->"firm","version"->"v01")))(any[ExecutionContext])
+      there was one(f.firmwareDaoMock).insert(any[Firmware],any[GetLastError])(any[ExecutionContext])
+      there was one(func).apply(org.mockito.Matchers.eq(moduleForm),any[BSONObjectID])
+    }
+
+    "send 500 internal error if mongoDB error when find firmware" in new WithApplication{
+      val f=fixture
+      val moduleForm=mock[ModuleForm]
+      val func=mock[(ModuleForm,BSONObjectID)=>Future[Result]]
+      val futureMock=mock[Future[Option[Firmware]]]
+      val throwable=mock[Throwable]
+
+      moduleForm.firmware returns "firm"
+      moduleForm.versionFirmware returns "v01"
+      f.firmwareDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("nom"->"firm","version"->"v01")))(any[ExecutionContext]) returns futureMock
+      futureMock.flatMap(any[Option[Firmware]=>Future[Option[Firmware]]])(any[ExecutionContext]) returns futureMock
+      futureMock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers {value => future{value.asInstanceOf[PartialFunction[Throwable,Result]](throwable)}}
+
+      val req=FakeRequest(GET, "/inventary/modules/" + bson.stringify).withSession("user" -> """{"login":"test"}""")
+      val action=Action.async{f.controller.insertFirmwareIfNotFound(moduleForm,func)}
+      val r=call(action,req)
+
+      status(r) must beEqualTo(INTERNAL_SERVER_ERROR)
+
+      there was one(moduleForm).firmware
+      there was one(moduleForm).versionFirmware
+      there was one(f.firmwareDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("nom"->"firm","version"->"v01")))(any[ExecutionContext])
+      there was one(futureMock).flatMap(any[Option[Firmware]=>Future[Option[Firmware]]])(any[ExecutionContext])
+      there was one(futureMock).recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext])
+    }
+
+    "send 500 internal error if mongoDB error when insert firmware" in new WithApplication{
+      val f=fixture
+      val moduleForm=mock[ModuleForm]
+      val func=mock[(ModuleForm,BSONObjectID)=>Future[Result]]
+      val futureMock=mock[Future[LastError]]
+      val throwable=mock[Throwable]
+
+      moduleForm.firmware returns "firm"
+      moduleForm.versionFirmware returns "v01"
+      f.firmwareDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("nom"->"firm","version"->"v01")))(any[ExecutionContext]) returns future{None}
+      f.firmwareDaoMock.insert(any[Firmware],any[GetLastError])(any[ExecutionContext]) returns futureMock
+      futureMock.flatMap(any[LastError=>Future[LastError]])(any[ExecutionContext]) returns futureMock
+      futureMock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers {value => future{value.asInstanceOf[PartialFunction[Throwable,Result]](throwable)}}
+
+      val req=FakeRequest(GET, "/inventary/modules/" + bson.stringify).withSession("user" -> """{"login":"test"}""")
+      val action=Action.async{f.controller.insertFirmwareIfNotFound(moduleForm,func)}
+      val r=call(action,req)
+
+      status(r) must beEqualTo(INTERNAL_SERVER_ERROR)
+
+      there was 2.times(moduleForm).firmware
+      there was 2.times(moduleForm).versionFirmware
+      there was one(f.firmwareDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("nom"->"firm","version"->"v01")))(any[ExecutionContext])
+      there was one(f.firmwareDaoMock).insert(any[Firmware],any[GetLastError])(any[ExecutionContext])
+      there was one(futureMock).flatMap(any[LastError=>Future[LastError]])(any[ExecutionContext])
+      there was one(futureMock).recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext])
+    }
+  }
+
+  "When user submit a form, SensorManager" should{
+    "send bad_request with the form if module type not exist" in new WithApplication{
+      val f=fixture
+      val func=mock[(ModuleForm,BSONObjectID)=>Future[Result]]
+      val funcVerif=mock[ModuleForm=>JsObject]
+      val routeCall=mock[Call]
+
+      f.applyNotFoundFunction()
+      f.moduleDaoMock.findApolline() returns future{Stream[BSONDocument]()}
+      f.firmwareDaoMock.findFirmware() returns future{Stream[BSONDocument]()}
+      f.firmwareDaoMock.findVersionFirmware() returns future{Stream[BSONDocument]()}
+
+      val req=FakeRequest(POST,"/inventary/modules/"+bson.stringify+"/module").withSession("user" -> """{"login":"test"}""")
+      val action=Action.async(implicit request => f.controller.submitForm(bson.stringify,routeCall)(funcVerif)(func))
+      val r=call(action,req)
+
+      status(r) must equalTo(BAD_REQUEST)
+      contentType(r) must beSome.which(_ == "text/html")
+      val content = contentAsString(r)
+      content must contain("<title>Inventaire des modules</title>")
+      content must contain("Ce type de module n&#x27;existe pas")
+
+      there was one(f.typeModuleManagerMock).doIfTypeModuleFound(org.mockito.Matchers.eq(bson))(any[Unit=>Future[Result]])(any[Unit=>Future[Result]])
+      there was one(f.moduleDaoMock).findApolline()
+      there was one(f.firmwareDaoMock).findFirmware()
+      there was one(f.firmwareDaoMock).findVersionFirmware()
+    }
+
+    "send bad request when the form was submit with empty fields" in new WithApplication{
+      val f=fixture
+      val routeCall=mock[Call]
+      val funcVerif=mock[ModuleForm=>JsObject]
+      val func=mock[(ModuleForm,BSONObjectID)=>Future[Result]]
+
+      f.applyFoundFunction()
+      f.moduleDaoMock.findApolline() returns future{Stream[BSONDocument]()}
+      f.firmwareDaoMock.findFirmware() returns future{Stream[BSONDocument]()}
+      f.firmwareDaoMock.findVersionFirmware() returns future{Stream[BSONDocument]()}
+
+      val req=FakeRequest(POST,"/inventary/modules/"+bson.stringify+"/module").withSession("user" -> """{"login":"test"}""")
+      val action=Action.async(implicit request => f.controller.submitForm(bson.stringify,routeCall)(funcVerif)(func))
+      val r=call(action,req)
+
+      status(r) must equalTo(BAD_REQUEST)
+      contentType(r) must beSome.which(_ == "text/html")
+      val content = contentAsString(r)
+      content must contain("<title>Inventaire des modules</title>")
+      content must contains("<span class=\"control-label errors\">This field is required</span>",4)
+      content must not contain("<span class=\"control-label errors\">Valid date required</span>")
+
+      there was one(f.typeModuleManagerMock).doIfTypeModuleFound(org.mockito.Matchers.eq(bson))(any[Unit=>Future[Result]])(any[Unit=>Future[Result]])
+      there was one(f.moduleDaoMock).findApolline()
+      there was one(f.firmwareDaoMock).findFirmware()
+      there was one(f.firmwareDaoMock).findVersionFirmware()
+    }
+
+    "send bad request when the form was submit with not valid date" in new WithApplication{
+      val f=fixture
+      val routeCall=mock[Call]
+      val funcVerif=mock[ModuleForm=>JsObject]
+      val func=mock[(ModuleForm,BSONObjectID)=>Future[Result]]
+      val data=Json.parse("""{"id":"Id","acquisition":"a","firstUse":"a","firmware":"firm","versionFirmware":"v01","send":"submit"}""")
+
+      f.applyFoundFunction()
+      f.moduleDaoMock.findApolline() returns future{Stream[BSONDocument]()}
+      f.firmwareDaoMock.findFirmware() returns future{Stream[BSONDocument]()}
+      f.firmwareDaoMock.findVersionFirmware() returns future{Stream[BSONDocument]()}
+
+      val req=FakeRequest(POST,"/inventary/modules/"+bson.stringify+"/module").withJsonBody(data).withSession("user" -> """{"login":"test"}""")
+      val action=Action.async(implicit request => f.controller.submitForm(bson.stringify,routeCall)(funcVerif)(func))
+      val r=call(action,req)
+
+      status(r) must equalTo(BAD_REQUEST)
+      contentType(r) must beSome.which(_ == "text/html")
+      val content = contentAsString(r)
+      content must contain("<title>Inventaire des modules</title>")
+      content must not contain("<span class=\"control-label errors\">This field is required</span>")
+      content must contains("<span class=\"control-label errors\">Valid date required</span>",2)
+
+      there was one(f.typeModuleManagerMock).doIfTypeModuleFound(org.mockito.Matchers.eq(bson))(any[Unit=>Future[Result]])(any[Unit=>Future[Result]])
+      there was one(f.moduleDaoMock).findApolline()
+      there was one(f.firmwareDaoMock).findFirmware()
+      there was one(f.firmwareDaoMock).findVersionFirmware()
+    }
+
+    "Verify if the acquisition date is before first use date" in new WithApplication{
+      val f=fixture
+      val formMock=mock[Form[ModuleForm]]
+      val formMock2=mock[Form[ModuleForm]]
+      val moduleForm=ModuleForm("",date2,Some(date),false,None,"","",false,None,"")
+
+      formMock.withError(org.mockito.Matchers.eq("firstUse"),org.mockito.Matchers.eq("La date de première utilisation doit être supèrieur à la date d'acquisition"),any[Array[Any]]) returns formMock2
+
+      val ret=f.controller.verifyErrorAcquisitionAfterFirstUse(moduleForm,formMock)
+
+      ret must equalTo(formMock2)
+
+      there was one(formMock).withError(org.mockito.Matchers.eq("firstUse"),org.mockito.Matchers.eq("La date de première utilisation doit être supèrieur à la date d'acquisition"),any[Array[Any]])
+    }
+
+    "send bad request when the form was submit with date error" in new WithApplication{
+      val f=fixture
+      val routeCall=mock[Call]
+      val funcVerif=mock[ModuleForm=>JsObject]
+      val func=mock[(ModuleForm,BSONObjectID)=>Future[Result]]
+      val data=Json.parse("""{"id":"Id","acquisition":"2015-04-23","firstUse":"2015-04-22","firmware":"firm","versionFirmware":"v01","send":"submit"}""")
+
+      f.applyFoundFunction()
+      f.moduleDaoMock.findApolline() returns future{Stream[BSONDocument]()}
+      f.firmwareDaoMock.findFirmware() returns future{Stream[BSONDocument]()}
+      f.firmwareDaoMock.findVersionFirmware() returns future{Stream[BSONDocument]()}
+
+      val req=FakeRequest(POST,"/inventary/modules/"+bson.stringify+"/module").withJsonBody(data).withSession("user" -> """{"login":"test"}""")
+      val action=Action.async(implicit request => f.controller.submitForm(bson.stringify,routeCall)(funcVerif)(func))
+      val r=call(action,req)
+
+      status(r) must equalTo(BAD_REQUEST)
+      contentType(r) must beSome.which(_ == "text/html")
+      val content = contentAsString(r)
+      content must contain("<title>Inventaire des modules</title>")
+      content must not contain("<span class=\"control-panel errors\">This field is required</span>")
+      content must contain("<span class=\"control-label errors\">La date de première utilisation doit être supèrieur à la date d&#x27;acquisition</span>")
+
+      there was one(f.typeModuleManagerMock).doIfTypeModuleFound(org.mockito.Matchers.eq(bson))(any[Unit=>Future[Result]])(any[Unit=>Future[Result]])
+      there was one(f.moduleDaoMock).findApolline()
+      there was one(f.firmwareDaoMock).findFirmware()
+      there was one(f.firmwareDaoMock).findVersionFirmware()
+    }
+
+    "send 500 internal error if mongoDB error when find module" in new WithApplication{
+      val f=fixture
+      val routeCall=mock[Call]
+      val funcVerif=mock[ModuleForm=>JsObject]
+      val func=mock[(ModuleForm,BSONObjectID)=>Future[Result]]
+      val data=Json.parse("""{"id":"Id","acquisition":"2015-04-22","firmware":"firm","versionFirmware":"v01","send":"submit"}""")
+      val futureMock=mock[Future[Option[Module]]]
+      val throwable=mock[Throwable]
+
+      f.applyFoundFunction()
+      f.moduleDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns futureMock
+      funcVerif.apply(any[ModuleForm]) returns Json.obj()
+      futureMock.flatMap(any[Option[Module]=>Future[Option[Module]]])(any[ExecutionContext]) returns futureMock
+      futureMock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers (value=>future{value.asInstanceOf[PartialFunction[Throwable,Result]](throwable)})
+
+      val req=FakeRequest(POST,"/inventary/modules/"+bson.stringify+"/module").withJsonBody(data).withSession("user" -> """{"login":"test"}""")
+      val action=Action.async(implicit request => f.controller.submitForm(bson.stringify,routeCall)(funcVerif)(func))
+      val r=call(action,req)
+
+      status(r) must equalTo(INTERNAL_SERVER_ERROR)
+
+      there was one(f.typeModuleManagerMock).doIfTypeModuleFound(org.mockito.Matchers.eq(bson))(any[Unit=>Future[Result]])(any[Unit=>Future[Result]])
+      there was one(f.moduleDaoMock).findOne(any[JsObject])(any[ExecutionContext])
+      there was one(funcVerif).apply(any[ModuleForm])
+      there was one(futureMock).flatMap(any[Option[Module]=>Future[Option[Module]]])(any[ExecutionContext])
+      there was one(futureMock).recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext])
+    }
+
+    "send bad_request if module exist" in new WithApplication{
+      val f=fixture
+      val routeCall=mock[Call]
+      val funcVerif=mock[ModuleForm=>JsObject]
+      val func=mock[(ModuleForm,BSONObjectID)=>Future[Result]]
+      val data=Json.parse("""{"id":"Id","acquisition":"2015-04-22","firmware":"firm","versionFirmware":"v01","send":"submit"}""")
+      val futureMock=mock[Future[Option[Module]]]
+      val module=mock[Module]
+
+      f.applyFoundFunction()
+      f.moduleDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{Some(module)}
+      funcVerif.apply(any[ModuleForm]) returns Json.obj()
+      f.moduleDaoMock.findApolline() returns future{Stream[BSONDocument]()}
+      f.firmwareDaoMock.findFirmware() returns future{Stream[BSONDocument]()}
+      f.firmwareDaoMock.findVersionFirmware() returns future{Stream[BSONDocument]()}
+
+      val req=FakeRequest(POST,"/inventary/modules/"+bson.stringify+"/module").withJsonBody(data).withSession("user" -> """{"login":"test"}""")
+      val action=Action.async(implicit request => f.controller.submitForm(bson.stringify,routeCall)(funcVerif)(func))
+      val r=call(action,req)
+
+      status(r) must equalTo(BAD_REQUEST)
+      val content=contentAsString(r)
+      content must contain("<div class=\"alert alert-danger\" role=\"alert\">Ce module existe déjà</div>")
+
+      there was one(f.typeModuleManagerMock).doIfTypeModuleFound(org.mockito.Matchers.eq(bson))(any[Unit=>Future[Result]])(any[Unit=>Future[Result]])
+      there was one(f.moduleDaoMock).findOne(any[JsObject])(any[ExecutionContext])
+      there was one(funcVerif).apply(any[ModuleForm])
+      there was one(f.moduleDaoMock).findApolline()
+      there was one(f.firmwareDaoMock).findFirmware()
+      there was one(f.firmwareDaoMock).findVersionFirmware()
+    }
+  }
+
   "When user is on the resource /inventary/modules/:id/module , ModuleManager" should {
     "send 200 on OK with an empty form" in new WithApplication {
       val f=fixture
@@ -305,6 +618,93 @@ class ModuleManagerSpec extends Specification with Mockito {
       there was one(f.firmwareDaoMock).findFirmware()
       there was one(f.firmwareDaoMock).findVersionFirmware()
       there was one(f.typeModuleManagerMock).doIfTypeModuleFound(org.mockito.Matchers.eq(bson))(any[Unit => Future[Result]])(any[Unit => Future[Result]])
+    }
+
+    "send 500 internal error if have mongoDB error when insert module" in new WithApplication{
+      val f=fixture
+      val data=Json.parse("""{"id":"Id","acquisition":"2015-04-22","firmware":"firm","versionFirmware":"v01","send":"submit"}""")
+      val futureMock=mock[Future[LastError]]
+      val throwable=mock[Throwable]
+
+      f.applyFoundFunction()
+      f.moduleDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{None}
+      f.firmwareDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("nom"->"firm","version"->"v01")))(any[ExecutionContext]) returns future{Some(Firmware(bson,"firm","v01"))}
+      f.moduleDaoMock.insert(any[Module],any[GetLastError])(any[ExecutionContext]) returns futureMock
+      futureMock.flatMap(any[LastError=>Future[LastError]])(any[ExecutionContext]) returns futureMock
+      futureMock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers {value=>future{value.asInstanceOf[PartialFunction[Throwable,Result]](throwable)}}
+
+      val req=FakeRequest(POST,"/inventary/modules/"+bson.stringify+"/module").withJsonBody(data).withSession("user" -> """{"login":"test"}""")
+      val r=f.controller.moduleInsert(bson.stringify).apply(req)
+
+      status(r) must equalTo(INTERNAL_SERVER_ERROR)
+
+      there was one(f.typeModuleManagerMock).doIfTypeModuleFound(org.mockito.Matchers.eq(bson))(any[Unit=>Future[Result]])(any[Unit=>Future[Result]])
+      there was one(f.moduleDaoMock).findOne(any[JsObject])(any[ExecutionContext])
+      there was one(f.firmwareDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("nom"->"firm","version"->"v01")))(any[ExecutionContext])
+      there was one(f.moduleDaoMock).insert(any[Module],any[GetLastError])(any[ExecutionContext])
+      there was one(futureMock).flatMap(any[LastError=>Future[LastError]])(any[ExecutionContext])
+      there was one(futureMock).recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext])
+    }
+
+    "send redirect if user not would be continue to insert sensor" in new WithApplication{
+      val f=fixture
+      val data=Json.parse("""{"id":"Id","acquisition":"2015-04-22","firmware":"firm","versionFirmware":"v01","send":"Envoyer"}""")
+      val lastError=mock[LastError]
+
+      f.applyFoundFunction()
+      f.moduleDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{None}
+      f.firmwareDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("nom"->"firm","version"->"v01")))(any[ExecutionContext]) returns future{Some(Firmware(bson,"firm","v01"))}
+      f.moduleDaoMock.insert(any[Module],any[GetLastError])(any[ExecutionContext]) returns future{lastError}
+
+      val req=FakeRequest(POST,"/inventary/modules/"+bson.stringify+"/module").withJsonBody(data).withSession("user" -> """{"login":"test"}""")
+      val r=f.controller.moduleInsert(bson.stringify).apply(req)
+
+      status(r) must equalTo(SEE_OTHER)
+      header("Location",r) must equalTo(Some("/inventary/modules/"+bson.stringify))
+
+      there was one(f.typeModuleManagerMock).doIfTypeModuleFound(org.mockito.Matchers.eq(bson))(any[Unit=>Future[Result]])(any[Unit=>Future[Result]])
+      there was one(f.moduleDaoMock).findOne(any[JsObject])(any[ExecutionContext])
+      there was one(f.firmwareDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("nom"->"firm","version"->"v01")))(any[ExecutionContext])
+      there was one(f.moduleDaoMock).insert(any[Module],any[GetLastError])(any[ExecutionContext])
+    }
+
+    "send 200 Ok page after insert sensor" in new WithApplication{
+      val f=fixture
+      val data=Json.parse("""{"id":"Id","acquisition":"2015-04-22","firstUse":"2015-04-22","apolline":"vapolline","firmware":"firm","versionFirmware":"v01","commentaire":"un com","send":"Envoyer et continuer"}""")
+      val lastError=mock[LastError]
+
+      f.applyFoundFunction()
+      f.moduleDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{None}
+      f.firmwareDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("nom"->"firm","version"->"v01")))(any[ExecutionContext]) returns future{Some(Firmware(bson,"firm","v01"))}
+      f.moduleDaoMock.insert(any[Module],any[GetLastError])(any[ExecutionContext]) returns future{lastError}
+      f.moduleDaoMock.findApolline() returns future{Stream[BSONDocument]()}
+      f.firmwareDaoMock.findFirmware() returns future{Stream[BSONDocument]()}
+      f.firmwareDaoMock.findVersionFirmware() returns future{Stream[BSONDocument]()}
+
+      val req=FakeRequest(POST,"/inventary/modules/"+bson.stringify+"/module").withJsonBody(data).withSession("user" -> """{"login":"test"}""")
+      val r=f.controller.moduleInsert(bson.stringify).apply(req)
+
+      status(r) must equalTo(OK)
+      contentType(r) must beSome.which(_ == "text/html")
+      val content=contentAsString(r)
+      content must contain("<title>Inventaire des modules</title>")
+      content must contain("<input type=\"text\" id=\"id\" name=\"id\" value=\"\" class=\"form-control\"/>")
+      content must contain("<input type=\"date\" id=\"acquisition\" name=\"acquisition\" value=\"2015-04-22\" class=\"form-control\"/>")
+      content must contain("<input type=\"date\" id=\"firstUse\" name=\"firstUse\" value=\"2015-04-22\" class=\"form-control\"/>")
+      content must contain("<input type=\"checkbox\" id=\"agregateur\" name=\"agregateur\" value=\"true\"  />")
+      content must contain("<input type=\"text\" id=\"apolline\" name=\"apolline\" class=\"form-control\" value=\"vapolline\" autocomplete=\"off\" list=\"list_apolline\"/>")
+      content must contain("<input type=\"text\" id=\"firmware\" name=\"firmware\" class=\"form-control\" value=\"firm\" autocomplete=\"off\" list=\"list_firmware\"/>")
+      content must contain("<input type=\"text\" id=\"versionFirmware\" name=\"versionFirmware\" class=\"form-control\" value=\"v01\" autocomplete=\"off\" list=\"list_versionFirmware\"/>")
+      content must contain("<input type=\"checkbox\" id=\"hs\" name=\"hs\" value=\"true\"  />")
+      content must contain("<textarea id=\"commentaire\" name=\"commentaire\" class=\"form-control\">un com</textarea>")
+
+      there was one(f.typeModuleManagerMock).doIfTypeModuleFound(org.mockito.Matchers.eq(bson))(any[Unit=>Future[Result]])(any[Unit=>Future[Result]])
+      there was one(f.moduleDaoMock).findOne(any[JsObject])(any[ExecutionContext])
+      there was one(f.firmwareDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("nom"->"firm","version"->"v01")))(any[ExecutionContext])
+      there was one(f.moduleDaoMock).insert(any[Module],any[GetLastError])(any[ExecutionContext])
+      there was one(f.moduleDaoMock).findApolline()
+      there was one(f.firmwareDaoMock).findFirmware()
+      there was one(f.firmwareDaoMock).findVersionFirmware()
     }
   }
 }

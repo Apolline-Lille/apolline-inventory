@@ -59,6 +59,8 @@ inventary.module.hs=Hors service
 inventary.module.commentaire=Commentaire
 inventary.module.etat=Etat
 inventary.module.addModule=Nouveau module
+inventary.module.error.firstUseBeforeAcquisition=La date de première utilisation doit être supèrieur à la date d''acquisition
+inventary.module.error.moduleExist=Ce module existe déjà
 
 inventary.onglet.sensor=Capteurs
 inventary.onglet.module=Modules
