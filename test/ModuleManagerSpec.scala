@@ -104,12 +104,43 @@ class ModuleManagerSpec extends Specification with Mockito {
 
   "When user is on resource /inventary/modules/:id, ModuleManager" should {
 
+    "send 200 OK page with result" in new WithApplication{
+      val f=fixture
+      val typeModule=TypeModule(bson, "mod", "type")
+      val list_module=List[Module](
+        Module(bson2,"Id",bson,bson3,date,None,true,Some("v01"),true,None)
+      )
+      f.moduleDaoMock.findAll(any[JsObject],org.mockito.Matchers.eq(Json.obj("acquisition" -> -1)))(any[ExecutionContext]) returns future{list_module}
+      f.typeModuleDaoMock.findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext]) returns future{Some(typeModule)}
+      f.firmwareDaoMock.findAll(any[JsObject],any[JsObject])(any[ExecutionContext]) returns  future{List[Firmware](Firmware(bson3,"firm","v02"))}
+
+      val r=f.controller.inventary(bson.stringify,"acquisition",-1).apply(FakeRequest(GET,"/inventary/modules/"+bson.stringify).withSession("user" -> """{"login":"test"}"""))
+
+      status(r) must equalTo(OK)
+      contentType(r) must beSome.which(_ == "text/html")
+      val content = contentAsString(r)
+      content must contain("<title>Inventaire des modules</title>")
+      content must contain("<td>Id</td>")
+      content must contain("<td>22/04/2015</td>")
+      content must contain("<td>-</td>")
+      content must contain("<td> Oui </td>")
+      content must contain("<td>firm (v02)</td>")
+      content must contain("<td>v01</td>")
+      content must contain("<td>Hors service</td>")
+
+      there was one(f.moduleDaoMock).findAll(any[JsObject],org.mockito.Matchers.eq(Json.obj("acquisition" -> -1)))(any[ExecutionContext])
+      there was one(f.typeModuleDaoMock).findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext])
+      there was one(f.firmwareDaoMock).findAll(any[JsObject],any[JsObject])(any[ExecutionContext])
+    }
+
     "send 200 OK page with the message 'Aucun résultat trouvé', if not have modules" in new WithApplication {
       val f = fixture
 
       f.typeModuleDaoMock.findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext]) returns future {
         Some(TypeModule(bson, "mod", "type"))
       }
+      f.moduleDaoMock.findAll(any[JsObject],any[JsObject])(any[ExecutionContext]) returns future{List[Module]()}
+      f.firmwareDaoMock.findAll(any[JsObject],any[JsObject])(any[ExecutionContext]) returns future{List[Firmware]()}
 
       val r = f.controller.inventary(bson.stringify).apply(FakeRequest(GET, "/inventary/modules/" + bson.stringify).withSession("user" -> """{"login":"test"}"""))
 
@@ -118,9 +149,49 @@ class ModuleManagerSpec extends Specification with Mockito {
       val content = contentAsString(r)
       content must contain("<title>Inventaire des modules</title>")
       content must matchRegex("type\\s*/\\s*mod")
+      content must contain("<h3 style=\"text-align:center\">Aucun résultat trouvé</h3>")
       content must matchRegex("<span class=\"bold\">\\s*Stocks\\s*</span>\\s*:\\s*0")
 
       there was one(f.typeModuleDaoMock).findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext])
+      there was one(f.moduleDaoMock).findAll(any[JsObject],any[JsObject])(any[ExecutionContext])
+      there was one(f.firmwareDaoMock).findAll(any[JsObject],any[JsObject])(any[ExecutionContext])
+    }
+
+    "send 200 OK page with result" in new WithApplication{
+      val f=fixture
+      val typeModule=TypeModule(bson, "mod", "type")
+      val list_module=List[Module](
+        Module(bson2,"Id",bson,bson3,date,None,true,Some("v01"),true,None),
+        Module(bson4,"Id2",bson,bson3,date,Some(date2), false,Some("v03"),false,None)
+      )
+      f.moduleDaoMock.findAll(any[JsObject],org.mockito.Matchers.eq(Json.obj("acquisition" -> -1)))(any[ExecutionContext]) returns future{list_module}
+      f.typeModuleDaoMock.findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext]) returns future{Some(typeModule)}
+      f.firmwareDaoMock.findAll(any[JsObject],any[JsObject])(any[ExecutionContext]) returns  future{List[Firmware](Firmware(bson3,"firm","v02"))}
+
+      val r=f.controller.inventary(bson.stringify,"acquisition",-1).apply(FakeRequest(GET,"/inventary/modules/"+bson.stringify).withSession("user" -> """{"login":"test"}"""))
+
+      status(r) must equalTo(OK)
+      contentType(r) must beSome.which(_ == "text/html")
+      val content = contentAsString(r)
+      content must contain("<title>Inventaire des modules</title>")
+      content must contain("<td>Id</td>")
+      content must contain("<td>22/04/2015</td>")
+      content must contain("<td>-</td>")
+      content must contain("<td> Oui </td>")
+      content must contain("<td>firm (v02)</td>")
+      content must contain("<td>v01</td>")
+      content must contain("<td>Hors service</td>")
+
+      content must contain("<td>Id2</td>")
+      content must contain("<td>22/04/2015</td>")
+      content must contain("<td>23/04/2015</td>")
+      content must contain("<td> Non </td>")
+      content must contain("<td>firm (v02)</td>")
+      content must contain("<td>v03</td>")
+
+      there was one(f.moduleDaoMock).findAll(any[JsObject],org.mockito.Matchers.eq(Json.obj("acquisition" -> -1)))(any[ExecutionContext])
+      there was one(f.typeModuleDaoMock).findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext])
+      there was one(f.firmwareDaoMock).findAll(any[JsObject],any[JsObject])(any[ExecutionContext])
     }
 
     "send redirect if module type not found" in new WithApplication {
@@ -142,7 +213,7 @@ class ModuleManagerSpec extends Specification with Mockito {
       val throwable=mock[Throwable]
 
       f.typeModuleDaoMock.findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext]) returns futureMock
-      futureMock.map(any[Option[TypeModule]=>Option[TypeModule]])(any[ExecutionContext]) returns futureMock
+      futureMock.flatMap(any[Option[TypeModule]=>Future[Option[TypeModule]]])(any[ExecutionContext]) returns futureMock
       futureMock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers {value=>future{value.asInstanceOf[PartialFunction[Throwable,Result]](throwable)}}
 
       val r = f.controller.inventary(bson.stringify).apply(FakeRequest(GET, "/inventary/modules/" + bson.stringify).withSession("user" -> """{"login":"test"}"""))
@@ -150,7 +221,53 @@ class ModuleManagerSpec extends Specification with Mockito {
       status(r) must equalTo(INTERNAL_SERVER_ERROR)
 
       there was one(f.typeModuleDaoMock).findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext])
-      there was one(futureMock).map(any[Option[TypeModule]=>Option[TypeModule]])(any[ExecutionContext])
+      there was one(futureMock).flatMap(any[Option[TypeModule]=>Future[Option[TypeModule]]])(any[ExecutionContext])
+      there was one(futureMock).recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext])
+    }
+
+    "send internal server error if mongoDB error when find module" in new WithApplication{
+      val f=fixture
+      val typeModule=TypeModule(bson, "mod", "type")
+      val futureMock=mock[Future[List[Module]]]
+      val throwable=mock[Throwable]
+
+      f.moduleDaoMock.findAll(any[JsObject],org.mockito.Matchers.eq(Json.obj("acquisition" -> -1)))(any[ExecutionContext]) returns futureMock
+      f.typeModuleDaoMock.findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext]) returns future{Some(typeModule)}
+      f.firmwareDaoMock.findAll(any[JsObject],any[JsObject])(any[ExecutionContext]) returns  future{List[Firmware](Firmware(bson3,"firm","v02"))}
+      futureMock.flatMap(any[List[Module]=>Future[List[Module]]])(any[ExecutionContext]) returns futureMock
+      futureMock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers {value=>future{value.asInstanceOf[PartialFunction[Throwable,Result]](throwable)}}
+
+      val r=f.controller.inventary(bson.stringify,"acquisition",-1).apply(FakeRequest(GET,"/inventary/modules/"+bson.stringify).withSession("user" -> """{"login":"test"}"""))
+
+      status(r) must equalTo(INTERNAL_SERVER_ERROR)
+
+      there was one(f.moduleDaoMock).findAll(any[JsObject],org.mockito.Matchers.eq(Json.obj("acquisition" -> -1)))(any[ExecutionContext])
+      there was one(f.typeModuleDaoMock).findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext])
+      there was one(f.firmwareDaoMock).findAll(any[JsObject],any[JsObject])(any[ExecutionContext])
+      there was one(futureMock).flatMap(any[List[Module]=>Future[List[Module]]])(any[ExecutionContext])
+      there was one(futureMock).recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext])
+    }
+
+    "send internal server error if mongoDB error when find firmware" in new WithApplication{
+      val f=fixture
+      val typeModule=TypeModule(bson, "mod", "type")
+      val futureMock=mock[Future[List[Firmware]]]
+      val throwable=mock[Throwable]
+
+      f.moduleDaoMock.findAll(any[JsObject],org.mockito.Matchers.eq(Json.obj("acquisition" -> -1)))(any[ExecutionContext]) returns future{List[Module]()}
+      f.typeModuleDaoMock.findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext]) returns future{Some(typeModule)}
+      f.firmwareDaoMock.findAll(any[JsObject],any[JsObject])(any[ExecutionContext]) returns  futureMock
+      futureMock.map(any[List[Firmware]=>List[Firmware]])(any[ExecutionContext]) returns futureMock
+      futureMock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers {value=>future{value.asInstanceOf[PartialFunction[Throwable,Result]](throwable)}}
+
+      val r=f.controller.inventary(bson.stringify,"acquisition",-1).apply(FakeRequest(GET,"/inventary/modules/"+bson.stringify).withSession("user" -> """{"login":"test"}"""))
+
+      status(r) must equalTo(INTERNAL_SERVER_ERROR)
+
+      there was one(f.moduleDaoMock).findAll(any[JsObject],org.mockito.Matchers.eq(Json.obj("acquisition" -> -1)))(any[ExecutionContext])
+      there was one(f.typeModuleDaoMock).findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext])
+      there was one(f.firmwareDaoMock).findAll(any[JsObject],any[JsObject])(any[ExecutionContext])
+      there was one(futureMock).map(any[List[Firmware]=>List[Firmware]])(any[ExecutionContext])
       there was one(futureMock).recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext])
     }
   }

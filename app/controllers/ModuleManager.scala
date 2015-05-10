@@ -73,15 +73,24 @@ trait ModuleManagerLike extends Controller{
     implicit request =>
       //Verify if user is connect
       UserManager.doIfconnectAsync(request) {
+        val futureModule=moduleDao.findAll(Json.obj("delete"->false,"types"->BSONFormats.BSONObjectIDFormat.writes(BSONObjectID(id))),Json.obj(sort->sens))
+        val futureFirmware=firmwareDao.findAll()
         //Find the module type
-        typeModuleDao.findById(BSONObjectID(id)).map(
+        typeModuleDao.findById(BSONObjectID(id)).flatMap(
           data=> data match{
 
               //If module type not found
-            case None => Redirect(routes.TypeModuleManager.inventary())
+            case None => future{Redirect(routes.TypeModuleManager.inventary())}
 
               //If module type found
-            case Some(typeModule) => Ok(views.html.module.listModule(typeModule))
+            case Some(typeModule) => {
+              futureModule.flatMap(listModule=>
+                futureFirmware.map(firmware=>
+                  Ok(views.html.module.listModule(typeModule,listModule,firmware,sort,sens))
+                ).recover({case _=>InternalServerError("error")})
+              ).recover({case _=>InternalServerError("error")})
+
+            }
           }
         ).recover({case _=>InternalServerError("error")})
       }

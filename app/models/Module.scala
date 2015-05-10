@@ -21,6 +21,7 @@ object Module{
 abstract class ModuleDao extends JsonDao[Module, BSONObjectID](ReactiveMongoPlugin.db, "module"){
   this:JsonDao[Module, BSONObjectID]=>
 
+  def countModule():Future[Stream[BSONDocument]]=collection.db.command(Aggregate(collection.name, Seq(Match(BSONDocument("delete"->false)),GroupField("types")("count" -> SumValue(1)))))
   def findApolline():Future[Stream[BSONDocument]]=collection.db.command(Aggregate(collection.name, Seq(Match(BSONDocument("delete"->false)),GroupField("apolline")("count" -> SumValue(1)))))
 }
 

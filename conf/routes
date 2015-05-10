@@ -40,7 +40,7 @@ GET         /inventary/modules/type                   controllers.TypeModuleMana
 POST        /inventary/modules/type                   controllers.TypeModuleManager.typeInsert
 GET         /inventary/modules/:id/update             controllers.TypeModuleManager.typeUpdatePage(id:String)
 POST        /inventary/modules/:id/update             controllers.TypeModuleManager.typeUpdate(id:String)
-GET         /inventary/modules/:id                    controllers.ModuleManager.inventary(id:String)
+GET         /inventary/modules/:id                    controllers.ModuleManager.inventary(id:String,sort:String ?= "id",sens:Int ?= 1)
 GET         /inventary/modules/:id/module             controllers.ModuleManager.modulePage(id:String)
 POST        /inventary/modules/:id/module             controllers.ModuleManager.moduleInsert(id:String)
 

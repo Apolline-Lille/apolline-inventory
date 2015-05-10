@@ -27,6 +27,8 @@ trait TypeModuleManagerLike extends Controller {
    */
   val typeModuleDao: TypeModuleDao = TypeModuleDaoObj
 
+  val moduleDao: ModuleDao = ModuleDaoObj
+
   lazy val form=Form[TypeModuleForm](
     mapping(
       "modele"->nonEmptyText,
@@ -63,14 +65,17 @@ trait TypeModuleManagerLike extends Controller {
 
         //Find all module type name
         val futureListType=typeModuleDao.findListType()
+        val futureCountModule=moduleDao.countModule()
 
         //Find all module type
         typeModuleDao.findAll(selector).flatMap(listType=>
-          futureListType.map(filtre=>
+          futureListType.flatMap(filtre=>
+            futureCountModule.map(countModule=>
 
-            //Print the list of module type
-            Ok(views.html.module.listTypeModule(filtreSto,sort,filtreStock(filtreSto),listType,List[BSONDocument](),filtre.toList))
+              //Print the list of module type
+              Ok(views.html.module.listTypeModule(filtreSto,sort,filtreStock(filtreSto),listType,countModule.toList,filtre.toList))
 
+            ).recover({case _=>InternalServerError("error")})
           ).recover({case _=>InternalServerError("error")})
         ).recover({case _=>InternalServerError("error")})
       }

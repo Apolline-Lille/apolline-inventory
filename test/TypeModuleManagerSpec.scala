@@ -1,6 +1,6 @@
 
 import controllers.{TypeModuleForm, TypeModuleManager, TypeModuleManagerLike}
-import models.{TypeModule, TypeModuleDao}
+import models.{ModuleDao, TypeModule, TypeModuleDao}
 import org.junit.runner.RunWith
 import org.specs2.matcher.{MatchResult, Expectable, Matcher}
 import org.specs2.mock.Mockito
@@ -28,11 +28,14 @@ class TypeModuleManagerSpec extends Specification with Mockito {
   }
 
   val bson=BSONObjectID.generate
+  val bson2=BSONObjectID.generate
 
   def fixture = new {
     val typeModuleDaoMock = mock[TypeModuleDao]
+    val moduleDaoMock = mock[ModuleDao]
     val controller = new TypeModuleManagerTest {
       override val typeModuleDao: TypeModuleDao = typeModuleDaoMock
+      override val moduleDao: ModuleDao = moduleDaoMock
     }
   }
 
@@ -99,6 +102,7 @@ class TypeModuleManagerSpec extends Specification with Mockito {
 
       f.typeModuleDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns future{List[TypeModule]()}
       f.typeModuleDaoMock.findListType() returns future{Stream[BSONDocument]()}
+      f.moduleDaoMock.countModule() returns future{Stream[BSONDocument]()}
 
       val r = f.controller.inventary().apply(FakeRequest(GET, "/inventary/modules").withSession("user" -> """{"login":"test"}"""))
       status(r) must equalTo(OK)
@@ -109,6 +113,7 @@ class TypeModuleManagerSpec extends Specification with Mockito {
 
       there was one(f.typeModuleDaoMock).findAll(any[JsObject], any[JsObject])(any[ExecutionContext])
       there was one(f.typeModuleDaoMock).findListType()
+      there was one(f.moduleDaoMock).countModule()
     }
 
     "send 200 on OK with 1 result" in new WithApplication {
@@ -116,6 +121,7 @@ class TypeModuleManagerSpec extends Specification with Mockito {
 
       f.typeModuleDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns future{List[TypeModule](TypeModule(bson,"mod","type"))}
       f.typeModuleDaoMock.findListType() returns future{Stream[BSONDocument]()}
+      f.moduleDaoMock.countModule() returns future{Stream[BSONDocument](BSONDocument("_id"->bson,"count"->5))}
 
       val r = f.controller.inventary().apply(FakeRequest(GET, "/inventary/modules").withSession("user" -> """{"login":"test"}"""))
       status(r) must equalTo(OK)
@@ -124,10 +130,11 @@ class TypeModuleManagerSpec extends Specification with Mockito {
       content must contain("<title>Inventaire des modules</title>")
       content must not contain("<h3 style=\"text-align:center\">Aucun résultat trouvé</h3>")
       content must matchRegex("type\\s*/\\s*mod")
-      content must matchRegex("<span class=\"bold\">\\s*Stocks\\s*</span>\\s*:\\s*0")
+      content must matchRegex("<span class=\"bold\">\\s*Stocks\\s*</span>\\s*:\\s*5")
 
       there was one(f.typeModuleDaoMock).findAll(any[JsObject], any[JsObject])(any[ExecutionContext])
       there was one(f.typeModuleDaoMock).findListType()
+      there was one(f.moduleDaoMock).countModule()
     }
 
     "send 200 on OK with 2 results" in new WithApplication {
@@ -135,9 +142,10 @@ class TypeModuleManagerSpec extends Specification with Mockito {
 
       f.typeModuleDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns future{List[TypeModule](
         TypeModule(bson,"mod","type"),
-        TypeModule(bson,"mod2","type2")
+        TypeModule(bson2,"mod2","type2")
       )}
       f.typeModuleDaoMock.findListType() returns future{Stream[BSONDocument]()}
+      f.moduleDaoMock.countModule() returns future{Stream[BSONDocument](BSONDocument("_id"->bson,"count"->5))}
 
       val r = f.controller.inventary().apply(FakeRequest(GET, "/inventary/modules").withSession("user" -> """{"login":"test"}"""))
 
@@ -147,12 +155,14 @@ class TypeModuleManagerSpec extends Specification with Mockito {
       content must contain("<title>Inventaire des modules</title>")
       content must not contain("<h3 style=\"text-align:center\">Aucun résultat trouvé</h3>")
       content must matchRegex("type\\s*/\\s*mod")
-      content must matchRegex("<span class=\"bold\">\\s*Stocks\\s*</span>\\s*:\\s*0")
+      content must matchRegex("<span class=\"bold\">\\s*Stocks\\s*</span>\\s*:\\s*5")
 
       content must matchRegex("type2\\s*/\\s*mod2")
+      content must matchRegex("<span class=\"bold\">\\s*Stocks\\s*</span>\\s*:\\s*0")
 
       there was one(f.typeModuleDaoMock).findAll(any[JsObject], any[JsObject])(any[ExecutionContext])
       there was one(f.typeModuleDaoMock).findListType()
+      there was one(f.moduleDaoMock).countModule()
     }
 
     "send 500 internal error if mongoDB error when find all module type" in new WithApplication{
@@ -182,7 +192,7 @@ class TypeModuleManagerSpec extends Specification with Mockito {
 
       f.typeModuleDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns future{List[TypeModule]()}
       f.typeModuleDaoMock.findListType() returns futureMock
-      futureMock.map(any[Stream[BSONDocument]=>Stream[BSONDocument]])(any[ExecutionContext]) returns futureMock
+      futureMock.flatMap(any[Stream[BSONDocument]=>Future[Stream[BSONDocument]]])(any[ExecutionContext]) returns futureMock
       futureMock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers {value=>future{value.asInstanceOf[PartialFunction[Throwable,Result]](throwable)}}
 
       val r = f.controller.inventary().apply(FakeRequest(GET, "/inventary/modules").withSession("user" -> """{"login":"test"}"""))
@@ -190,7 +200,7 @@ class TypeModuleManagerSpec extends Specification with Mockito {
       status(r) must equalTo(INTERNAL_SERVER_ERROR)
 
       there was one(f.typeModuleDaoMock).findAll(any[JsObject], any[JsObject])(any[ExecutionContext])
-      there was one(futureMock).map(any[Stream[BSONDocument]=>Stream[BSONDocument]])(any[ExecutionContext])
+      there was one(futureMock).flatMap(any[Stream[BSONDocument]=>Future[Stream[BSONDocument]]])(any[ExecutionContext])
       there was one(futureMock).recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext])
       there was one(f.typeModuleDaoMock).findListType()
     }
