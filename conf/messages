@@ -39,14 +39,14 @@ inventary.sensor.error.firstUseBeforeAcquisition=La date de première utilisatio
 inventary.sensor.error.expirationBeforeAcquisition=La date d''expiration doit être supèrieur à la date d''acquisition
 inventary.sensor.addSensor=Ajouter un capteur
 
-inventary.typeModule.title=Inventaire des modules
+inventary.typeModule.title=Inventaire des cartes
 inventary.typeModule.addType=Nouveau type
 inventary.typeModule.modele=Modèle
-inventary.typeModule.types=Type de module
-inventary.typeModule.error.typeExist=Ce type de module existe déjà
+inventary.typeModule.types=Type de carte
+inventary.typeModule.error.typeExist=Ce type de carte existe déjà
 inventary.typeModule.stock=Stocks
-inventary.typeModule.confirmDelete=Êtes-vous sûr de vouloir supprimer ce type de module ?
-inventary.typeModule.error.typeNotExist=Ce type de module n''existe pas
+inventary.typeModule.confirmDelete=Êtes-vous sûr de vouloir supprimer ce type de carte ?
+inventary.typeModule.error.typeNotExist=Ce type de carte n''existe pas
 
 inventary.module.id=Identifiant
 inventary.module.acquisition=Date d''acquisition
@@ -58,13 +58,13 @@ inventary.module.apolline=Version d''apolline
 inventary.module.hs=Hors service
 inventary.module.commentaire=Commentaire
 inventary.module.etat=Etat
-inventary.module.addModule=Nouveau module
+inventary.module.addModule=Nouvelle carte
 inventary.module.error.firstUseBeforeAcquisition=La date de première utilisation doit être supèrieur à la date d''acquisition
-inventary.module.error.moduleExist=Ce module existe déjà
-inventary.module.confirmDelete=Êtes-vous sûr de vouloir supprimer ce module ?
+inventary.module.error.moduleExist=Cette carte existe déjà
+inventary.module.confirmDelete=Êtes-vous sûr de vouloir supprimer cette carte ?
 
 inventary.onglet.sensor=Capteurs
-inventary.onglet.module=Modules
+inventary.onglet.module=Cartes
 
 login.username=Login
 login.password=Password
