@@ -241,6 +241,71 @@ trait TypeModuleManagerLike extends Controller {
       }
   }
 
+  /**
+   * This method is call when the user delete a module type
+   * @param id Module type id
+   * @return Return Redirect Action when the user is not log in or module type is delete
+   *         Return Internal Server Error Action when have mongoDB error
+   */
+  @ApiOperation(
+    nickname = "inventary/modules/:id/delete",
+    value = "Delete a module type",
+    notes = "Delete a module type to the mongoDB database",
+    httpMethod = "GET")
+  @ApiResponses(Array(
+    new ApiResponse(code=303,message="<ul><li>Move resource to the login page at /login if the user is not log</li><li>Move resource to the module inventary page at /inventary/modules when module type is delete"),
+    new ApiResponse(code=500,message="Have a mongoDB error")
+  ))
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(value = "Id of the module type",required=true,name="id", dataType = "String", paramType = "path")
+  ))
+  def delete(id:String)=Action.async{
+    implicit request=>
+      //Verify if user is connect
+      UserManager.doIfconnectAsync(request) {
+
+        val idFormat=BSONFormats.BSONObjectIDFormat.writes(BSONObjectID(id))
+        val findModule=moduleDao.findOne(Json.obj("delete"->false,"types"->idFormat))
+        //find the module type
+        typeModuleDao.findOne(Json.obj("_id"->idFormat)).flatMap(
+          data => data match{
+
+            //Module type not found redirect to the modules inventary
+            case None =>future{Redirect(routes.TypeModuleManager.inventary())}
+
+            //Module type found
+            case Some(typeModuleData) => {
+              findModule.flatMap(
+                moduleData=>moduleData match{
+                  case None=>{
+
+                    //Update the module type and set the delete column to true
+                    typeModuleDao.updateById(
+                      BSONObjectID(id),
+                      typeModuleData.copy(delete=true)
+                    ).map(
+                        //Redirect to the modules inventary after delete modules type
+                        e => Redirect(routes.TypeModuleManager.inventary())
+                      ).recover({
+                      //Send Internal Server Error if have mongoDB error
+                      case e => InternalServerError("error")
+                    })
+                  }
+                  case _ => future{Redirect(routes.TypeModuleManager.inventary())}
+                }
+              ).recover({
+                //Send Internal Server Error if have mongoDB error
+                case e => InternalServerError("error")
+              })
+            }
+          }
+        ).recover({
+          //Send Internal Server Error if have mongoDB error
+          case e => InternalServerError("error")
+        })
+      }
+  }
+
   def printForm(status: Results.Status,form:Form[TypeModuleForm],r:Call):Future[Result]={
     val futureModele=typeModuleDao.findListModele()
     val futureType=typeModuleDao.findListType()

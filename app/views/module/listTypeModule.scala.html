@@ -30,7 +30,7 @@
                       <span>
                         <a href="@routes.TypeModuleManager.typeUpdatePage(types._id.stringify)"><span class="glyphicon glyphicon-pencil"></span></a>
                         @if(sto == 0) {
-                          <a data-toggle="modal" href="#modal-delete" data-title="@types.types / @types.modele" data-link="#">
+                          <a data-toggle="modal" href="#modal-delete" data-title="@types.types / @types.modele" data-link="@routes.TypeModuleManager.delete(types._id.stringify)">
                             <span class="glyphicon glyphicon-trash"></span>
                           </a>
                         }

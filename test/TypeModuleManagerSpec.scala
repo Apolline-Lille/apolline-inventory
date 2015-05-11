@@ -1,6 +1,8 @@
 
+import java.util.Date
+
 import controllers.{TypeModuleForm, TypeModuleManager, TypeModuleManagerLike}
-import models.{ModuleDao, TypeModule, TypeModuleDao}
+import models.{Module, ModuleDao, TypeModule, TypeModuleDao}
 import org.junit.runner.RunWith
 import org.specs2.matcher.{MatchResult, Expectable, Matcher}
 import org.specs2.mock.Mockito
@@ -498,6 +500,117 @@ class TypeModuleManagerSpec extends Specification with Mockito {
       there was one(fix.typeModuleDaoMock).updateById(org.mockito.Matchers.eq(bson),any[TypeModule],any[GetLastError])(any[Writes[TypeModule]],any[ExecutionContext])
       there was one(future_Mock).map(any[LastError=>LastError])(any[ExecutionContext])
       there was one(future_Mock).recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext])
+    }
+  }
+
+  "When user delete a type module, TypeModuleManager" should {
+    "send 500 Internal Error for mongoDB error when find module type" in new WithApplication{
+      val futureMock = mock[Future[Option[TypeModule]]]
+      val fix=fixture
+      val throwable=mock[Throwable]
+
+      fix.typeModuleDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns futureMock
+      futureMock.flatMap(any[(Option[TypeModule])=>Future[Option[TypeModule]]])(any[ExecutionContext]) returns futureMock
+      futureMock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers (vals => future{vals.asInstanceOf[PartialFunction[Throwable,Result]](throwable)})
+
+      val r = fix.controller.delete(bson.stringify).apply(FakeRequest(GET, "/inventary/modules/"+bson.stringify+"/delete").withSession("user" -> """{"login":"test"}"""))
+
+
+      status(r) must equalTo(INTERNAL_SERVER_ERROR)
+
+      there was one(fix.typeModuleDaoMock).findOne(any[JsObject])(any[ExecutionContext])
+      there was one(futureMock).flatMap(any[(Option[TypeModule])=>Future[Option[TypeModule]]])(any[ExecutionContext])
+      there was one(futureMock).recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext])
+    }
+
+    "send 500 Internal Error for mongoDB error when find module" in new WithApplication{
+      val futureMock=mock[Future[Option[Module]]]
+      val fix=fixture
+      val throwable=mock[Throwable]
+
+      fix.typeModuleDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{Some(TypeModule(bson,"mod","type"))}
+      fix.moduleDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns futureMock
+      futureMock.flatMap(any[Option[Module]=>Future[Option[Module]]])(any[ExecutionContext]) returns futureMock
+      futureMock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers (vals => future{vals.asInstanceOf[PartialFunction[Throwable,Result]](throwable)})
+
+      val r = fix.controller.delete(bson.stringify).apply(FakeRequest(GET, "/inventary/modules/"+bson.stringify+"/delete").withSession("user" -> """{"login":"test"}"""))
+
+
+      status(r) must equalTo(INTERNAL_SERVER_ERROR)
+
+      there was one(fix.typeModuleDaoMock).findOne(any[JsObject])(any[ExecutionContext])
+      there was one(fix.moduleDaoMock).findOne(any[JsObject])(any[ExecutionContext])
+      there was one(futureMock).flatMap(any[Option[Module]=>Future[Option[Module]]])(any[ExecutionContext])
+      there was one(futureMock).recover(any[PartialFunction[Throwable,Results]])(any[ExecutionContext])
+    }
+
+    "send 500 Internal Error for mongoDB error when delete module type" in new WithApplication{
+      val futureMock=mock[Future[LastError]]
+      val fix=fixture
+      val throwable=mock[Throwable]
+
+      fix.typeModuleDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{Some(TypeModule(bson,"mod","type"))}
+      fix.moduleDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{None}
+      fix.typeModuleDaoMock.updateById(any[BSONObjectID],any[TypeModule],any[GetLastError])(any[Writes[TypeModule]],any[ExecutionContext]) returns futureMock
+      futureMock.map(any[LastError=>LastError])(any[ExecutionContext]) returns futureMock
+      futureMock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers (vals => future{vals.asInstanceOf[PartialFunction[Throwable,Result]](throwable)})
+
+      val r = fix.controller.delete(bson.stringify).apply(FakeRequest(GET, "/inventary/modules/"+bson.stringify+"/delete").withSession("user" -> """{"login":"test"}"""))
+
+      status(r) must equalTo(INTERNAL_SERVER_ERROR)
+
+      there was one(fix.typeModuleDaoMock).findOne(any[JsObject])(any[ExecutionContext])
+      there was one(fix.moduleDaoMock).findOne(any[JsObject])(any[ExecutionContext])
+      there was one(fix.typeModuleDaoMock).updateById(any[BSONObjectID],any[TypeModule],any[GetLastError])(any[Writes[TypeModule]],any[ExecutionContext])
+      there was one(futureMock).map(any[LastError=>LastError])(any[ExecutionContext])
+      there was one(futureMock).recover(any[PartialFunction[Throwable,Results]])(any[ExecutionContext])
+    }
+
+    "send Redirect for type module not found" in new WithApplication{
+      val fix=fixture
+
+      fix.typeModuleDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{None}
+
+      val r = fix.controller.delete(bson.stringify).apply(FakeRequest(GET, "/inventary/modules/"+bson.stringify+"/delete").withSession("user" -> """{"login":"test"}"""))
+
+
+      status(r) must equalTo(SEE_OTHER)
+      header("Location",r) must equalTo(Some("/inventary/modules"))
+
+      there was one(fix.typeModuleDaoMock).findOne(any[JsObject])(any[ExecutionContext])
+    }
+
+    "send BadRequest if module found" in new WithApplication{
+      val fix=fixture
+
+      fix.typeModuleDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{Some(TypeModule(bson,"mod","type"))}
+      fix.moduleDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{Some(Module(bson2,"Id",bson,bson,new Date(),None,true,Some("v01"),true,Some("un com")))}
+
+      val r = fix.controller.delete(bson.stringify).apply(FakeRequest(GET, "/inventary/modules/"+bson.stringify+"/delete").withSession("user" -> """{"login":"test"}"""))
+
+      status(r) must equalTo(SEE_OTHER)
+      header("Location",r) must equalTo(Some("/inventary/modules"))
+
+      there was one(fix.typeModuleDaoMock).findOne(any[JsObject])(any[ExecutionContext])
+      there was one(fix.moduleDaoMock).findOne(any[JsObject])(any[ExecutionContext])
+    }
+
+    "send Redirect after update type module" in new WithApplication{
+      val fix=fixture
+      val lastError=mock[LastError]
+
+      fix.typeModuleDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{Some(TypeModule(bson,"mod","type"))}
+      fix.moduleDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{None}
+      fix.typeModuleDaoMock.updateById(any[BSONObjectID],any[TypeModule],any[GetLastError])(any[Writes[TypeModule]],any[ExecutionContext]) returns future{lastError}
+
+      val r = fix.controller.delete(bson.stringify).apply(FakeRequest(GET, "/inventary/modules/"+bson.stringify+"/delete").withSession("user" -> """{"login":"test"}"""))
+
+      status(r) must equalTo(SEE_OTHER)
+      header("Location",r) must equalTo(Some("/inventary/modules"))
+
+      there was one(fix.typeModuleDaoMock).findOne(any[JsObject])(any[ExecutionContext])
+      there was one(fix.moduleDaoMock).findOne(any[JsObject])(any[ExecutionContext])
+      there was one(fix.typeModuleDaoMock).updateById(any[BSONObjectID],any[TypeModule],any[GetLastError])(any[Writes[TypeModule]],any[ExecutionContext])
     }
   }
 }
