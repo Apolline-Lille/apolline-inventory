@@ -22,9 +22,9 @@
               }) { sto =>
                 @if(funcFiltre(sto)) {
                   <div class="col-sm-12">
-                    <h4><a href="@routes.ModuleManager.inventary(types._id.stringify)">@{
+                    <h4><a href="@routes.TypeModuleManager.inventary(types.types)">@{
                       types.types
-                    } / @{
+                    }</a> / <a href="@routes.ModuleManager.inventary(types._id.stringify)">@{
                       types.modele
                     }</a>
                       <span>

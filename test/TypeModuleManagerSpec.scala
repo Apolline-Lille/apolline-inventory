@@ -110,7 +110,7 @@ class TypeModuleManagerSpec extends Specification with Mockito {
       status(r) must equalTo(OK)
       contentType(r) must beSome.which(_ == "text/html")
       val content = contentAsString(r)
-      content must contain("<title>Inventaire des modules</title>")
+      content must contain("<title>Inventaire des cartes</title>")
       content must contain("<h3 style=\"text-align:center\">Aucun résultat trouvé</h3>")
 
       there was one(f.typeModuleDaoMock).findAll(any[JsObject], any[JsObject])(any[ExecutionContext])
@@ -129,9 +129,10 @@ class TypeModuleManagerSpec extends Specification with Mockito {
       status(r) must equalTo(OK)
       contentType(r) must beSome.which(_ == "text/html")
       val content = contentAsString(r)
-      content must contain("<title>Inventaire des modules</title>")
+      content must contain("<title>Inventaire des cartes</title>")
       content must not contain("<h3 style=\"text-align:center\">Aucun résultat trouvé</h3>")
-      content must matchRegex("type\\s*/\\s*mod")
+      content must contain("type")
+      content must contain("mod")
       content must matchRegex("<span class=\"bold\">\\s*Stocks\\s*</span>\\s*:\\s*5")
 
       there was one(f.typeModuleDaoMock).findAll(any[JsObject], any[JsObject])(any[ExecutionContext])
@@ -154,12 +155,14 @@ class TypeModuleManagerSpec extends Specification with Mockito {
       status(r) must equalTo(OK)
       contentType(r) must beSome.which(_ == "text/html")
       val content = contentAsString(r)
-      content must contain("<title>Inventaire des modules</title>")
+      content must contain("<title>Inventaire des cartes</title>")
       content must not contain("<h3 style=\"text-align:center\">Aucun résultat trouvé</h3>")
-      content must matchRegex("type\\s*/\\s*mod")
+      content must contain("type")
+      content must contain("mod")
       content must matchRegex("<span class=\"bold\">\\s*Stocks\\s*</span>\\s*:\\s*5")
 
-      content must matchRegex("type2\\s*/\\s*mod2")
+      content must contain("type2")
+      content must contain("mod2")
       content must matchRegex("<span class=\"bold\">\\s*Stocks\\s*</span>\\s*:\\s*0")
 
       there was one(f.typeModuleDaoMock).findAll(any[JsObject], any[JsObject])(any[ExecutionContext])
@@ -223,7 +226,7 @@ class TypeModuleManagerSpec extends Specification with Mockito {
       status(r) must equalTo(OK)
       contentType(r) must beSome.which(_ == "text/html")
       val content = contentAsString(r)
-      content must contain("<title>Inventaire des modules</title>")
+      content must contain("<title>Inventaire des cartes</title>")
       content must contain("<input id=\"modele\" name=\"modele\" class=\"form-control\" list=\"list_modele\" type=\"text\" autocomplete=\"off\" value=\"\"/>")
       content must contain("<input id=\"types\" name=\"types\" class=\"form-control\" list=\"list_type\" type=\"text\" autocomplete=\"off\" value=\"\"/>")
 
@@ -288,7 +291,7 @@ class TypeModuleManagerSpec extends Specification with Mockito {
       status(r) must equalTo(BAD_REQUEST)
       contentType(r) must beSome.which(_ == "text/html")
       val content = contentAsString(r)
-      content must contain("<title>Inventaire des modules</title>")
+      content must contain("<title>Inventaire des cartes</title>")
       content must contains("<span class=\"control-label errors\">This field is required</span>", 2)
 
       there was one(f.typeModuleDaoMock).findListModele()
@@ -313,7 +316,7 @@ class TypeModuleManagerSpec extends Specification with Mockito {
       status(r) must equalTo(BAD_REQUEST)
       contentType(r) must beSome.which(_ == "text/html")
       val content = contentAsString(r)
-      content must contain("<div class=\"alert alert-danger\" role=\"alert\">Ce type de module existe déjà</div>")
+      content must contain("<div class=\"alert alert-danger\" role=\"alert\">Ce type de carte existe déjà</div>")
 
       there was one(f.typeModuleDaoMock).findOne(any[JsObject])(any[ExecutionContext])
       there was one(function2).apply(any[TypeModuleForm])
@@ -360,7 +363,7 @@ class TypeModuleManagerSpec extends Specification with Mockito {
       status(r) must equalTo(OK)
       contentType(r) must beSome.which(_ == "text/html")
       val content = contentAsString(r)
-      content must contain("<title>Inventaire des modules</title>")
+      content must contain("<title>Inventaire des cartes</title>")
       content must contain("<input id=\"modele\" name=\"modele\" class=\"form-control\" list=\"list_modele\" type=\"text\" autocomplete=\"off\" value=\"\"/>")
       content must contain("<input id=\"types\" name=\"types\" class=\"form-control\" list=\"list_type\" type=\"text\" autocomplete=\"off\" value=\"\"/>")
 
@@ -422,7 +425,7 @@ class TypeModuleManagerSpec extends Specification with Mockito {
       status(r) must equalTo(OK)
       contentType(r) must beSome.which(_ == "text/html")
       val content = contentAsString(r)
-      content must contain("<title>Inventaire des modules</title>")
+      content must contain("<title>Inventaire des cartes</title>")
       content must contain("<input id=\"modele\" name=\"modele\" class=\"form-control\" list=\"list_modele\" type=\"text\" autocomplete=\"off\" value=\"mod\"/>")
       content must contain("<input id=\"types\" name=\"types\" class=\"form-control\" list=\"list_type\" type=\"text\" autocomplete=\"off\" value=\"typ\"/>")
 

@@ -119,7 +119,7 @@ class ModuleManagerSpec extends Specification with Mockito {
       status(r) must equalTo(OK)
       contentType(r) must beSome.which(_ == "text/html")
       val content = contentAsString(r)
-      content must contain("<title>Inventaire des modules</title>")
+      content must contain("<title>Inventaire des cartes</title>")
       content must contain("<td>Id</td>")
       content must contain("<td>22/04/2015</td>")
       content must contain("<td>-</td>")
@@ -147,7 +147,7 @@ class ModuleManagerSpec extends Specification with Mockito {
       status(r) must equalTo(OK)
       contentType(r) must beSome.which(_ == "text/html")
       val content = contentAsString(r)
-      content must contain("<title>Inventaire des modules</title>")
+      content must contain("<title>Inventaire des cartes</title>")
       content must matchRegex("type\\s*/\\s*mod")
       content must contain("<h3 style=\"text-align:center\">Aucun résultat trouvé</h3>")
       content must matchRegex("<span class=\"bold\">\\s*Stocks\\s*</span>\\s*:\\s*0")
@@ -173,7 +173,7 @@ class ModuleManagerSpec extends Specification with Mockito {
       status(r) must equalTo(OK)
       contentType(r) must beSome.which(_ == "text/html")
       val content = contentAsString(r)
-      content must contain("<title>Inventaire des modules</title>")
+      content must contain("<title>Inventaire des cartes</title>")
       content must contain("<td>Id</td>")
       content must contain("<td>22/04/2015</td>")
       content must contain("<td>-</td>")
@@ -287,7 +287,7 @@ class ModuleManagerSpec extends Specification with Mockito {
       status(r) must equalTo(OK)
       contentType(r) must beSome.which(_ == "text/html")
       val content = contentAsString(r)
-      content must contain("<title>Inventaire des modules</title>")
+      content must contain("<title>Inventaire des cartes</title>")
       content must contain("<input type=\"text\" id=\"id\" name=\"id\" value=\"\" class=\"form-control\"/>")
       content must contain("<input type=\"date\" id=\"acquisition\" name=\"acquisition\" value=\"\" class=\"form-control\"/>")
       content must contain("<input type=\"date\" id=\"firstUse\" name=\"firstUse\" value=\"\" class=\"form-control\"/>")
@@ -395,8 +395,8 @@ class ModuleManagerSpec extends Specification with Mockito {
       status(r) must equalTo(BAD_REQUEST)
       contentType(r) must beSome.which(_ == "text/html")
       val content = contentAsString(r)
-      content must contain("<title>Inventaire des modules</title>")
-      content must contain("Ce type de module n&#x27;existe pas")
+      content must contain("<title>Inventaire des cartes</title>")
+      content must contain("Ce type de carte n&#x27;existe pas")
 
       there was one(f.typeModuleManagerMock).doIfTypeModuleFound(org.mockito.Matchers.eq(bson))(any[Unit=>Future[Result]])(any[Unit=>Future[Result]])
       there was one(f.moduleDaoMock).findApolline()
@@ -426,7 +426,7 @@ class ModuleManagerSpec extends Specification with Mockito {
       status(r) must equalTo(OK)
       contentType(r) must beSome.which(_ == "text/html")
       val content = contentAsString(r)
-      content must contain("<title>Inventaire des modules</title>")
+      content must contain("<title>Inventaire des cartes</title>")
       content must contain("<input type=\"text\" id=\"id\" name=\"id\" value=\"Id\" class=\"form-control\"/>")
       content must contain("<input type=\"date\" id=\"acquisition\" name=\"acquisition\" value=\"2015-04-22\" class=\"form-control\"/>")
       content must contain("<input type=\"date\" id=\"firstUse\" name=\"firstUse\" value=\"2015-04-23\" class=\"form-control\"/>")
@@ -647,7 +647,7 @@ class ModuleManagerSpec extends Specification with Mockito {
     }
   }
 
-  "When user submit a form, SensorManager" should{
+  "When user submit a form, ModuleManager" should{
     "send bad_request with the form if module type not exist" in new WithApplication{
       val f=fixture
       val func=mock[(ModuleForm,BSONObjectID)=>Future[Result]]
@@ -666,8 +666,8 @@ class ModuleManagerSpec extends Specification with Mockito {
       status(r) must equalTo(BAD_REQUEST)
       contentType(r) must beSome.which(_ == "text/html")
       val content = contentAsString(r)
-      content must contain("<title>Inventaire des modules</title>")
-      content must contain("Ce type de module n&#x27;existe pas")
+      content must contain("<title>Inventaire des cartes</title>")
+      content must contain("Ce type de carte n&#x27;existe pas")
 
       there was one(f.typeModuleManagerMock).doIfTypeModuleFound(org.mockito.Matchers.eq(bson))(any[Unit=>Future[Result]])(any[Unit=>Future[Result]])
       there was one(f.moduleDaoMock).findApolline()
@@ -693,7 +693,7 @@ class ModuleManagerSpec extends Specification with Mockito {
       status(r) must equalTo(BAD_REQUEST)
       contentType(r) must beSome.which(_ == "text/html")
       val content = contentAsString(r)
-      content must contain("<title>Inventaire des modules</title>")
+      content must contain("<title>Inventaire des cartes</title>")
       content must contains("<span class=\"control-label errors\">This field is required</span>",4)
       content must not contain("<span class=\"control-label errors\">Valid date required</span>")
 
@@ -722,7 +722,7 @@ class ModuleManagerSpec extends Specification with Mockito {
       status(r) must equalTo(BAD_REQUEST)
       contentType(r) must beSome.which(_ == "text/html")
       val content = contentAsString(r)
-      content must contain("<title>Inventaire des modules</title>")
+      content must contain("<title>Inventaire des cartes</title>")
       content must not contain("<span class=\"control-label errors\">This field is required</span>")
       content must contains("<span class=\"control-label errors\">Valid date required</span>",2)
 
@@ -766,7 +766,7 @@ class ModuleManagerSpec extends Specification with Mockito {
       status(r) must equalTo(BAD_REQUEST)
       contentType(r) must beSome.which(_ == "text/html")
       val content = contentAsString(r)
-      content must contain("<title>Inventaire des modules</title>")
+      content must contain("<title>Inventaire des cartes</title>")
       content must not contain("<span class=\"control-panel errors\">This field is required</span>")
       content must contain("<span class=\"control-label errors\">La date de première utilisation doit être supèrieur à la date d&#x27;acquisition</span>")
 
@@ -826,7 +826,7 @@ class ModuleManagerSpec extends Specification with Mockito {
 
       status(r) must equalTo(BAD_REQUEST)
       val content=contentAsString(r)
-      content must contain("<div class=\"alert alert-danger\" role=\"alert\">Ce module existe déjà</div>")
+      content must contain("<div class=\"alert alert-danger\" role=\"alert\">Cette carte existe déjà</div>")
 
       there was one(f.typeModuleManagerMock).doIfTypeModuleFound(org.mockito.Matchers.eq(bson))(any[Unit=>Future[Result]])(any[Unit=>Future[Result]])
       there was one(f.moduleDaoMock).findOne(any[JsObject])(any[ExecutionContext])
@@ -852,7 +852,7 @@ class ModuleManagerSpec extends Specification with Mockito {
       status(r) must equalTo(OK)
       contentType(r) must beSome.which(_ == "text/html")
       val content = contentAsString(r)
-      content must contain("<title>Inventaire des modules</title>")
+      content must contain("<title>Inventaire des cartes</title>")
       content must contain("<input type=\"text\" id=\"id\" name=\"id\" value=\"\" class=\"form-control\"/>")
       content must contain("<input type=\"date\" id=\"acquisition\" name=\"acquisition\" value=\"\" class=\"form-control\"/>")
       content must contain("<input type=\"date\" id=\"firstUse\" name=\"firstUse\" value=\"\" class=\"form-control\"/>")
@@ -883,8 +883,8 @@ class ModuleManagerSpec extends Specification with Mockito {
       status(r) must equalTo(BAD_REQUEST)
       contentType(r) must beSome.which(_ == "text/html")
       val content = contentAsString(r)
-      content must contain("<title>Inventaire des modules</title>")
-      content must contain("<div class=\"alert alert-danger\" role=\"alert\">Ce type de module n&#x27;existe pas</div>")
+      content must contain("<title>Inventaire des cartes</title>")
+      content must contain("<div class=\"alert alert-danger\" role=\"alert\">Ce type de carte n&#x27;existe pas</div>")
       content must contain("<input type=\"text\" id=\"id\" name=\"id\" value=\"\" class=\"form-control\"/>")
       content must contain("<input type=\"date\" id=\"acquisition\" name=\"acquisition\" value=\"\" class=\"form-control\"/>")
       content must contain("<input type=\"date\" id=\"firstUse\" name=\"firstUse\" value=\"\" class=\"form-control\"/>")
@@ -968,7 +968,7 @@ class ModuleManagerSpec extends Specification with Mockito {
       status(r) must equalTo(OK)
       contentType(r) must beSome.which(_ == "text/html")
       val content=contentAsString(r)
-      content must contain("<title>Inventaire des modules</title>")
+      content must contain("<title>Inventaire des cartes</title>")
       content must contain("<input type=\"text\" id=\"id\" name=\"id\" value=\"\" class=\"form-control\"/>")
       content must contain("<input type=\"date\" id=\"acquisition\" name=\"acquisition\" value=\"2015-04-22\" class=\"form-control\"/>")
       content must contain("<input type=\"date\" id=\"firstUse\" name=\"firstUse\" value=\"2015-04-22\" class=\"form-control\"/>")
@@ -1009,7 +1009,7 @@ class ModuleManagerSpec extends Specification with Mockito {
       status(r) must equalTo(OK)
       contentType(r) must beSome.which(_ == "text/html")
       val content = contentAsString(r)
-      content must contain("<title>Inventaire des modules</title>")
+      content must contain("<title>Inventaire des cartes</title>")
       content must contain("<input type=\"text\" id=\"id\" name=\"id\" value=\"Id\" class=\"form-control\"/>")
       content must contain("<input type=\"date\" id=\"acquisition\" name=\"acquisition\" value=\"2015-04-22\" class=\"form-control\"/>")
       content must contain("<input type=\"date\" id=\"firstUse\" name=\"firstUse\" value=\"2015-04-23\" class=\"form-control\"/>")
@@ -1097,7 +1097,7 @@ class ModuleManagerSpec extends Specification with Mockito {
       status(r) must equalTo(OK)
       contentType(r) must beSome.which(_ == "text/html")
       val content = contentAsString(r)
-      content must contain("<title>Inventaire des modules</title>")
+      content must contain("<title>Inventaire des cartes</title>")
       content must contain("<input type=\"text\" id=\"id\" name=\"id\" value=\"\" class=\"form-control\"/>")
       content must contain("<input type=\"date\" id=\"acquisition\" name=\"acquisition\" value=\"2015-04-22\" class=\"form-control\"/>")
       content must contain("<input type=\"date\" id=\"firstUse\" name=\"firstUse\" value=\"2015-04-23\" class=\"form-control\"/>")
