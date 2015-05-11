@@ -341,12 +341,72 @@ trait ModuleManagerLike extends Controller{
               apolline=moduleData.apolline
             )
           ).map(e=>
-            //If sensor was update, redirect to the module inventary
+            //If module was update, redirect to the module inventary
             Redirect(routes.ModuleManager.inventary(idType))
           ).recover({
             //Send Internal Server Error if have mongoDB error
             case e => InternalServerError("error")
           })
+        }
+      }
+  }
+
+  /**
+   * This method is call when the user delete a module
+   * @param idType Module type id
+   * @param id Module id
+   * @return Return Redirect Action when the user is not log in or module is delete
+   *         Return Internal Server Error Action when have mongoDB error
+   */
+  @ApiOperation(
+    nickname = "inventary/modules/:id/:id2/delete",
+    value = "Delete a module",
+    notes = "Delete a module to the mongoDB database",
+    httpMethod = "GET")
+  @ApiResponses(Array(
+    new ApiResponse(code=303,message="<ul><li>Move resource to the login page at /login if the user is not log</li><li>Move resource to the module inventary page at /inventary/modules/:id when module is delete"),
+    new ApiResponse(code=500,message="Have a mongoDB error")
+  ))
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(value = "Id of the module type",required=true,name="id", dataType = "String", paramType = "path"),
+    new ApiImplicitParam(value = "Id of the module",required=true,name="id2", dataType = "String", paramType = "path")
+  ))
+  def delete(idType:String,id:String)=Action.async {
+    implicit request=>
+
+      //Verify if user is connect
+      UserManager.doIfconnectAsync(request) {
+        //Verify if module type found
+        typeModuleManager.doIfTypeModuleFound(BSONObjectID(idType)) { _ =>
+          //Find the module
+          moduleDao.findOne(Json.obj("_id" -> BSONFormats.BSONObjectIDFormat.writes(BSONObjectID(id)))).flatMap(
+
+            data => data match {
+
+              //If sensor not found redirect to the module inventary
+              case None => future {
+                Redirect(routes.ModuleManager.inventary(idType))
+              }
+
+              //If module found
+              case Some(moduleData) => {
+                moduleDao.updateById(
+                  BSONObjectID(id),
+                  moduleData.copy(delete=true)
+                ).map(e=>
+                  //If module was delete, redirect to the module inventary
+                  Redirect(routes.ModuleManager.inventary(idType))
+                ).recover({
+                  //Send Internal Server Error if have mongoDB error
+                  case e => InternalServerError("error")
+                })
+              }
+            }).recover({
+            //Send Internal Server Error if have mongoDB error
+            case e => InternalServerError("error")
+          })
+        }{
+          _=> future{Redirect(routes.TypeModuleManager.inventary())}
         }
       }
   }
