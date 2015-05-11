@@ -14,4 +14,4 @@ deploy:
   app: calm-cliffs-7440
   on:
     repo: Spirals-Team/apolline
-    branch: sprint1/issue11
+    branch: sprint1/issue12
