@@ -8,7 +8,7 @@ import org.specs2.mock.Mockito
 import org.specs2.mutable.Specification
 import org.specs2.runner.JUnitRunner
 import play.api.data.Form
-import play.api.libs.json.{JsObject, Json}
+import play.api.libs.json.{Writes, JsObject, Json}
 import play.api.mvc.{Call, Results, Action, Result}
 import play.api.test.Helpers._
 import play.api.test.{FakeRequest, WithApplication}
@@ -1026,6 +1026,54 @@ class ModuleManagerSpec extends Specification with Mockito {
       there was one(f.moduleDaoMock).findApolline()
       there was one(f.firmwareDaoMock).findFirmware()
       there was one(f.firmwareDaoMock).findVersionFirmware()
+    }
+
+    "send redirect after update module" in new WithApplication{
+      val f=fixture
+      val data=Json.parse("""{"id":"Id","acquisition":"2015-04-22","firstUse":"2015-04-22","firmware":"firm","versionFirmware":"v01","commentaire":"un com","send":"Envoyer"}""")
+      val lastError=mock[LastError]
+
+      f.applyFoundFunction()
+      f.moduleDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{None}
+      f.firmwareDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{Some(Firmware(bson3,"firm","v01"))}
+      f.moduleDaoMock.updateById(org.mockito.Matchers.eq(bson2), any[Module],any[GetLastError])(any[Writes[Module]],any[ExecutionContext]) returns future{lastError}
+
+      val req=FakeRequest(POST,"/inventary/modules/"+bson.stringify+"/module").withJsonBody(data).withSession("user" -> """{"login":"test"}""")
+      val r=f.controller.moduleUpdate(bson.stringify,bson2.stringify).apply(req)
+
+      status(r) must equalTo(SEE_OTHER)
+      header("Location",r) must equalTo(Some("/inventary/modules/"+bson.stringify))
+
+      there was one(f.typeModuleManagerMock).doIfTypeModuleFound(org.mockito.Matchers.eq(bson))(any[Unit=>Future[Result]])(any[Unit=>Future[Result]])
+      there was one(f.moduleDaoMock).findOne(any[JsObject])(any[ExecutionContext])
+      there was one(f.firmwareDaoMock).findOne(any[JsObject])(any[ExecutionContext])
+      there was one(f.moduleDaoMock).updateById(org.mockito.Matchers.eq(bson2), any[Module],any[GetLastError])(any[Writes[Module]],any[ExecutionContext])
+    }
+
+    "send 500 internal error if have mongoDB error when update module" in new WithApplication{
+      val f=fixture
+      val data=Json.parse("""{"id":"Id","acquisition":"2015-04-22","firstUse":"2015-04-22","firmware":"firm","versionFirmware":"v01","commentaire":"un com","send":"Envoyer"}""")
+      val futureMock=mock[Future[LastError]]
+      val throwable=mock[Throwable]
+
+      f.applyFoundFunction()
+      f.moduleDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{None}
+      f.firmwareDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{Some(Firmware(bson3,"firm","v01"))}
+      f.moduleDaoMock.updateById(org.mockito.Matchers.eq(bson2), any[Module],any[GetLastError])(any[Writes[Module]],any[ExecutionContext]) returns futureMock
+      futureMock.map(any[LastError=>LastError])(any[ExecutionContext]) returns futureMock
+      futureMock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers {value=>future{value.asInstanceOf[PartialFunction[Throwable,Result]](throwable)}}
+
+      val req=FakeRequest(POST,"/inventary/modules/"+bson.stringify+"/module").withJsonBody(data).withSession("user" -> """{"login":"test"}""")
+      val r=f.controller.moduleUpdate(bson.stringify,bson2.stringify).apply(req)
+
+      status(r) must equalTo(INTERNAL_SERVER_ERROR)
+
+      there was one(f.typeModuleManagerMock).doIfTypeModuleFound(org.mockito.Matchers.eq(bson))(any[Unit=>Future[Result]])(any[Unit=>Future[Result]])
+      there was one(f.moduleDaoMock).findOne(any[JsObject])(any[ExecutionContext])
+      there was one(f.firmwareDaoMock).findOne(any[JsObject])(any[ExecutionContext])
+      there was one(f.moduleDaoMock).updateById(org.mockito.Matchers.eq(bson2), any[Module],any[GetLastError])(any[Writes[Module]],any[ExecutionContext])
+      there was one(futureMock).map(any[LastError=>LastError])(any[ExecutionContext])
+      there was one(futureMock).recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext])
     }
   }
 

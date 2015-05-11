@@ -149,7 +149,7 @@ trait ModuleManagerLike extends Controller{
   def moduleUpdatePage(id:String,id2:String)=Action.async{
     implicit request =>
       //If user is connect print a form with prefilled data
-      printFormWithData(id,id2,routes.SensorManager.sensorUpdate(id,id2)){
+      printFormWithData(id,id2,routes.ModuleManager.moduleUpdate(id,id2)){
         (module,firmware)=>
           //Data prefilled into the form
           ModuleForm(
@@ -220,7 +220,7 @@ trait ModuleManagerLike extends Controller{
     notes = "Insert a new module to the mongoDB database",
     httpMethod = "POST")
   @ApiResponses(Array(
-    new ApiResponse(code=303,message="<ul><li>Move resource to the login page at /login if the user is not log</li><li>Move resource to the sensors inventary at /inventary/sensors/:id if sensor was insert</li></ul>"),
+    new ApiResponse(code=303,message="<ul><li>Move resource to the login page at /login if the user is not log</li><li>Move resource to the modules inventary at /inventary/modules/:id if module was insert</li></ul>"),
     new ApiResponse(code=400,message="Fields required or not valid"),
     new ApiResponse(code=500,message="Have a mongoDB error")
   ))
@@ -228,9 +228,13 @@ trait ModuleManagerLike extends Controller{
     new ApiImplicitParam(value = "Id of the module type",required=true,name="id", dataType = "String", paramType = "path"),
     new ApiImplicitParam(value = "Module id",required=true,name="id", dataType = "String", paramType = "form"),
     new ApiImplicitParam(value = "Acquisition date of the module",required=true,name="acquisition", dataType = "Date", paramType = "form"),
-    new ApiImplicitParam(value = "First use date of the sensor",name="firstUse", dataType = "Date", paramType = "form"),
-    new ApiImplicitParam(value = "Flag indicate if the sensor is out of order",name="hs",dataType = "Boolean", paramType = "form"),
-    new ApiImplicitParam(value = "Comment for the sensor",required=true,name="commentaire",dataType = "String", paramType = "form"),
+    new ApiImplicitParam(value = "First use date of the module",name="firstUse", dataType = "Date", paramType = "form"),
+    new ApiImplicitParam(value = "Flag indicate if the module is an aggregator",name="agregateur",dataType = "Boolean", paramType = "form"),
+    new ApiImplicitParam(value = "Apolline version",name="apolline",dataType = "String", paramType = "form"),
+    new ApiImplicitParam(value = "Firmware name",name="firmware",dataType = "String", paramType = "form"),
+    new ApiImplicitParam(value = "Firmware version",name="versionFirmware",dataType = "String", paramType = "form"),
+    new ApiImplicitParam(value = "Flag indicate if the module is out of order",name="hs",dataType = "Boolean", paramType = "form"),
+    new ApiImplicitParam(value = "Comment for the module",required=true,name="commentaire",dataType = "String", paramType = "form"),
     new ApiImplicitParam(value = "Value on the button used for send the form",required=true,name="send",defaultValue="Envoyer et continuer",dataType="String",paramType="form")
   ))
   def moduleInsert(id:String)=Action.async {
@@ -277,6 +281,73 @@ trait ModuleManagerLike extends Controller{
             //Send Internal Server Error if have mongoDB error
             case e => InternalServerError("error")
           })
+      }
+  }
+
+  /**
+   * This method is call when the user submit a form for update a module
+   * @return Return Redirect Action when the user is not log in or if module was update
+   *         Return Bad request Action if the form was submit with data error
+   *         Return Internal Server Error Action when have mongoDB error
+   */
+  @ApiOperation(
+    nickname = "inventary/module/update",
+    value = "Update a module",
+    notes = "Update a module to the mongoDB database",
+    httpMethod = "POST")
+  @ApiResponses(Array(
+    new ApiResponse(code=303,message="<ul><li>Move resource to the login page at /login if the user is not log</li><li>Move resource to the modules inventary at /inventary/modules/:id if module was update</li></ul>"),
+    new ApiResponse(code=400,message="Fields required or not valid"),
+    new ApiResponse(code=500,message="Have a mongoDB error")
+  ))
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(value = "Id of the module type",required=true,name="id", dataType = "String", paramType = "path"),
+    new ApiImplicitParam(value = "Module id",required=true,name="id", dataType = "String", paramType = "form"),
+    new ApiImplicitParam(value = "Acquisition date of the module",required=true,name="acquisition", dataType = "Date", paramType = "form"),
+    new ApiImplicitParam(value = "First use date of the module",name="firstUse", dataType = "Date", paramType = "form"),
+    new ApiImplicitParam(value = "Flag indicate if the module is an aggregator",name="agregateur",dataType = "Boolean", paramType = "form"),
+    new ApiImplicitParam(value = "Apolline version",name="apolline",dataType = "String", paramType = "form"),
+    new ApiImplicitParam(value = "Firmware name",name="firmware",dataType = "String", paramType = "form"),
+    new ApiImplicitParam(value = "Firmware version",name="versionFirmware",dataType = "String", paramType = "form"),
+    new ApiImplicitParam(value = "Flag indicate if the module is out of order",name="hs",dataType = "Boolean", paramType = "form"),
+    new ApiImplicitParam(value = "Comment for the module",required=true,name="commentaire",dataType = "String", paramType = "form"),
+    new ApiImplicitParam(value = "Value on the button used for send the form",required=true,name="send",defaultValue="Envoyer et continuer",dataType="String",paramType="form")
+  ))
+  def moduleUpdate(idType:String,id:String)=Action.async{
+    implicit request =>
+      //Verify if the user is connect and if data received are valid
+      submitForm(idType,routes.ModuleManager.moduleUpdate(idType,id)){
+
+        //Filter for verify if sensor exists
+        moduleData=>Json.obj("_id"->Json.obj("$ne"->BSONFormats.BSONObjectIDFormat.writes(BSONObjectID(id))),"id" -> moduleData.id, "types" -> BSONFormats.BSONObjectIDFormat.writes(BSONObjectID(idType)))
+
+      }{
+        //Update the module
+        (moduleData,firmware)=>{
+          //Update the module
+          moduleDao.updateById(
+            BSONObjectID(id),
+
+            //Create module information
+            Module(
+              id = moduleData.id,
+              types = BSONObjectID(id),
+              firmware = firmware,
+              acquisition = moduleData.acquisition,
+              firstUse = moduleData.firstUse,
+              hs = moduleData.hs,
+              commentaire = moduleData.commentaire,
+              agregateur=moduleData.agregateur,
+              apolline=moduleData.apolline
+            )
+          ).map(e=>
+            //If sensor was update, redirect to the module inventary
+            Redirect(routes.ModuleManager.inventary(idType))
+          ).recover({
+            //Send Internal Server Error if have mongoDB error
+            case e => InternalServerError("error")
+          })
+        }
       }
   }
 
