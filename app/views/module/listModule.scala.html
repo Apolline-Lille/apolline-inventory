@@ -57,10 +57,10 @@
                   <td>@if(mod.agregateur){ @Messages("global.yes") }else{ @Messages("global.no") }</td>
                   <td>@mod.apolline.getOrElse("-")</td>
                   <td>@if(mod.hs){@Messages("inventary.module.hs")}</td>
-                  <td>@*
-                    <a href="@routes.SensorManager.sensorClonePage(types._id.stringify,sensor._id.stringify)"><span class="glyphicon glyphicon-copy"></span></a>
-                    <a href="@routes.SensorManager.sensorUpdatePage(types._id.stringify,sensor._id.stringify)"><span class="glyphicon glyphicon-pencil"></span></a>
-                    <a data-toggle="modal" href="#modal-delete" data-title="@sensor.id" data-link="@routes.SensorManager.delete(types._id.stringify,sensor._id.stringify)">
+                  <td>
+                    <a href="@routes.ModuleManager.moduleClonePage(types._id.stringify,mod._id.stringify)"><span class="glyphicon glyphicon-copy"></span></a>
+                    <a href="@routes.ModuleManager.moduleUpdatePage(types._id.stringify,mod._id.stringify)"><span class="glyphicon glyphicon-pencil"></span></a>
+                    @*<a data-toggle="modal" href="#modal-delete" data-title="@sensor.id" data-link="@routes.SensorManager.delete(types._id.stringify,sensor._id.stringify)">
                       <span class="glyphicon glyphicon-trash"></span>
                     </a>*@
                   </td>

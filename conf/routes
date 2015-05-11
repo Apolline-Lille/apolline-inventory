@@ -43,7 +43,8 @@ POST        /inventary/modules/:id/update             controllers.TypeModuleMana
 GET         /inventary/modules/:id                    controllers.ModuleManager.inventary(id:String,sort:String ?= "id",sens:Int ?= 1)
 GET         /inventary/modules/:id/module             controllers.ModuleManager.modulePage(id:String)
 POST        /inventary/modules/:id/module             controllers.ModuleManager.moduleInsert(id:String)
-
+GET         /inventary/modules/:id/:id2               controllers.ModuleManager.moduleUpdatePage(id:String,id2:String)
+GET         /inventary/modules/:id/:id2/clone         controllers.ModuleManager.moduleClonePage(id:String,id2:String)
 
 # Map static resources from the /public folder to the /assets URL path
 GET         /assets/*file                             controllers.Assets.at(path="/public", file)

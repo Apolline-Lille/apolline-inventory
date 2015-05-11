@@ -1,6 +1,6 @@
 import java.util.Date
 
-import controllers.{ModuleForm, ModuleManager, TypeModuleManagerLike, ModuleManagerLike}
+import controllers._
 import models._
 import org.junit.runner.RunWith
 import org.specs2.matcher.{MatchResult, Expectable, Matcher}
@@ -372,6 +372,170 @@ class ModuleManagerSpec extends Specification with Mockito {
       there was one(f.firmwareDaoMock).findFirmware()
       there was one(f.firmwareDaoMock).findVersionFirmware()
       there was one(futureMock).flatMap(any[Stream[BSONDocument]=>Future[Stream[BSONDocument]]])(any[ExecutionContext])
+      there was one(futureMock).recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext])
+    }
+  }
+
+  "When method printFormWIthData is called, ModuleManager" should{
+
+    "send bad_request with the form if method type not exist" in new WithApplication{
+      val f=fixture
+      val func=mock[(Module,Firmware)=>ModuleForm]
+      val routeCall=mock[Call]
+
+      f.applyNotFoundFunction()
+      f.moduleDaoMock.findApolline() returns future{Stream[BSONDocument]()}
+      f.firmwareDaoMock.findFirmware() returns future{Stream[BSONDocument]()}
+      f.firmwareDaoMock.findVersionFirmware() returns future{Stream[BSONDocument]()}
+
+      val req=FakeRequest(GET,"/inventary/modules/"+bson.stringify+"/"+bson2.stringify).withSession("user" -> """{"login":"test"}""")
+      val action=Action.async(implicit request => f.controller.printFormWithData(bson.stringify,bson2.stringify,routeCall)(func))
+      val r=call(action,req)
+
+      status(r) must equalTo(BAD_REQUEST)
+      contentType(r) must beSome.which(_ == "text/html")
+      val content = contentAsString(r)
+      content must contain("<title>Inventaire des modules</title>")
+      content must contain("Ce type de module n&#x27;existe pas")
+
+      there was one(f.typeModuleManagerMock).doIfTypeModuleFound(org.mockito.Matchers.eq(bson))(any[Unit=>Future[Result]])(any[Unit=>Future[Result]])
+      there was one(f.moduleDaoMock).findApolline()
+      there was one(f.firmwareDaoMock).findFirmware()
+      there was one(f.firmwareDaoMock).findVersionFirmware()
+    }
+
+    "send 200 Ok page with a prefilled form" in new WithApplication{
+      val f=fixture
+      val func=mock[(Module,Firmware)=>ModuleForm]
+      val module=Module(bson2,"Id",bson,bson3,date,Some(date2),true,Some("v01"),true,Some("un com"))
+      val firmware=Firmware(bson3,"firm","v02")
+      val routeCall=mock[Call]
+
+      f.applyFoundFunction()
+      f.moduleDaoMock.findById(org.mockito.Matchers.eq(bson2))(any[ExecutionContext]) returns future{Some(module)}
+      f.firmwareDaoMock.findById(org.mockito.Matchers.eq(bson3))(any[ExecutionContext]) returns future{Some(firmware)}
+      func.apply(org.mockito.Matchers.eq(module),org.mockito.Matchers.eq(firmware)) returns ModuleForm("Id",date,Some(date2),true,Some("v01"),"firm","v02",true,Some("un com"),"")
+      f.moduleDaoMock.findApolline() returns future{Stream[BSONDocument]()}
+      f.firmwareDaoMock.findFirmware() returns future{Stream[BSONDocument]()}
+      f.firmwareDaoMock.findVersionFirmware() returns future{Stream[BSONDocument]()}
+
+      val req=FakeRequest(GET,"/inventary/modules/"+bson.stringify+"/"+bson2.stringify).withSession("user" -> """{"login":"test"}""")
+      val action=Action.async(implicit request => f.controller.printFormWithData(bson.stringify,bson2.stringify,routeCall)(func))
+      val r=call(action,req)
+
+      status(r) must equalTo(OK)
+      contentType(r) must beSome.which(_ == "text/html")
+      val content = contentAsString(r)
+      content must contain("<title>Inventaire des modules</title>")
+      content must contain("<input type=\"text\" id=\"id\" name=\"id\" value=\"Id\" class=\"form-control\"/>")
+      content must contain("<input type=\"date\" id=\"acquisition\" name=\"acquisition\" value=\"2015-04-22\" class=\"form-control\"/>")
+      content must contain("<input type=\"date\" id=\"firstUse\" name=\"firstUse\" value=\"2015-04-23\" class=\"form-control\"/>")
+      content must contain("<input type=\"checkbox\" id=\"agregateur\" name=\"agregateur\" value=\"true\" checked=\"checked\" />")
+      content must contain("<input type=\"text\" id=\"apolline\" name=\"apolline\" class=\"form-control\" value=\"v01\" autocomplete=\"off\" list=\"list_apolline\"/>")
+      content must contain("<input type=\"text\" id=\"firmware\" name=\"firmware\" class=\"form-control\" value=\"firm\" autocomplete=\"off\" list=\"list_firmware\"/>")
+      content must contain("<input type=\"text\" id=\"versionFirmware\" name=\"versionFirmware\" class=\"form-control\" value=\"v02\" autocomplete=\"off\" list=\"list_versionFirmware\"/>")
+      content must contain("<input type=\"checkbox\" id=\"hs\" name=\"hs\" value=\"true\" checked=\"checked\" />")
+      content must contain("<textarea id=\"commentaire\" name=\"commentaire\" class=\"form-control\">un com</textarea>")
+
+      there was one(f.typeModuleManagerMock).doIfTypeModuleFound(org.mockito.Matchers.eq(bson))(any[Unit=>Future[Result]])(any[Unit=>Future[Result]])
+      there was one(f.moduleDaoMock).findById(org.mockito.Matchers.eq(bson2))(any[ExecutionContext])
+      there was one(f.firmwareDaoMock).findById(org.mockito.Matchers.eq(bson3))(any[ExecutionContext])
+      there was one(func).apply(org.mockito.Matchers.eq(module),org.mockito.Matchers.eq(firmware))
+      there was one(f.moduleDaoMock).findApolline()
+      there was one(f.firmwareDaoMock).findFirmware()
+      there was one(f.firmwareDaoMock).findVersionFirmware()
+    }
+
+    "send redirect if module not found" in new WithApplication{
+      val f=fixture
+      val func=mock[(Module,Firmware)=>ModuleForm]
+      val routeCall=mock[Call]
+
+      f.applyFoundFunction()
+      f.moduleDaoMock.findById(org.mockito.Matchers.eq(bson2))(any[ExecutionContext]) returns future{None}
+
+      val req=FakeRequest(GET,"/inventary/modules/"+bson.stringify+"/"+bson2.stringify).withSession("user" -> """{"login":"test"}""")
+      val action=Action.async(implicit request => f.controller.printFormWithData(bson.stringify,bson2.stringify,routeCall)(func))
+      val r=call(action,req)
+
+      status(r) must equalTo(SEE_OTHER)
+      header("Location",r) must beSome("/inventary/modules/"+bson.stringify)
+
+      there was one(f.typeModuleManagerMock).doIfTypeModuleFound(org.mockito.Matchers.eq(bson))(any[Unit=>Future[Result]])(any[Unit=>Future[Result]])
+      there was one(f.moduleDaoMock).findById(org.mockito.Matchers.eq(bson2))(any[ExecutionContext])
+    }
+
+    "send redirect if firmware not found" in new WithApplication{
+      val f=fixture
+      val func=mock[(Module,Firmware)=>ModuleForm]
+      val module=Module(bson2,"Id",bson,bson3,date,Some(date2),true,Some("v01"),true,Some("un com"))
+      val routeCall=mock[Call]
+
+      f.applyFoundFunction()
+      f.moduleDaoMock.findById(org.mockito.Matchers.eq(bson2))(any[ExecutionContext]) returns future{Some(module)}
+      f.firmwareDaoMock.findById(org.mockito.Matchers.eq(bson3))(any[ExecutionContext]) returns future{None}
+
+      val req=FakeRequest(GET,"/inventary/modules/"+bson.stringify+"/"+bson2.stringify).withSession("user" -> """{"login":"test"}""")
+      val action=Action.async(implicit request => f.controller.printFormWithData(bson.stringify,bson2.stringify,routeCall)(func))
+      val r=call(action,req)
+
+      status(r) must equalTo(SEE_OTHER)
+      header("Location",r) must beSome("/inventary/modules/"+bson.stringify)
+
+      there was one(f.typeModuleManagerMock).doIfTypeModuleFound(org.mockito.Matchers.eq(bson))(any[Unit=>Future[Result]])(any[Unit=>Future[Result]])
+      there was one(f.moduleDaoMock).findById(org.mockito.Matchers.eq(bson2))(any[ExecutionContext])
+      there was one(f.firmwareDaoMock).findById(org.mockito.Matchers.eq(bson3))(any[ExecutionContext])
+    }
+
+    "send 500 internal server error if have mongoDB error when find module" in new WithApplication{
+      val f=fixture
+      val func=mock[(Module,Firmware)=>ModuleForm]
+      val futureMock=mock[Future[Option[Module]]]
+      val routeCall=mock[Call]
+      val throwable=mock[Throwable]
+
+      f.applyFoundFunction()
+      f.moduleDaoMock.findById(org.mockito.Matchers.eq(bson2))(any[ExecutionContext]) returns futureMock
+      futureMock.flatMap(any[Option[Module]=>Future[Option[Module]]])(any[ExecutionContext]) returns futureMock
+      futureMock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers {value=>future{value.asInstanceOf[PartialFunction[Throwable,Result]](throwable)}}
+
+      val req=FakeRequest(GET,"/inventary/modules/"+bson.stringify+"/"+bson2.stringify).withSession("user" -> """{"login":"test"}""")
+      val action=Action.async(implicit request => f.controller.printFormWithData(bson.stringify,bson2.stringify,routeCall)(func))
+      val r=call(action,req)
+
+      status(r) must equalTo(INTERNAL_SERVER_ERROR)
+
+      there was one(f.typeModuleManagerMock).doIfTypeModuleFound(org.mockito.Matchers.eq(bson))(any[Unit=>Future[Result]])(any[Unit=>Future[Result]])
+      there was one(f.moduleDaoMock).findById(org.mockito.Matchers.eq(bson2))(any[ExecutionContext])
+      there was one(futureMock).flatMap(any[Option[Module]=>Future[Option[Module]]])(any[ExecutionContext])
+      there was one(futureMock).recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext])
+    }
+
+
+    "send 500 internal server error if have mongoDB error when find firmware" in new WithApplication{
+      val f=fixture
+      val func=mock[(Module,Firmware)=>ModuleForm]
+      val module=Module(bson2,"Id",bson,bson3,date,Some(date2),true,Some("v01"),true,Some("un com"))
+      val futureMock=mock[Future[Option[Firmware]]]
+      val routeCall=mock[Call]
+      val throwable=mock[Throwable]
+
+      f.applyFoundFunction()
+      f.moduleDaoMock.findById(org.mockito.Matchers.eq(bson2))(any[ExecutionContext]) returns future{Some(module)}
+      f.firmwareDaoMock.findById(org.mockito.Matchers.eq(bson3))(any[ExecutionContext]) returns futureMock
+      futureMock.flatMap(any[Option[Firmware]=>Future[Option[Firmware]]])(any[ExecutionContext]) returns futureMock
+      futureMock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers {value=>future{value.asInstanceOf[PartialFunction[Throwable,Result]](throwable)}}
+
+      val req=FakeRequest(GET,"/inventary/modules/"+bson.stringify+"/"+bson2.stringify).withSession("user" -> """{"login":"test"}""")
+      val action=Action.async(implicit request => f.controller.printFormWithData(bson.stringify,bson2.stringify,routeCall)(func))
+      val r=call(action,req)
+
+      status(r) must equalTo(INTERNAL_SERVER_ERROR)
+
+      there was one(f.typeModuleManagerMock).doIfTypeModuleFound(org.mockito.Matchers.eq(bson))(any[Unit=>Future[Result]])(any[Unit=>Future[Result]])
+      there was one(f.moduleDaoMock).findById(org.mockito.Matchers.eq(bson2))(any[ExecutionContext])
+      there was one(f.firmwareDaoMock).findById(org.mockito.Matchers.eq(bson3))(any[ExecutionContext])
+      there was one(futureMock).flatMap(any[Option[Firmware]=>Future[Option[Firmware]]])(any[ExecutionContext])
       there was one(futureMock).recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext])
     }
   }
@@ -819,6 +983,86 @@ class ModuleManagerSpec extends Specification with Mockito {
       there was one(f.moduleDaoMock).findOne(any[JsObject])(any[ExecutionContext])
       there was one(f.firmwareDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("nom"->"firm","version"->"v01")))(any[ExecutionContext])
       there was one(f.moduleDaoMock).insert(any[Module],any[GetLastError])(any[ExecutionContext])
+      there was one(f.moduleDaoMock).findApolline()
+      there was one(f.firmwareDaoMock).findFirmware()
+      there was one(f.firmwareDaoMock).findVersionFirmware()
+    }
+  }
+
+  "When user is on the page /inventary/sensors/:id/:id2, ModuleManager" should{
+    "send 200 Ok page with a prefilled form" in new WithApplication{
+      val f=fixture
+      val module=Module(bson2,"Id",bson,bson3,date,Some(date2),true,Some("v01"),true,Some("un com"))
+      val firmware=Firmware(bson3,"firm","v02")
+      val routeCall=mock[Call]
+
+      f.applyFoundFunction()
+      f.moduleDaoMock.findById(org.mockito.Matchers.eq(bson2))(any[ExecutionContext]) returns future{Some(module)}
+      f.firmwareDaoMock.findById(org.mockito.Matchers.eq(bson3))(any[ExecutionContext]) returns future{Some(firmware)}
+      f.moduleDaoMock.findApolline() returns future{Stream[BSONDocument]()}
+      f.firmwareDaoMock.findFirmware() returns future{Stream[BSONDocument]()}
+      f.firmwareDaoMock.findVersionFirmware() returns future{Stream[BSONDocument]()}
+
+      val req=FakeRequest(GET,"/inventary/modules/"+bson.stringify+"/"+bson2.stringify).withSession("user" -> """{"login":"test"}""")
+      val r=f.controller.moduleUpdatePage(bson.stringify,bson2.stringify).apply(req)
+
+      status(r) must equalTo(OK)
+      contentType(r) must beSome.which(_ == "text/html")
+      val content = contentAsString(r)
+      content must contain("<title>Inventaire des modules</title>")
+      content must contain("<input type=\"text\" id=\"id\" name=\"id\" value=\"Id\" class=\"form-control\"/>")
+      content must contain("<input type=\"date\" id=\"acquisition\" name=\"acquisition\" value=\"2015-04-22\" class=\"form-control\"/>")
+      content must contain("<input type=\"date\" id=\"firstUse\" name=\"firstUse\" value=\"2015-04-23\" class=\"form-control\"/>")
+      content must contain("<input type=\"checkbox\" id=\"agregateur\" name=\"agregateur\" value=\"true\" checked=\"checked\" />")
+      content must contain("<input type=\"text\" id=\"apolline\" name=\"apolline\" class=\"form-control\" value=\"v01\" autocomplete=\"off\" list=\"list_apolline\"/>")
+      content must contain("<input type=\"text\" id=\"firmware\" name=\"firmware\" class=\"form-control\" value=\"firm\" autocomplete=\"off\" list=\"list_firmware\"/>")
+      content must contain("<input type=\"text\" id=\"versionFirmware\" name=\"versionFirmware\" class=\"form-control\" value=\"v02\" autocomplete=\"off\" list=\"list_versionFirmware\"/>")
+      content must contain("<input type=\"checkbox\" id=\"hs\" name=\"hs\" value=\"true\" checked=\"checked\" />")
+      content must contain("<textarea id=\"commentaire\" name=\"commentaire\" class=\"form-control\">un com</textarea>")
+
+      there was one(f.typeModuleManagerMock).doIfTypeModuleFound(org.mockito.Matchers.eq(bson))(any[Unit=>Future[Result]])(any[Unit=>Future[Result]])
+      there was one(f.moduleDaoMock).findById(org.mockito.Matchers.eq(bson2))(any[ExecutionContext])
+      there was one(f.firmwareDaoMock).findById(org.mockito.Matchers.eq(bson3))(any[ExecutionContext])
+      there was one(f.moduleDaoMock).findApolline()
+      there was one(f.firmwareDaoMock).findFirmware()
+      there was one(f.firmwareDaoMock).findVersionFirmware()
+    }
+  }
+
+  "When user is on the page /inventary/sensors/:id/:id2/clone, ModuleManager" should{
+    "send 200 Ok page with a prefilled form" in new WithApplication{
+      val f=fixture
+      val module=Module(bson2,"Id",bson,bson3,date,Some(date2),true,Some("v01"),true,Some("un com"))
+      val firmware=Firmware(bson3,"firm","v02")
+      val routeCall=mock[Call]
+
+      f.applyFoundFunction()
+      f.moduleDaoMock.findById(org.mockito.Matchers.eq(bson2))(any[ExecutionContext]) returns future{Some(module)}
+      f.firmwareDaoMock.findById(org.mockito.Matchers.eq(bson3))(any[ExecutionContext]) returns future{Some(firmware)}
+      f.moduleDaoMock.findApolline() returns future{Stream[BSONDocument]()}
+      f.firmwareDaoMock.findFirmware() returns future{Stream[BSONDocument]()}
+      f.firmwareDaoMock.findVersionFirmware() returns future{Stream[BSONDocument]()}
+
+      val req=FakeRequest(GET,"/inventary/modules/"+bson.stringify+"/"+bson2.stringify).withSession("user" -> """{"login":"test"}""")
+      val r=f.controller.moduleClonePage(bson.stringify,bson2.stringify).apply(req)
+
+      status(r) must equalTo(OK)
+      contentType(r) must beSome.which(_ == "text/html")
+      val content = contentAsString(r)
+      content must contain("<title>Inventaire des modules</title>")
+      content must contain("<input type=\"text\" id=\"id\" name=\"id\" value=\"\" class=\"form-control\"/>")
+      content must contain("<input type=\"date\" id=\"acquisition\" name=\"acquisition\" value=\"2015-04-22\" class=\"form-control\"/>")
+      content must contain("<input type=\"date\" id=\"firstUse\" name=\"firstUse\" value=\"2015-04-23\" class=\"form-control\"/>")
+      content must contain("<input type=\"checkbox\" id=\"agregateur\" name=\"agregateur\" value=\"true\" checked=\"checked\" />")
+      content must contain("<input type=\"text\" id=\"apolline\" name=\"apolline\" class=\"form-control\" value=\"v01\" autocomplete=\"off\" list=\"list_apolline\"/>")
+      content must contain("<input type=\"text\" id=\"firmware\" name=\"firmware\" class=\"form-control\" value=\"firm\" autocomplete=\"off\" list=\"list_firmware\"/>")
+      content must contain("<input type=\"text\" id=\"versionFirmware\" name=\"versionFirmware\" class=\"form-control\" value=\"v02\" autocomplete=\"off\" list=\"list_versionFirmware\"/>")
+      content must contain("<input type=\"checkbox\" id=\"hs\" name=\"hs\" value=\"true\" checked=\"checked\" />")
+      content must contain("<textarea id=\"commentaire\" name=\"commentaire\" class=\"form-control\">un com</textarea>")
+
+      there was one(f.typeModuleManagerMock).doIfTypeModuleFound(org.mockito.Matchers.eq(bson))(any[Unit=>Future[Result]])(any[Unit=>Future[Result]])
+      there was one(f.moduleDaoMock).findById(org.mockito.Matchers.eq(bson2))(any[ExecutionContext])
+      there was one(f.firmwareDaoMock).findById(org.mockito.Matchers.eq(bson3))(any[ExecutionContext])
       there was one(f.moduleDaoMock).findApolline()
       there was one(f.firmwareDaoMock).findFirmware()
       there was one(f.firmwareDaoMock).findVersionFirmware()

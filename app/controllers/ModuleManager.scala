@@ -128,6 +128,86 @@ trait ModuleManagerLike extends Controller{
   }
 
   /**
+   * This method is call when the user is on the page /inventary/modules/:id/:id2. It display a form for update a module
+   * @return Return Ok Action when the user is on the page /inventary/modules/:id/:id2 with the form for update a module
+   *         Return Redirect Action when the user is not log in or if module not found
+   *         Return Internal Server Error Action when have mongoDB error
+   */
+  @ApiOperation(
+    nickname = "inventary/module/update",
+    value = "Get the html page a form for update a module",
+    notes = "Get the html page a form for update a module",
+    httpMethod = "GET")
+  @ApiResponses(Array(
+    new ApiResponse(code=303,message="<ul><li>Move resource to the login page at /login if the user is not log</li><li>Move resource to the sensors inventary at /inventary/modules/:id if module not found</li></ul>"),
+    new ApiResponse(code=500,message="Have a mongoDB error")
+  ))
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(value = "Id of the module type",required=true,name="id", dataType = "String", paramType = "path"),
+    new ApiImplicitParam(value = "Id of the module",required=true,name="id2", dataType = "String", paramType = "path")
+  ))
+  def moduleUpdatePage(id:String,id2:String)=Action.async{
+    implicit request =>
+      //If user is connect print a form with prefilled data
+      printFormWithData(id,id2,routes.SensorManager.sensorUpdate(id,id2)){
+        (module,firmware)=>
+          //Data prefilled into the form
+          ModuleForm(
+            module.id,
+            module.acquisition,
+            module.firstUse,
+            module.agregateur,
+            module.apolline,
+            firmware.nom,
+            firmware.version,
+            module.hs,
+            module.commentaire,
+            ""
+          )
+      }
+  }
+
+  /**
+   * This method is call when the user is on the page /inventary/modules/:id/:id2/clone. It display a prefilled form for insert a new module
+   * @return Return Ok Action when the user is on the page /inventary/modules/:id/:id2/clone with the prefilled form for insert a new module
+   *         Return Redirect Action when the user is not log in or if module not found
+   *         Return Internal Server Error Action when have mongoDB error
+   */
+  @ApiOperation(
+    nickname = "inventary/module/clone",
+    value = "Get the html page a prefilled form for insert a new module",
+    notes = "Get the html page a prefilled form for insert a new module",
+    httpMethod = "GET")
+  @ApiResponses(Array(
+    new ApiResponse(code=303,message="<ul><li>Move resource to the login page at /login if the user is not log</li><li>Move resource to the sensors inventary at /inventary/modules/:id if module not found</li></ul>"),
+    new ApiResponse(code=500,message="Have a mongoDB error")
+  ))
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(value = "Id of the module type",required=true,name="id", dataType = "String", paramType = "path"),
+    new ApiImplicitParam(value = "Id of the module",required=true,name="id2", dataType = "String", paramType = "path")
+  ))
+  def moduleClonePage(id:String,id2:String)=Action.async{
+    implicit request =>
+      //If user is connect print a form with prefilled data
+      printFormWithData(id,id2,routes.ModuleManager.moduleInsert(id)){
+        (module,firmware)=>
+          //Data prefilled into the form
+          ModuleForm(
+            "",
+            module.acquisition,
+            module.firstUse,
+            module.agregateur,
+            module.apolline,
+            firmware.nom,
+            firmware.version,
+            module.hs,
+            module.commentaire,
+            ""
+          )
+      }
+  }
+
+  /**
    * This method is call when the user submit a form for insert new module
    * @return Return Ok Action when the user module was insert and return prefilled form for insert a new module
    *         Return Redirect Action when the user is not log in or if module was insert
@@ -260,6 +340,53 @@ trait ModuleManagerLike extends Controller{
           }
         )
       } {_=> printForm(Results.BadRequest,id,form.withGlobalError(Messages("inventary.typeModule.error.typeNotExist")),routeSubmit)}
+    }
+  }
+
+  /**
+   * Print a form with prefilled data
+   * @param id Module type id
+   * @param id2 Module id
+   * @param r Route call when user submit the form
+   * @param f Function for get prefilled information
+   * @param request
+   * @return Return OK page with the prefilled form
+   *         Return Redirect to the module inventary if module not found or to the login page if user is not connect
+   *         Return Internal Server Error if have mongoDB error
+   */
+  def printFormWithData(id:String,id2:String,r:Call)(f:(Module,Firmware)=>ModuleForm)(implicit request:Request[AnyContent]): Future[Result] ={
+    //Verify if user is connect
+    UserManager.doIfconnectAsync(request) {
+      //Verify if module type found
+      typeModuleManager.doIfTypeModuleFound(BSONObjectID(id)) {_=>
+        //Find the module
+        moduleDao.findById(BSONObjectID(id2)).flatMap(
+          moduleOpt => moduleOpt match {
+
+            //If the module not found redirect to the module inventary
+            case None => future{Redirect(routes.ModuleManager.inventary(id))}
+
+            //If the module found
+            case Some(module) => {
+              firmwareDao.findById(module.firmware).flatMap(
+                firmwareOpt=>firmwareOpt match {
+                  //If the firmware not found redirect to the module inventary
+                  case None => future {
+                    Redirect(routes.ModuleManager.inventary(id))
+                  }
+
+                  //If the firmware found
+                  case Some(firmware) => {
+                    //print the prefilled form with module information
+                    val moduleData = f(module, firmware)
+                    printForm(Results.Ok, id, form.fill(moduleData), r)
+                  }
+                }
+              ).recover({ case _ => InternalServerError("error")})
+            }
+          }
+        ).recover({ case _ => InternalServerError("error")})
+      }{_=> printForm(Results.BadRequest,id,form.withGlobalError(Messages("inventary.typeModule.error.typeNotExist")),r)}
     }
   }
 
