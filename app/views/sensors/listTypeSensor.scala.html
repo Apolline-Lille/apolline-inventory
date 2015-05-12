@@ -2,6 +2,7 @@
 @import reactivemongo.bson.BSONObjectID
 
 @main(Messages("inventary.typeSensor.title")){
+  <script src="@routes.Assets.at("javascripts/modal-delete.js")" type="text/javascript" defer></script>
   @navigation("inventary")
   <div class="container">
     @inventary("capteur")
@@ -12,39 +13,44 @@
             <h3 style="text-align:center">@Messages("global.error.noResult")</h3>
           }else {
             @for(types <- listType) {
-              <div class="col-sm-12">
-                <h4><a href="@routes.SensorManager.inventary(types._id.stringify)">@{
-                  types.nomType
-                } / @{
-                  types.modele
-                }</a>
-                  <span>
-                    <a href="@routes.TypeSensorManager.typeUpdatePage(types._id.stringify)"><span class="glyphicon glyphicon-pencil"></span></a>
-                    <a href="@routes.TypeSensorManager.delete(types._id.stringify)"><span class="glyphicon glyphicon-trash"></span></a>
-                  </span>
-                </h4>
-              </div>
-              <div class="col-sm-11 col-sm-offset-1">
-                <div class="row"> <span class="bold">@Messages("inventary.typeSensor.fabricant")</span> : @{
-                  types.fabricant
-                } </div>
-                <div class="row"> <span class="bold">@Messages("inventary.typeSensor.nbSignaux")</span> : @{
-                  types.nbSignaux
-                } (@{
-                  listMesure.filter(m => m._id == types.mesure).head.nom
-                }) </div>
-                <div class="row"> <span class="bold">@Messages("inventary.typeSensor.espece")</span> : @{
-                  types.espece.mkString(", ")
-                } </div>
-                <div class="row"> <span class="bold">@Messages("inventary.typeSensor.stock")</span> : @defining(
-                  stock.filter(p=>p.getAs[BSONObjectID]("_id").get.equals(types._id))
-                ){s=>@if(s.nonEmpty){
-                 @{s.head.getAs[reactivemongo.bson.BSONInteger]("count").get.value}
+              @defining(stock.filter(p=>p.getAs[BSONObjectID]("_id").get.equals(types._id))){s=>
+                @defining(if(s.nonEmpty){
+                  s.head.getAs[reactivemongo.bson.BSONInteger]("count").get.value
                 }else{
                   0
+                }) { sto =>
+                  <div class="col-sm-12">
+                    <h4><a href="@routes.SensorManager.inventary(types._id.stringify)">@{
+                      types.nomType
+                    } / @{
+                      types.modele
+                    }</a>
+                      <span>
+                        <a href="@routes.TypeSensorManager.typeUpdatePage(types._id.stringify)"><span class="glyphicon glyphicon-pencil"></span></a>
+                        @if(sto==0){
+                          <a data-toggle="modal" href="#modal-delete" data-title="@types.nomType / @types.modele" data-link="@routes.TypeSensorManager.delete(types._id.stringify)">
+                            <span class="glyphicon glyphicon-trash"></span>
+                          </a>
+                        }
+                      </span>
+                    </h4>
+                  </div>
+                  <div class="col-sm-11 col-sm-offset-1">
+                    <div class="row"> <span class="bold">@Messages("inventary.typeSensor.fabricant")</span> : @{
+                      types.fabricant
+                    } </div>
+                    <div class="row"> <span class="bold">@Messages("inventary.typeSensor.nbSignaux")</span> : @{
+                      types.nbSignaux
+                    } (@{
+                      listMesure.filter(m => m._id == types.mesure).head.nom
+                    }) </div>
+                    <div class="row"> <span class="bold">@Messages("inventary.typeSensor.espece")</span> : @{
+                      types.espece.mkString(", ")
+                    } </div>
+                    <div class="row"> <span class="bold">@Messages("inventary.typeSensor.stock")</span> : @sto</div>
+                  </div>
                 }
-                }</div>
-              </div>
+              }
             }
           }
         </div>
@@ -67,4 +73,8 @@
       </nav>
     </section>
   </div>
+  @modal("modal-delete"){<span id="title-delete"></span>}{Êtes-vous sûr de vouloir supprimer ce type de capteur ?} {
+    <a id="accept-delete" href="#" class="btn btn-default">Oui</a>
+    <button type="button" class="btn btn-default" data-dismiss="modal">Non</button>
+  }
 }

@@ -349,8 +349,10 @@ trait TypeSensorManagerLike extends Controller{
       //Verify if user is connect
       UserManager.doIfconnectAsync(request) {
 
+        val idFormat=BSONFormats.BSONObjectIDFormat.writes(BSONObjectID(id))
+        val findSensor=sensorDao.findOne(Json.obj("delete"->false,"types"->idFormat))
         //find the sensor type
-        typeSensorDao.findOne(Json.obj("_id"->BSONFormats.BSONObjectIDFormat.writes(BSONObjectID(id)))).flatMap(
+        typeSensorDao.findOne(Json.obj("_id"->idFormat)).flatMap(
           data => data match{
 
             //Sensor type not found redirect to the sensors inventary
@@ -358,27 +360,37 @@ trait TypeSensorManagerLike extends Controller{
 
             //Sensor type found
             case Some(typeSensorData) => {
-              //Update the sensor type and set the delete column to true
-              typeSensorDao.updateById(
-                BSONObjectID(id),
-                TypeSensor(
-                  _id = BSONObjectID(id),
-                  nomType = typeSensorData.nomType,
-                  modele = typeSensorData.modele,
-                  mesure = typeSensorData.mesure,
-                  fabricant = typeSensorData.fabricant,
-                  nbSignaux = typeSensorData.nbSignaux,
-                  espece = typeSensorData.espece,
-                  delete = true
-                )
-              ).map(
-                  //Redirect to the sensors inventary after delete sensors type
-                  e => Redirect(routes.TypeSensorManager.inventary())
+              findSensor.flatMap(
+                sensorData=>sensorData match{
+                  case None=>{
+
+                    //Update the sensor type and set the delete column to true
+                    typeSensorDao.updateById(
+                      BSONObjectID(id),
+                      TypeSensor(
+                        _id = BSONObjectID(id),
+                        nomType = typeSensorData.nomType,
+                        modele = typeSensorData.modele,
+                        mesure = typeSensorData.mesure,
+                        fabricant = typeSensorData.fabricant,
+                        nbSignaux = typeSensorData.nbSignaux,
+                        espece = typeSensorData.espece,
+                        delete = true
+                      )
+                    ).map(
+                        //Redirect to the sensors inventary after delete sensors type
+                        e => Redirect(routes.TypeSensorManager.inventary())
+                      ).recover({
+                      //Send Internal Server Error if have mongoDB error
+                      case e => InternalServerError("error")
+                    })
+                  }
+                  case _ => future{Redirect(routes.TypeSensorManager.inventary())}
+                }
               ).recover({
                 //Send Internal Server Error if have mongoDB error
                 case e => InternalServerError("error")
               })
-
             }
           }
         ).recover({
