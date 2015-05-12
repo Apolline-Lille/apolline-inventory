@@ -2,7 +2,7 @@
 
 <nav>
   <ul class="nav nav-tabs">
-    <li role="presentation" @if(current.equals("module")){class="active"}><a href="@routes.TypeModuleManager.inventary()">@Messages("inventary.onglet.module")</a></li>
+    <li role="presentation" @if(current.equals("card")){class="active"}><a href="@routes.TypeCardsManager.inventary()">@Messages("inventary.onglet.cards")</a></li>
     <li role="presentation" @if(current.equals("capteur")){class="active"}><a href="#">@Messages("inventary.onglet.sensor")</a></li>
   </ul>
 </nav>

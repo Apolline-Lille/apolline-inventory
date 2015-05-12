@@ -35,19 +35,19 @@ GET         /inventary/sensors/:id/:id2/delete        controllers.SensorManager.
 GET         /inventary/sensors/:id/:id2/clone         controllers.SensorManager.sensorClonePage(id:String,id2:String)
 
 #Module page
-GET         /inventary/modules                        controllers.TypeModuleManager.inventary(sort:String ?= "", stock:String ?= "")
-GET         /inventary/modules/type                   controllers.TypeModuleManager.typePage
-POST        /inventary/modules/type                   controllers.TypeModuleManager.typeInsert
-GET         /inventary/modules/:id/update             controllers.TypeModuleManager.typeUpdatePage(id:String)
-POST        /inventary/modules/:id/update             controllers.TypeModuleManager.typeUpdate(id:String)
-GET         /inventary/modules/:id/delete             controllers.TypeModuleManager.delete(id:String)
-GET         /inventary/modules/:id                    controllers.ModuleManager.inventary(id:String,sort:String ?= "id",sens:Int ?= 1)
-GET         /inventary/modules/:id/module             controllers.ModuleManager.modulePage(id:String)
-POST        /inventary/modules/:id/module             controllers.ModuleManager.moduleInsert(id:String)
-GET         /inventary/modules/:id/:id2               controllers.ModuleManager.moduleUpdatePage(id:String,id2:String)
-POST        /inventary/modules/:id/:id2               controllers.ModuleManager.moduleUpdate(id:String,id2:String)
-GET         /inventary/modules/:id/:id2/delete        controllers.ModuleManager.delete(id:String,id2:String)
-GET         /inventary/modules/:id/:id2/clone         controllers.ModuleManager.moduleClonePage(id:String,id2:String)
+GET         /inventary/cards                        controllers.TypeCardsManager.inventary(sort:String ?= "", stock:String ?= "")
+GET         /inventary/cards/type                   controllers.TypeCardsManager.typePage
+POST        /inventary/cards/type                   controllers.TypeCardsManager.typeInsert
+GET         /inventary/cards/:id/update             controllers.TypeCardsManager.typeUpdatePage(id:String)
+POST        /inventary/cards/:id/update             controllers.TypeCardsManager.typeUpdate(id:String)
+GET         /inventary/cards/:id/delete             controllers.TypeCardsManager.delete(id:String)
+GET         /inventary/cards/:id                    controllers.CardsManager.inventary(id:String,sort:String ?= "id",sens:Int ?= 1)
+GET         /inventary/cards/:id/card             controllers.CardsManager.cardPage(id:String)
+POST        /inventary/cards/:id/card             controllers.CardsManager.cardInsert(id:String)
+GET         /inventary/cards/:id/:id2               controllers.CardsManager.cardUpdatePage(id:String,id2:String)
+POST        /inventary/cards/:id/:id2               controllers.CardsManager.cardUpdate(id:String,id2:String)
+GET         /inventary/cards/:id/:id2/delete        controllers.CardsManager.delete(id:String,id2:String)
+GET         /inventary/cards/:id/:id2/clone         controllers.CardsManager.cardClonePage(id:String,id2:String)
 
 # Map static resources from the /public folder to the /assets URL path
 GET         /assets/*file                             controllers.Assets.at(path="/public", file)
