@@ -2,8 +2,8 @@
 
 @html=@{new Html(elements.input.toString().replace("required=\"true\" ",""))}
 
-<div class="col-sm-12 @if(elements.hasErrors) {error}">
-  <label class="col-sm-3" for="@elements.id">
+<div class="col-sm-12 @if(elements.hasErrors) {has-error}">
+  <label class="col-sm-3 control-label" for="@elements.id">
     @elements.label
     @if(elements.args.getOrElse('required,false)==true){
       <em style="color:red">*</em>
@@ -11,6 +11,6 @@
   </label>
   <div class="input col-sm-8 col-sm-offset-1">
     @html
-    <span class="errors">@elements.errors.mkString(", ")</span>
+    <span class="control-label errors">@elements.errors.mkString(", ")</span>
   </div>
 </div>
