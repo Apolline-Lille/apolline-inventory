@@ -91,7 +91,7 @@ trait TypeSensorManagerLike extends Controller{
   @ApiImplicitParams(Array(
     new ApiImplicitParam(value = "Sensor type name for filter all sensors type",name="sort", dataType = "String", paramType = "query")
   ))
-  def inventary(sort:String="")=Action.async{
+  def inventary(sort:String="",filtreSto:String="")=Action.async{
     request =>
       //Verify if user is connect
       UserManager.doIfconnectAsync(request) {
@@ -114,7 +114,7 @@ trait TypeSensorManagerLike extends Controller{
               future_nomType.map(nomType=>
 
                 //Display the HTML page
-                Ok(views.html.sensors.listTypeSensor(sort,typeSensor,typeMesure,List[String](),stock.toList,nomType.toList))
+                Ok(views.html.sensors.listTypeSensor(filtreSto,sort,filtreStock(filtreSto),typeSensor,typeMesure,List[String](),stock.toList,nomType.toList))
 
               ).recover({case e=>InternalServerError("error")})
             ).recover({case e=>InternalServerError("error")})
@@ -538,6 +538,12 @@ trait TypeSensorManagerLike extends Controller{
         )
       )
     )
+  }
+
+  def filtreStock(filtre:String)(v:Int)=filtre match{
+    case "yes" => v>0
+    case "no" => v==0
+    case _ => v>=0
   }
 
   /**

@@ -7,6 +7,9 @@ global.error.noResult=Aucun résultat trouvé
 
 global.fieldRequired=Champs requis
 global.sort=Trie
+global.all=All
+global.yes=Oui
+global.no=Non
 
 global.btn.submit=Envoyer
 global.btn.reset=Reset
