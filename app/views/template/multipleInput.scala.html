@@ -3,12 +3,14 @@
 <div class=" col-sm-12 @if(elements.hasErrors) {error}">
   <label for="@elements.id" class="col-sm-3">
     @elements.label
+    @if(elements.args.getOrElse('required,false)==true){
+      <em style="color:red">*</em>
+    }
     <button type="button" class="btn btn-default" onclick="addField('@elements.args.get('idBlock)','@elements.args.get('classLine)')"><span class="glyphicon glyphicon-plus" style="color:green"></span></button>
   </label>
   <div class="input col-sm-8 col-sm-offset-1">
     @elements.input
     <span class="errors">@elements.errors.mkString(", ")</span>
-    <span class="help">@elements.infos.mkString(", ")</span>
   </div>
 </div>
 
