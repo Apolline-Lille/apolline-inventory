@@ -22,6 +22,7 @@ inventary.typeSensor.mesure=Type de signaux
 inventary.typeSensor.unite=Unité
 inventary.typeSensor.stock=Stocks
 inventary.typeSensor.error.typeExist=Ce type de capteur existe déjà
+inventary.typeSensor.error.typeNotExist=Ce type de capteur n''existe pas
 inventary.typeSensor.addType=Nouveau type
 
 inventary.sensor.id=Identifiant
