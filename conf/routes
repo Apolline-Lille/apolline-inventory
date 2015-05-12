@@ -23,7 +23,7 @@ POST        /register                                 controllers.UserManager.ad
 GET         /inventary/sensors                        controllers.TypeSensorManager.inventary(sort:String ?= "")
 GET         /inventary/sensors/type                   controllers.TypeSensorManager.typePage
 POST        /inventary/sensors/type                   controllers.TypeSensorManager.typeInsert
-GET         /inventary/sensors/:id                    controllers.SensorManager.inventary(id:String)
+GET         /inventary/sensors/:id                    controllers.SensorManager.inventary(id:String,sort:String ?= "id",sens:Int ?= 1)
 GET         /inventary/sensors/:id/update             controllers.TypeSensorManager.typeUpdatePage(id:String)
 POST        /inventary/sensors/:id/update             controllers.TypeSensorManager.typeUpdate(id:String)
 GET         /inventary/sensors/:id/delete             controllers.TypeSensorManager.delete(id:String)
