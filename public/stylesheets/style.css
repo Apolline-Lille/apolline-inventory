@@ -15,3 +15,7 @@ form dl{
 .bold{
     font-weight:bold;
 }
+
+.pointer{
+    cursor:pointer !important;
+}
