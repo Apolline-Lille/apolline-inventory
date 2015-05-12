@@ -397,12 +397,12 @@ class TypeSensorManagerSpec extends Specification with Mockito {
     "send bad_request with form and empty input" in new WithApplication {
       val route=mock[Call]
       val function=mock[(TypeSensorForm,List[String],TypeMesure)=>Future[Result]]
+      val function2=mock[TypeSensorForm=>JsObject]
       val f=fixture
 
       f.listDataEmptyStream
 
-      val r = f.controller.submitForm(route)(function)(FakeRequest(POST, "url").withSession("user" -> ""))
-
+      val r = f.controller.submitForm(route)(function2)(function)(FakeRequest(POST, "url").withSession("user" -> ""))
 
       status(r) must equalTo(BAD_REQUEST)
       contentType(r) must beSome.which(_ == "text/html")
@@ -417,11 +417,12 @@ class TypeSensorManagerSpec extends Specification with Mockito {
       val formData = Json.parse("""{"nbSignaux":"a"}""")
       val route=mock[Call]
       val function=mock[(TypeSensorForm,List[String],TypeMesure)=>Future[Result]]
+      val function2=mock[TypeSensorForm=>JsObject]
       val f=fixture
 
       f.listDataEmptyStream
 
-      val r = f.controller.submitForm(route)(function)(FakeRequest(POST, "url").withJsonBody(formData).withSession("user" -> ""))
+      val r = f.controller.submitForm(route)(function2)(function)(FakeRequest(POST, "url").withJsonBody(formData).withSession("user" -> ""))
 
 
       status(r) must equalTo(BAD_REQUEST)
@@ -438,11 +439,12 @@ class TypeSensorManagerSpec extends Specification with Mockito {
       val formData = Json.parse("""{"nbSignaux":"0"}""")
       val route=mock[Call]
       val function=mock[(TypeSensorForm,List[String],TypeMesure)=>Future[Result]]
+      val function2=mock[TypeSensorForm=>JsObject]
       val f=fixture
 
       f.listDataEmptyStream
 
-      val r = f.controller.submitForm(route)(function)(FakeRequest(POST, "url").withJsonBody(formData).withSession("user" -> ""))
+      val r = f.controller.submitForm(route)(function2)(function)(FakeRequest(POST, "url").withJsonBody(formData).withSession("user" -> ""))
 
 
       status(r) must equalTo(BAD_REQUEST)
@@ -459,11 +461,12 @@ class TypeSensorManagerSpec extends Specification with Mockito {
       val formData = Json.parse("""{"model":"mod","types":"typ","espece":[],"fabricant":"fab","nbSignaux":"1","mesure":"mes","unite":"u"}""")
       val route=mock[Call]
       val function=mock[(TypeSensorForm,List[String],TypeMesure)=>Future[Result]]
+      val function2=mock[TypeSensorForm=>JsObject]
       val f=fixture
 
       f.listDataEmptyStream
 
-      val r = f.controller.submitForm(route)(function)(FakeRequest(POST, "url").withJsonBody(formData).withSession("user" -> ""))
+      val r = f.controller.submitForm(route)(function2)(function)(FakeRequest(POST, "url").withJsonBody(formData).withSession("user" -> ""))
 
 
       status(r) must equalTo(BAD_REQUEST)
@@ -478,13 +481,15 @@ class TypeSensorManagerSpec extends Specification with Mockito {
       val formData = Json.parse("""{"model":"mod","types":"typ","espece":["esp1","esp2"],"fabricant":"fab","nbSignaux":"1","mesure":"mes","unite":"u"}""")
       val route=mock[Call]
       val function=mock[(TypeSensorForm,List[String],TypeMesure)=>Future[Result]]
+      val function2=mock[TypeSensorForm=>JsObject]
       val f=fixture
       val typeSensor=mock[TypeSensor]
 
+      function2.apply(any[TypeSensorForm]) returns Json.obj()
       f.typeSensorDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{Some(typeSensor)}
       f.listDataEmptyStream
 
-      val r = f.controller.submitForm(route)(function)(FakeRequest(POST, "url").withJsonBody(formData).withSession("user" -> ""))
+      val r = f.controller.submitForm(route)(function2)(function)(FakeRequest(POST, "url").withJsonBody(formData).withSession("user" -> ""))
 
 
       status(r) must equalTo(BAD_REQUEST)
@@ -493,6 +498,7 @@ class TypeSensorManagerSpec extends Specification with Mockito {
       content must contain("<div class=\"alert alert-danger\" role=\"alert\">Ce type de capteur existe déjà</div>")
 
       there was one(f.typeSensorDaoMock).findOne(any[JsObject])(any[ExecutionContext])
+      there was one(function2).apply(any[TypeSensorForm])
       f.verifyCallListData
     }
 
@@ -500,21 +506,24 @@ class TypeSensorManagerSpec extends Specification with Mockito {
       val formData = Json.parse("""{"model":"mod","types":"typ","espece":["esp"],"fabricant":"fab","nbSignaux":"1","mesure":"mes","unite":"u"}""")
       val route=mock[Call]
       val function=mock[(TypeSensorForm,List[String],TypeMesure)=>Future[Result]]
+      val function2=mock[TypeSensorForm=>JsObject]
       val futureMock=mock[Future[Option[TypeMesure]]]
       val fix=fixture
       val throwable=mock[Throwable]
 
+      function2.apply(any[TypeSensorForm]) returns Json.obj()
       fix.typeSensorDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{None}
       fix.typeMesureDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns futureMock
       futureMock.flatMap(any[Option[TypeMesure]=>Future[Option[TypeMesure]]])(any[ExecutionContext]) returns futureMock
       futureMock.recover(any[PartialFunction[Throwable,Results]])(any[ExecutionContext]) answers (vals => future{vals.asInstanceOf[PartialFunction[Throwable,Results]](throwable)})
 
 
-      val r = fix.controller.submitForm(route)(function)(FakeRequest(POST, "url").withJsonBody(formData).withSession("user" -> ""))
+      val r = fix.controller.submitForm(route)(function2)(function)(FakeRequest(POST, "url").withJsonBody(formData).withSession("user" -> ""))
 
 
       status(r) must equalTo(INTERNAL_SERVER_ERROR)
 
+      there was one(function2).apply(any[TypeSensorForm])
       there was one(fix.typeSensorDaoMock).findOne(any[JsObject])(any[ExecutionContext])
       there was one(futureMock).flatMap(any[Option[TypeMesure]=>Future[Option[TypeMesure]]])(any[ExecutionContext])
       there was one(futureMock).recover(any[PartialFunction[Throwable,Results]])(any[ExecutionContext])

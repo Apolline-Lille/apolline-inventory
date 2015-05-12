@@ -3,7 +3,7 @@ package controllers
 import com.wordnik.swagger.annotations._
 import models._
 import play.api.i18n.Messages
-import play.api.libs.json.Json
+import play.api.libs.json.{JsObject, Json}
 import play.api.mvc._
 import play.api.data._
 import play.api.data.Forms._
@@ -246,23 +246,25 @@ trait TypeSensorManagerLike extends Controller{
   def typeInsert=Action.async{
     implicit request=>
       //Verify if the user is connect and if data received are valid
-      submitForm(routes.TypeSensorManager.typeInsert()){(typeData,especes,mesure)=>{
+      submitForm(routes.TypeSensorManager.typeInsert()) {
+        typeData => Json.obj("modele" -> typeData.model, "fabricant" -> typeData.fabricant)
+      }{(typeData,especes,mesure)=>{
 
-        //Insert sensor type
-        typeSensorDao.insert(TypeSensor(
-          nomType=typeData.types,
-          modele=typeData.model,
-          mesure=mesure._id,
-          fabricant=typeData.fabricant,
-          nbSignaux=typeData.nbSignaux,
-          espece=especes
-        )).map(
-          //Redirect to the inventary if sensor type was insert
-          e => Redirect(routes.TypeSensorManager.inventary())
-        ).recover({
-          //Send Internal Server Error if have mongoDB error
-          case e => InternalServerError("error")
-        })
+          //Insert sensor type
+          typeSensorDao.insert(TypeSensor(
+            nomType=typeData.types,
+            modele=typeData.model,
+            mesure=mesure._id,
+            fabricant=typeData.fabricant,
+            nbSignaux=typeData.nbSignaux,
+            espece=especes
+          )).map(
+              //Redirect to the inventary if sensor type was insert
+              e => Redirect(routes.TypeSensorManager.inventary())
+            ).recover({
+            //Send Internal Server Error if have mongoDB error
+            case e => InternalServerError("error")
+          })
 
         }
       }
@@ -299,7 +301,9 @@ trait TypeSensorManagerLike extends Controller{
     implicit request=>
 
       //Verify if the user is connect and if data received are valid
-      submitForm(routes.TypeSensorManager.typeUpdate(id)){(typeData,especes,mesure)=>{
+      submitForm(routes.TypeSensorManager.typeUpdate(id)){
+        typeData => Json.obj("_id"->Json.obj("$ne"->BSONFormats.BSONObjectIDFormat.writes(BSONObjectID(id))),"modele" -> typeData.model, "fabricant" -> typeData.fabricant)
+      }{(typeData,especes,mesure)=>{
 
         //Update sensor type
         typeSensorDao.updateById(BSONObjectID(id),
@@ -395,7 +399,7 @@ trait TypeSensorManagerLike extends Controller{
    *         Return Redirect if dedicated function is a success
    *         Return Internal server error if have mongoDB error
    */
-  def submitForm(r:Call)(f:(TypeSensorForm,List[String],TypeMesure)=>Future[Result])(implicit request: Request[AnyContent]):Future[Result]={
+  def submitForm(r:Call)(verif:TypeSensorForm=>JsObject)(f:(TypeSensorForm,List[String],TypeMesure)=>Future[Result])(implicit request: Request[AnyContent]):Future[Result]={
     //Verify if user is connect
     UserManager.doIfconnectAsync(request) {
       form.bindFromRequest.fold(
@@ -419,7 +423,7 @@ trait TypeSensorManagerLike extends Controller{
           } else {
 
             //Find the sensor type
-            typeSensorDao.findOne(Json.obj("modele" -> typeData.model, "fabricant" -> typeData.fabricant)).flatMap(
+            typeSensorDao.findOne(verif(typeData)).flatMap(
               e=> e match {
 
                 //If sensor type not found
