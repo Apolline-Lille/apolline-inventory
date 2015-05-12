@@ -57,7 +57,10 @@
           <li role="presentation" class="active"><a href="#">PID</a></li>
           <li role="presentation"><a href="#">NDIR</a></li>
         </ul>-->
-        <a href="@routes.SensorManager.sensorPage(types._id.stringify)" class="btn btn-default">@Messages("inventary.sensor.addSensor")</a>
+        <a href="@routes.SensorManager.sensorPage(types._id.stringify)" class="btn btn-success">
+          <span class="glyphicon glyphicon-plus"></span>
+          @Messages("inventary.sensor.addSensor")
+        </a>
       </nav>
     </section>
   </div>
