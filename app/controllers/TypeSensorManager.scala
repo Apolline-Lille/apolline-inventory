@@ -33,7 +33,8 @@ case class TypeSensorForm(
    mesure:String,
    nbSignaux:Int,
    fabricant:String,
-   unite:String
+   unite:String,
+   send:Option[String]=None
  )
 
 /**
@@ -54,7 +55,8 @@ trait TypeSensorManagerLike extends Controller{
       "mesure"->nonEmptyText,
       "nbSignaux"->number(min=1),
       "fabricant"->nonEmptyText,
-      "unite"->nonEmptyText
+      "unite"->nonEmptyText,
+      "send"->optional(text)
     )(TypeSensorForm.apply)(TypeSensorForm.unapply)
   )
 
@@ -245,11 +247,12 @@ trait TypeSensorManagerLike extends Controller{
   ))
   def typeInsert=Action.async{
     implicit request=>
+      val msg=Messages("inventary.typeSensor.error.typeExist")+" <input type=\"submit\" class=\"btn btn-danger\" name=\"send\" value=\""+Messages("global.reactiver")+"\"/> <input type=\"submit\" class=\"btn btn-danger\" name=\"send\" value=\""+Messages("global.ignorer")+"\"/>"
       //Verify if the user is connect and if data received are valid
-      submitForm(routes.TypeSensorManager.typeInsert()) {
+      submitForm(msg,routes.TypeSensorManager.typeInsert()) {
         typeData => Json.obj("modele" -> typeData.model, "fabricant" -> typeData.fabricant)
       }{(typeData,especes,mesure)=>{
-
+        if(typeData.send.isEmpty || typeData.send.equals(Some("Ignorer"))){
           //Insert sensor type
           typeSensorDao.insert(TypeSensor(
             nomType=typeData.types,
@@ -265,8 +268,11 @@ trait TypeSensorManagerLike extends Controller{
             //Send Internal Server Error if have mongoDB error
             case e => InternalServerError("error")
           })
-
         }
+        else{
+          updateWithDeleteColumn(Json.obj("modele" -> typeData.model, "fabricant" -> typeData.fabricant),false)
+        }
+      }
       }
   }
 
@@ -299,29 +305,33 @@ trait TypeSensorManagerLike extends Controller{
   ))
   def typeUpdate(id:String)=Action.async{
     implicit request=>
+      val msg=Messages("inventary.typeSensor.error.typeExist")+" <input type=\"submit\" class=\"btn btn-danger\" value=\""+Messages("global.ignorer")+"\"/>"
 
       //Verify if the user is connect and if data received are valid
-      submitForm(routes.TypeSensorManager.typeUpdate(id)){
+      submitForm(msg,routes.TypeSensorManager.typeUpdate(id)){
         typeData => Json.obj("_id"->Json.obj("$ne"->BSONFormats.BSONObjectIDFormat.writes(BSONObjectID(id))),"modele" -> typeData.model, "fabricant" -> typeData.fabricant)
       }{(typeData,especes,mesure)=>{
-
-        //Update sensor type
-        typeSensorDao.updateById(BSONObjectID(id),
-          TypeSensor(
-          _id=BSONObjectID(id),
-          nomType=typeData.types,
-          modele=typeData.model,
-          mesure=mesure._id,
-          fabricant=typeData.fabricant,
-          nbSignaux=typeData.nbSignaux,
-          espece=especes
-        )).map(
-          //Redirect to the inventary if sensor type was update
-          e => Redirect(routes.TypeSensorManager.inventary())
-        ).recover({
-          //Send Internal Server Error if have mongoDB error
-          case e => InternalServerError("error")
-        })
+        if(typeData.send.isEmpty || typeData.send.equals(Some("Ignorer"))) {
+          //Update sensor type
+          typeSensorDao.updateById(BSONObjectID(id),
+            TypeSensor(
+              _id = BSONObjectID(id),
+              nomType = typeData.types,
+              modele = typeData.model,
+              mesure = mesure._id,
+              fabricant = typeData.fabricant,
+              nbSignaux = typeData.nbSignaux,
+              espece = especes
+            )).map(
+              //Redirect to the inventary if sensor type was update
+              e => Redirect(routes.TypeSensorManager.inventary())
+            ).recover({
+            //Send Internal Server Error if have mongoDB error
+            case e => InternalServerError("error")
+          })
+        }else{
+          printForm(Results.BadRequest, form.withGlobalError(msg).fill(typeData), routes.TypeSensorManager.typeUpdate(id))
+        }
       }
       }
   }
@@ -350,48 +360,15 @@ trait TypeSensorManagerLike extends Controller{
       UserManager.doIfconnectAsync(request) {
 
         val idFormat=BSONFormats.BSONObjectIDFormat.writes(BSONObjectID(id))
-        val findSensor=sensorDao.findOne(Json.obj("delete"->false,"types"->idFormat))
-        //find the sensor type
-        typeSensorDao.findOne(Json.obj("_id"->idFormat)).flatMap(
+        //find the sensor
+        sensorDao.findOne(Json.obj("delete"->false,"types"->idFormat)).flatMap(
           data => data match{
 
-            //Sensor type not found redirect to the sensors inventary
-            case None =>future{Redirect(routes.TypeSensorManager.inventary())}
+            case None => updateWithDeleteColumn(Json.obj("_id"->idFormat),true)
 
-            //Sensor type found
-            case Some(typeSensorData) => {
-              findSensor.flatMap(
-                sensorData=>sensorData match{
-                  case None=>{
+            //Sensor found redirect to the sensors inventary
+            case _ =>future{Redirect(routes.TypeSensorManager.inventary())}
 
-                    //Update the sensor type and set the delete column to true
-                    typeSensorDao.updateById(
-                      BSONObjectID(id),
-                      TypeSensor(
-                        _id = BSONObjectID(id),
-                        nomType = typeSensorData.nomType,
-                        modele = typeSensorData.modele,
-                        mesure = typeSensorData.mesure,
-                        fabricant = typeSensorData.fabricant,
-                        nbSignaux = typeSensorData.nbSignaux,
-                        espece = typeSensorData.espece,
-                        delete = true
-                      )
-                    ).map(
-                        //Redirect to the sensors inventary after delete sensors type
-                        e => Redirect(routes.TypeSensorManager.inventary())
-                      ).recover({
-                      //Send Internal Server Error if have mongoDB error
-                      case e => InternalServerError("error")
-                    })
-                  }
-                  case _ => future{Redirect(routes.TypeSensorManager.inventary())}
-                }
-              ).recover({
-                //Send Internal Server Error if have mongoDB error
-                case e => InternalServerError("error")
-              })
-            }
           }
         ).recover({
           //Send Internal Server Error if have mongoDB error
@@ -411,14 +388,14 @@ trait TypeSensorManagerLike extends Controller{
    *         Return Redirect if dedicated function is a success
    *         Return Internal server error if have mongoDB error
    */
-  def submitForm(r:Call)(verif:TypeSensorForm=>JsObject)(f:(TypeSensorForm,List[String],TypeMesure)=>Future[Result])(implicit request: Request[AnyContent]):Future[Result]={
+  def submitForm(errorMessage:String,r:Call)(verif:TypeSensorForm=>JsObject)(f:(TypeSensorForm,List[String],TypeMesure)=>Future[Result])(implicit request: Request[AnyContent]):Future[Result]={
     //Verify if user is connect
     UserManager.doIfconnectAsync(request) {
       form.bindFromRequest.fold(
 
         //If form contains errors
         formWithErrors => {
-          val especes = formWithErrors.data.getOrElse("espece",List[String]()).asInstanceOf[List[String]].filter(p => p.length > 0)
+          val especes = formWithErrors.data.getOrElse("espece[]",List[String]()).asInstanceOf[List[String]].filter(p => p.length > 0)
 
           //If don't have valid specie
           if (especes.size == 0) {
@@ -435,40 +412,10 @@ trait TypeSensorManagerLike extends Controller{
           //Get valid specie
           val especes = typeData.espece.filter(p => p.length > 0)
 
-          //If don't have valid specie
-          if (especes.size == 0) {
+          especes match {
             //print form with prefilled data and a bad request
-            printForm(Results.BadRequest,form.withError("espece",Messages("global.error.required")).fill(typeData),r)
-          } else {
-
-            //Find the sensor type
-            typeSensorDao.findOne(verif(typeData)).flatMap(
-              e=> e match {
-
-                //If sensor type not found
-                case None => {
-
-                  //Find the signal
-                  typeMesureDao.findOne(Json.obj("nom" -> typeData.mesure)).flatMap(
-                    mesure => mesure match {
-
-                      //If signal not found, insert the signal and applied dedicated function
-                      case None => applyFunctionWithInsertSensor(typeData, especes, f)
-                      //If signal found, applied dedicated function
-                      case _ => f(typeData, especes, mesure.get)
-                    }
-                  ).recover({
-                    //Send Internal Server Error if have mongoDB error
-                    case e => InternalServerError("error")
-                  })
-                }
-                //print form with prefilled data and a bad request
-                case _ => printForm(Results.BadRequest, form.withGlobalError(Messages("inventary.typeSensor.error.typeExist")).fill(typeData), r)
-              }
-            ).recover({
-              //Send Internal Server Error if have mongoDB error
-              case e => InternalServerError("error")
-            })
+            case List() => printForm(Results.BadRequest,form.withError("espece",Messages("global.error.required")).fill(typeData),r)
+            case _ => actionWhenFormValid (errorMessage,r,typeData,especes,verif,f)
           }
         }
       )
@@ -496,6 +443,40 @@ trait TypeSensorManagerLike extends Controller{
     ).recover({
       //Send Internal Server Error if have mongoDB error
       case _=> InternalServerError("error")
+    })
+  }
+
+  def actionWhenFormValid(errorMessage:String,r:Call,typeData:TypeSensorForm,especes:List[String],verif:TypeSensorForm=>JsObject,f:(TypeSensorForm,List[String],TypeMesure)=>Future[Result])(implicit request:Request[AnyContent])={
+    //Find the sensor type
+    typeSensorDao.findAll(verif(typeData)).flatMap(
+      types=>{
+        //If sensor type not found
+        if(types.size==0 || List(Some("Réactiver"),Some("Ignorer")).contains(typeData.send)){
+
+          //Find the signal
+          typeMesureDao.findOne(Json.obj("nom" -> typeData.mesure)).flatMap(
+            mesure => mesure match {
+
+              //If signal not found, insert the signal and applied dedicated function
+              case None => applyFunctionWithInsertSensor(typeData, especes, f)
+              //If signal found, applied dedicated function
+              case _ => f(typeData, especes, mesure.get)
+            }
+          ).recover({
+            //Send Internal Server Error if have mongoDB error
+            case e => InternalServerError("error")
+          })
+        }
+        else if(types.filter(p => !(p.delete) ).size>0){
+          printForm(Results.BadRequest, form.withGlobalError(Messages("inventary.typeSensor.error.typeExist")).fill(typeData), r)
+        }
+        else{
+          printForm(Results.BadRequest, form.withGlobalError(errorMessage).fill(typeData), r)
+        }
+      }
+    ).recover({
+      //Send Internal Server Error if have mongoDB error
+      case e => InternalServerError("error")
     })
   }
 
@@ -545,6 +526,31 @@ trait TypeSensorManagerLike extends Controller{
         )
       )
     )
+  }
+
+  def updateWithDeleteColumn(selector:JsObject,delete:Boolean):Future[Result]={
+    typeSensorDao.findOne(selector).flatMap(
+      data=>data match{
+        case Some(typeSensorData)=>{
+
+          //Update the sensor type and set the delete column to true
+          typeSensorDao.updateById(
+            typeSensorData._id,
+            typeSensorData.copy(delete=delete)
+          ).map(
+              //Redirect to the sensors inventary after delete sensors type
+              e => Redirect(routes.TypeSensorManager.inventary())
+            ).recover({
+            //Send Internal Server Error if have mongoDB error
+            case e => InternalServerError("error")
+          })
+        }
+        case _ => future{Redirect(routes.TypeSensorManager.inventary())}
+      }
+    ).recover({
+      //Send Internal Server Error if have mongoDB error
+      case e => InternalServerError("error")
+    })
   }
 
   def filtreStock(filtre:String)(v:Int)=filtre match{
