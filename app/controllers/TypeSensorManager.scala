@@ -92,7 +92,7 @@ trait TypeSensorManagerLike extends Controller{
     new ApiImplicitParam(value = "Sensor type name for filter all sensors type",name="sort", dataType = "String", paramType = "query")
   ))
   def inventary(sort:String="",filtreSto:String="")=Action.async{
-    request =>
+    implicit request =>
       //Verify if user is connect
       UserManager.doIfconnectAsync(request) {
         //create a selector for filter sensors type
@@ -137,7 +137,7 @@ trait TypeSensorManagerLike extends Controller{
     new ApiResponse(code=303,message="Move resource to the login page at /login if the user is not log")
   ))
   def typePage=Action.async{
-    request =>
+    implicit request =>
       //Verify if user is connect
       UserManager.doIfconnectAsync(request) {
 
@@ -166,7 +166,7 @@ trait TypeSensorManagerLike extends Controller{
     new ApiImplicitParam(value = "Id of the sensor type",required=true,name="id", dataType = "String", paramType = "path")
   ))
   def typeUpdatePage(id:String)=Action.async{
-    request =>
+    implicit request =>
       //Verify if user is connect
       UserManager.doIfconnectAsync(request) {
 
@@ -523,7 +523,7 @@ trait TypeSensorManagerLike extends Controller{
    * @param r Route call when submit the form
    * @return
    */
-  def printForm(status:Results.Status,form:Form[TypeSensorForm],r:Call): Future[Result] ={
+  def printForm(status:Results.Status,form:Form[TypeSensorForm],r:Call)(implicit request:Request[AnyContent]): Future[Result] ={
     getListData().map(listData=>
       status(
         views.html.sensors.formType(

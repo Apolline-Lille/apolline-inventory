@@ -1,4 +1,4 @@
-@(types:TypeSensor,mesure:TypeMesure,listSensor:List[Sensor],trie:String,sens:Int)
+@(types:TypeSensor,mesure:TypeMesure,listSensor:List[Sensor],trie:String,sens:Int)(implicit request: Request[AnyContent])
 
 @main(Messages("inventary.typeSensor.title")){
   <script src="@routes.Assets.at("javascripts/modal-delete.js")" type="text/javascript" defer></script>

@@ -6,7 +6,7 @@
   mesure:List[reactivemongo.bson.BSONDocument],
   unite:List[reactivemongo.bson.BSONDocument],
   route:Call
-)
+)(implicit request: Request[AnyContent])
 
 @import models.template.InlineInput.inlineInput
 

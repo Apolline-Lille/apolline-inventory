@@ -164,7 +164,7 @@ class SensorManagerSpec extends Specification with Mockito {
       f.typeMesureDaoMock.findById(org.mockito.Matchers.eq(bson2))(any[ExecutionContext]) returns future{Some(typeMesure)}
       f.typeSensorDaoMock.findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext]) returns  future{Some(f.typeSensor)}
 
-      val r=f.controller.inventary(bson.stringify,"acquisition",-1).apply(FakeRequest(GET,"/inventary/sensors/"+bson.stringify).withSession("user" -> ""))
+      val r=f.controller.inventary(bson.stringify,"acquisition",-1).apply(FakeRequest(GET,"/inventary/sensors/"+bson.stringify).withSession("user" -> """{"login":"test"}"""))
 
       status(r) must equalTo(OK)
       contentType(r) must beSome.which(_ == "text/html")
@@ -180,8 +180,8 @@ class SensorManagerSpec extends Specification with Mockito {
        val typeMesure=TypeMesure(bson2,"mesure1","unite1")
        val list_sensor=List[Sensor]()
 
-       val action=Action{f.controller.printListSensor(f.typeSensor,typeMesure,list_sensor,"id",1)}
-       val req=FakeRequest(GET,"/inventary/sensors/"+bson.stringify)
+       val action=Action{implicit request=>f.controller.printListSensor(f.typeSensor,typeMesure,list_sensor,"id",1)}
+       val req=FakeRequest(GET,"/inventary/sensors/"+bson.stringify).withSession("user" -> """{"login":"test"}""")
        val r=call(action,req)
 
 
@@ -205,8 +205,8 @@ class SensorManagerSpec extends Specification with Mockito {
         Sensor(bson4,"Id2",bson,Some(date),date,Some(date),true,Some("un com"))
       )
 
-      val action=Action{f.controller.printListSensor(f.typeSensor,typeMesure,list_sensor,"acquisition",1)}
-      val req=FakeRequest(GET,"/inventary/sensors/"+bson.stringify)
+      val action=Action{implicit request=>f.controller.printListSensor(f.typeSensor,typeMesure,list_sensor,"acquisition",1)}
+      val req=FakeRequest(GET,"/inventary/sensors/"+bson.stringify).withSession("user" -> """{"login":"test"}""")
       val r=call(action,req)
 
       status(r) must equalTo(OK)
@@ -229,8 +229,8 @@ class SensorManagerSpec extends Specification with Mockito {
       futureMock.map(any[List[Sensor]=>List[Sensor]])(any[ExecutionContext]) returns futureMock
       futureMock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers (value=>future{value.asInstanceOf[PartialFunction[Throwable,Result]](throwable)})
 
-      val action=Action.async{f.controller.findSensorsForPrint(futureMock,"id",1)(f.typeSensor)(typeMesure)}
-      val req=FakeRequest(GET,"/inventary/sensors/"+bson.stringify)
+      val action=Action.async{implicit request => f.controller.findSensorsForPrint(futureMock,"id",1,request)(f.typeSensor)(typeMesure)}
+      val req=FakeRequest(GET,"/inventary/sensors/"+bson.stringify).withSession("user" -> """{"login":"test"}""")
       val r=call(action,req)
 
 
@@ -248,8 +248,8 @@ class SensorManagerSpec extends Specification with Mockito {
 
       futureMock.map(any[List[Sensor]=>Result])(any[ExecutionContext]) answers (value=>future{value.asInstanceOf[List[Sensor]=>Result](list_sensor)})
 
-      val action=Action.async{f.controller.findSensorsForPrint(futureMock,"id",1)(f.typeSensor)(typeMesure)}
-      val req=FakeRequest(GET,"/inventary/sensors/"+bson.stringify)
+      val action=Action.async{implicit request=>f.controller.findSensorsForPrint(futureMock,"id",1,request)(f.typeSensor)(typeMesure)}
+      val req=FakeRequest(GET,"/inventary/sensors/"+bson.stringify).withSession("user" -> """{"login":"test"}""")
       val r=call(action,req)
 
 
@@ -414,7 +414,7 @@ class SensorManagerSpec extends Specification with Mockito {
 
       f.applyFoundFunction()
 
-      val req=FakeRequest(GET,"/inventary/sensors/"+bson.stringify+"/sensor").withSession("user" -> "")
+      val req=FakeRequest(GET,"/inventary/sensors/"+bson.stringify+"/sensor").withSession("user" -> """{"login":"test"}""")
       val r=f.controller.sensorPage(bson.stringify).apply(req)
 
       status(r) must equalTo(OK)
@@ -438,7 +438,7 @@ class SensorManagerSpec extends Specification with Mockito {
 
       f.applyNotFoundFunction()
 
-      val req=FakeRequest(GET,"/inventary/sensors/"+bson.stringify+"/sensor").withSession("user" -> "")
+      val req=FakeRequest(GET,"/inventary/sensors/"+bson.stringify+"/sensor").withSession("user" -> """{"login":"test"}""")
       val r=f.controller.sensorPage(bson.stringify).apply(req)
 
       status(r) must equalTo(BAD_REQUEST)
@@ -462,7 +462,7 @@ class SensorManagerSpec extends Specification with Mockito {
       futureMock.map(any[LastError=>LastError])(any[ExecutionContext]) returns futureMock
       futureMock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers {value=>future{value.asInstanceOf[PartialFunction[Throwable,Result]](throwable)}}
 
-      val req=FakeRequest(POST,"/inventary/sensors/"+bson.stringify+"/sensor").withJsonBody(data).withSession("user" -> "")
+      val req=FakeRequest(POST,"/inventary/sensors/"+bson.stringify+"/sensor").withJsonBody(data).withSession("user" -> """{"login":"test"}""")
       val r=f.controller.sensorInsert(bson.stringify).apply(req)
 
       status(r) must equalTo(INTERNAL_SERVER_ERROR)
@@ -483,7 +483,7 @@ class SensorManagerSpec extends Specification with Mockito {
       f.sensorDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{None}
       f.sensorDaoMock.insert(any[Sensor],any[GetLastError])(any[ExecutionContext]) returns future{lastError}
 
-      val req=FakeRequest(POST,"/inventary/sensors/"+bson.stringify+"/sensor").withJsonBody(data).withSession("user" -> "")
+      val req=FakeRequest(POST,"/inventary/sensors/"+bson.stringify+"/sensor").withJsonBody(data).withSession("user" -> """{"login":"test"}""")
       val r=f.controller.sensorInsert(bson.stringify).apply(req)
 
       status(r) must equalTo(SEE_OTHER)
@@ -503,7 +503,7 @@ class SensorManagerSpec extends Specification with Mockito {
       f.sensorDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{None}
       f.sensorDaoMock.insert(any[Sensor],any[GetLastError])(any[ExecutionContext]) returns future{lastError}
 
-      val req=FakeRequest(POST,"/inventary/sensors/"+bson.stringify+"/sensor").withJsonBody(data).withSession("user" -> "")
+      val req=FakeRequest(POST,"/inventary/sensors/"+bson.stringify+"/sensor").withJsonBody(data).withSession("user" -> """{"login":"test"}""")
       val r=f.controller.sensorInsert(bson.stringify).apply(req)
 
       status(r) must equalTo(OK)
@@ -532,7 +532,7 @@ class SensorManagerSpec extends Specification with Mockito {
 
       f.applyNotFoundFunction()
 
-      val req=FakeRequest(GET,"/inventary/sensors/"+bson.stringify+"/"+bson2.stringify).withSession("user" -> "")
+      val req=FakeRequest(GET,"/inventary/sensors/"+bson.stringify+"/"+bson2.stringify).withSession("user" -> """{"login":"test"}""")
       val action=Action.async(implicit request => f.controller.printFormWithData(bson.stringify,bson2.stringify,routeCall)(func))
       val r=call(action,req)
 
@@ -555,7 +555,7 @@ class SensorManagerSpec extends Specification with Mockito {
       f.sensorDaoMock.findById(org.mockito.Matchers.eq(bson2))(any[ExecutionContext]) returns future{Some(sensor)}
       func.apply(org.mockito.Matchers.eq(sensor)) returns SensorForm("Id",date,Some(date),Some(date),false,Some("un com"),"")
 
-      val req=FakeRequest(GET,"/inventary/sensors/"+bson.stringify+"/"+bson2.stringify).withSession("user" -> "")
+      val req=FakeRequest(GET,"/inventary/sensors/"+bson.stringify+"/"+bson2.stringify).withSession("user" -> """{"login":"test"}""")
       val action=Action.async(implicit request => f.controller.printFormWithData(bson.stringify,bson2.stringify,routeCall)(func))
       val r=call(action,req)
 
@@ -583,7 +583,7 @@ class SensorManagerSpec extends Specification with Mockito {
       f.applyFoundFunction()
       f.sensorDaoMock.findById(org.mockito.Matchers.eq(bson2))(any[ExecutionContext]) returns future{None}
 
-      val req=FakeRequest(GET,"/inventary/sensors/"+bson.stringify+"/sensor").withSession("user" -> "")
+      val req=FakeRequest(GET,"/inventary/sensors/"+bson.stringify+"/sensor").withSession("user" -> """{"login":"test"}""")
       val action=Action.async(implicit request => f.controller.printFormWithData(bson.stringify,bson2.stringify,routeCall)(func))
       val r=call(action,req)
 
@@ -606,7 +606,7 @@ class SensorManagerSpec extends Specification with Mockito {
       futureMock.map(any[Option[Sensor]=>Option[Sensor]])(any[ExecutionContext]) returns futureMock
       futureMock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers {value=>future{value.asInstanceOf[PartialFunction[Throwable,Result]](throwable)}}
 
-      val req=FakeRequest(GET,"/inventary/sensors/"+bson.stringify+"/sensor").withSession("user" -> "")
+      val req=FakeRequest(GET,"/inventary/sensors/"+bson.stringify+"/sensor").withSession("user" -> """{"login":"test"}""")
       val action=Action.async(implicit request => f.controller.printFormWithData(bson.stringify,bson2.stringify,routeCall)(func))
       val r=call(action,req)
 
@@ -630,7 +630,7 @@ class SensorManagerSpec extends Specification with Mockito {
       futureMock.map(any[LastError=>LastError])(any[ExecutionContext]) returns futureMock
       futureMock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers {value=>future{value.asInstanceOf[PartialFunction[Throwable,Result]](throwable)}}
 
-      val req=FakeRequest(POST,"/inventary/sensors/"+bson.stringify+"/"+bson2.stringify).withSession("user" -> "")
+      val req=FakeRequest(POST,"/inventary/sensors/"+bson.stringify+"/"+bson2.stringify).withSession("user" -> """{"login":"test"}""")
       val action=Action.async{implicit request=>f.controller.update(bson.stringify,bson2.stringify,sensorInfo,false)}
       val r=call(action,req)
 
@@ -649,7 +649,7 @@ class SensorManagerSpec extends Specification with Mockito {
 
       f.sensorDaoMock.updateById(org.mockito.Matchers.eq(bson2), any[Sensor],any[GetLastError])(any[Writes[Sensor]],any[ExecutionContext]) returns future{lastError}
 
-      val req=FakeRequest(POST,"/inventary/sensors/"+bson.stringify+"/"+bson2.stringify).withSession("user" -> "")
+      val req=FakeRequest(POST,"/inventary/sensors/"+bson.stringify+"/"+bson2.stringify).withSession("user" -> """{"login":"test"}""")
       val action=Action.async{implicit request=>f.controller.update(bson.stringify,bson2.stringify,sensorInfo,false)}
       val r=call(action,req)
 
@@ -670,7 +670,7 @@ class SensorManagerSpec extends Specification with Mockito {
 
       f.applyNotFoundFunction()
 
-      val req=FakeRequest(POST,"/inventary/sensors/"+bson.stringify+"/sensor").withSession("user" -> "")
+      val req=FakeRequest(POST,"/inventary/sensors/"+bson.stringify+"/sensor").withSession("user" -> """{"login":"test"}""")
       val action=Action.async(implicit request => f.controller.submitForm(bson.stringify,routeCall)(funcVerif)(func))
       val r=call(action,req)
 
@@ -691,7 +691,7 @@ class SensorManagerSpec extends Specification with Mockito {
 
       f.applyFoundFunction()
 
-      val req=FakeRequest(POST,"/inventary/sensors/"+bson.stringify+"/sensor").withSession("user" -> "")
+      val req=FakeRequest(POST,"/inventary/sensors/"+bson.stringify+"/sensor").withSession("user" -> """{"login":"test"}""")
       val action=Action.async(implicit request => f.controller.submitForm(bson.stringify,routeCall)(funcVerif)(func))
       val r=call(action,req)
 
@@ -714,7 +714,7 @@ class SensorManagerSpec extends Specification with Mockito {
 
       f.applyFoundFunction()
 
-      val req=FakeRequest(POST,"/inventary/sensors/"+bson.stringify+"/sensor").withJsonBody(data).withSession("user" -> "")
+      val req=FakeRequest(POST,"/inventary/sensors/"+bson.stringify+"/sensor").withJsonBody(data).withSession("user" -> """{"login":"test"}""")
       val action=Action.async(implicit request => f.controller.submitForm(bson.stringify,routeCall)(funcVerif)(func))
       val r=call(action,req)
 
@@ -767,7 +767,7 @@ class SensorManagerSpec extends Specification with Mockito {
 
       f.applyFoundFunction()
 
-      val req=FakeRequest(POST,"/inventary/sensors/"+bson.stringify+"/sensor").withJsonBody(data).withSession("user" -> "")
+      val req=FakeRequest(POST,"/inventary/sensors/"+bson.stringify+"/sensor").withJsonBody(data).withSession("user" -> """{"login":"test"}""")
       val action=Action.async(implicit request => f.controller.submitForm(bson.stringify,routeCall)(funcVerif)(func))
       val r=call(action,req)
 
@@ -797,7 +797,7 @@ class SensorManagerSpec extends Specification with Mockito {
       futureMock.flatMap(any[Option[Sensor]=>Future[Option[Sensor]]])(any[ExecutionContext]) returns futureMock
       futureMock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers (value=>future{value.asInstanceOf[PartialFunction[Throwable,Result]](throwable)})
 
-      val req=FakeRequest(POST,"/inventary/sensors/"+bson.stringify+"/sensor").withJsonBody(data).withSession("user" -> "")
+      val req=FakeRequest(POST,"/inventary/sensors/"+bson.stringify+"/sensor").withJsonBody(data).withSession("user" -> """{"login":"test"}""")
       val action=Action.async(implicit request => f.controller.submitForm(bson.stringify,routeCall)(funcVerif)(func))
       val r=call(action,req)
 
@@ -823,7 +823,7 @@ class SensorManagerSpec extends Specification with Mockito {
       f.sensorDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{Some(sensor)}
       funcVerif.apply(any[SensorForm]) returns Json.obj()
 
-      val req=FakeRequest(POST,"/inventary/sensors/"+bson.stringify+"/sensor").withJsonBody(data).withSession("user" -> "")
+      val req=FakeRequest(POST,"/inventary/sensors/"+bson.stringify+"/sensor").withJsonBody(data).withSession("user" -> """{"login":"test"}""")
       val action=Action.async(implicit request => f.controller.submitForm(bson.stringify,routeCall)(funcVerif)(func))
       val r=call(action,req)
 
@@ -849,7 +849,7 @@ class SensorManagerSpec extends Specification with Mockito {
       funcVerif.apply(any[SensorForm]) returns Json.obj()
       func.apply(any[SensorForm]) returns future{Results.Ok("function executed")}
 
-      val req=FakeRequest(POST,"/inventary/sensors/"+bson.stringify+"/sensor").withJsonBody(data).withSession("user" -> "")
+      val req=FakeRequest(POST,"/inventary/sensors/"+bson.stringify+"/sensor").withJsonBody(data).withSession("user" -> """{"login":"test"}""")
       val action=Action.async(implicit request => f.controller.submitForm(bson.stringify,routeCall)(funcVerif)(func))
       val r=call(action,req)
 
@@ -873,7 +873,7 @@ class SensorManagerSpec extends Specification with Mockito {
       f.applyFoundFunction()
       f.sensorDaoMock.findById(org.mockito.Matchers.eq(bson2))(any[ExecutionContext]) returns future{Some(sensor)}
 
-      val req=FakeRequest(GET,"/inventary/sensors/"+bson.stringify+"/"+bson2.stringify).withSession("user" -> "")
+      val req=FakeRequest(GET,"/inventary/sensors/"+bson.stringify+"/"+bson2.stringify).withSession("user" -> """{"login":"test"}""")
       val r=f.controller.sensorUpdatePage(bson.stringify,bson2.stringify).apply(req)
 
       status(r) must equalTo(OK)
@@ -901,7 +901,7 @@ class SensorManagerSpec extends Specification with Mockito {
       f.sensorDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{None}
       f.sensorDaoMock.updateById(org.mockito.Matchers.eq(bson2), org.mockito.Matchers.eq(sensor),any[GetLastError])(any[Writes[Sensor]],any[ExecutionContext]) returns future{lastError}
 
-      val req=FakeRequest(POST,"/inventary/sensors/"+bson.stringify+"/sensor").withJsonBody(data).withSession("user" -> "")
+      val req=FakeRequest(POST,"/inventary/sensors/"+bson.stringify+"/sensor").withJsonBody(data).withSession("user" -> """{"login":"test"}""")
       val r=f.controller.sensorUpdate(bson.stringify,bson2.stringify).apply(req)
 
 
@@ -922,7 +922,7 @@ class SensorManagerSpec extends Specification with Mockito {
       f.applyFoundFunction()
       f.sensorDaoMock.findById(org.mockito.Matchers.eq(bson2))(any[ExecutionContext]) returns future{Some(sensor)}
 
-      val req=FakeRequest(GET,"/inventary/sensors/"+bson.stringify+"/"+bson2.stringify+"/clone").withSession("user" -> "")
+      val req=FakeRequest(GET,"/inventary/sensors/"+bson.stringify+"/"+bson2.stringify+"/clone").withSession("user" -> """{"login":"test"}""")
       val r=f.controller.sensorClonePage(bson.stringify,bson2.stringify).apply(req)
 
 
@@ -948,7 +948,7 @@ class SensorManagerSpec extends Specification with Mockito {
 
       f.applyNotFoundFunction()
 
-      val req=FakeRequest(GET,"/inventary/sensors/"+bson.stringify+"/"+bson2.stringify+"/delete").withSession("user" -> "")
+      val req=FakeRequest(GET,"/inventary/sensors/"+bson.stringify+"/"+bson2.stringify+"/delete").withSession("user" -> """{"login":"test"}""")
       val r=f.controller.delete(bson.stringify,bson2.stringify).apply(req)
 
       status(r) must equalTo(SEE_OTHER)
@@ -967,7 +967,7 @@ class SensorManagerSpec extends Specification with Mockito {
       futureMock.flatMap(any[Option[Sensor]=>Future[Option[Sensor]]])(any[ExecutionContext]) returns futureMock
       futureMock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers {value=>future{value.asInstanceOf[PartialFunction[Throwable,Result]](throwable)}}
 
-      val req=FakeRequest(GET,"/inventary/sensors/"+bson.stringify+"/"+bson2.stringify+"/delete").withSession("user" -> "")
+      val req=FakeRequest(GET,"/inventary/sensors/"+bson.stringify+"/"+bson2.stringify+"/delete").withSession("user" -> """{"login":"test"}""")
       val r=f.controller.delete(bson.stringify,bson2.stringify).apply(req)
 
       status(r) must equalTo(INTERNAL_SERVER_ERROR)
@@ -984,7 +984,7 @@ class SensorManagerSpec extends Specification with Mockito {
       f.applyFoundFunction()
       f.sensorDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{None}
 
-      val req=FakeRequest(GET,"/inventary/sensors/"+bson.stringify+"/"+bson2.stringify+"/delete").withSession("user" -> "")
+      val req=FakeRequest(GET,"/inventary/sensors/"+bson.stringify+"/"+bson2.stringify+"/delete").withSession("user" -> """{"login":"test"}""")
       val r=f.controller.delete(bson.stringify,bson2.stringify).apply(req)
 
       status(r) must equalTo(SEE_OTHER)
@@ -1004,7 +1004,7 @@ class SensorManagerSpec extends Specification with Mockito {
       f.sensorDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{Some(sensorIn)}
       f.sensorDaoMock.updateById(org.mockito.Matchers.eq(bson2), org.mockito.Matchers.eq(sensorOut),any[GetLastError])(any[Writes[Sensor]],any[ExecutionContext]) returns future{lastError}
 
-      val req=FakeRequest(GET,"/inventary/sensors/"+bson.stringify+"/"+bson2.stringify+"/delete").withSession("user" -> "")
+      val req=FakeRequest(GET,"/inventary/sensors/"+bson.stringify+"/"+bson2.stringify+"/delete").withSession("user" -> """{"login":"test"}""")
       val r=f.controller.delete(bson.stringify,bson2.stringify).apply(req)
 
       status(r) must equalTo(SEE_OTHER)

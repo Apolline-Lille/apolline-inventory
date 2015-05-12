@@ -1,6 +1,7 @@
 global.sitename=Apolline
 global.dashboard=Dashboard
 global.sensors=Inventaire
+global.disconnect=Déconnexion
 
 global.error.required=This field is required
 global.error.noResult=Aucun résultat trouvé
