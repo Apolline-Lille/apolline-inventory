@@ -13,7 +13,7 @@ import scala.concurrent._
 
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
 
-case class TypeCardsForm(modele:String,types:String)
+case class TypeCardsForm(modele:String,types:String,send:Option[String]=None)
 
 /**
  * This trait is a controller for manage sensors type
@@ -32,7 +32,8 @@ trait TypeCardsManagerLike extends Controller {
   lazy val form=Form[TypeCardsForm](
     mapping(
       "modele"->nonEmptyText,
-      "types"->nonEmptyText
+      "types"->nonEmptyText,
+      "send"->optional(text)
     )(TypeCardsForm.apply)(TypeCardsForm.unapply)
   )
 
@@ -173,23 +174,27 @@ trait TypeCardsManagerLike extends Controller {
   ))
   def typeInsert=Action.async{
     implicit request=>
+      val msg=Messages("inventary.typeCards.error.typeExist")+" <input type=\"submit\" class=\"btn btn-danger\" name=\"send\" value=\""+Messages("global.reactiver")+"\"/> <input type=\"submit\" class=\"btn btn-danger\" name=\"send\" value=\""+Messages("global.ignorer")+"\"/>"
       //Verify if the user is connect and if data received are valid
-      submitForm(routes.TypeCardsManager.typeInsert()) {
+      submitForm(msg,routes.TypeCardsManager.typeInsert()) {
         typeData => Json.obj("modele" -> typeData.modele, "type" -> typeData.types)
       }{typeData=>{
-
-        //Insert card type
-        typeCardsDao.insert(TypeCards(
-          types=typeData.types,
-          modele=typeData.modele
-        )).map(
-            //Redirect to the inventary if sensor type was insert
-            e => Redirect(routes.TypeCardsManager.inventary())
-        ).recover({
-          //Send Internal Server Error if have mongoDB error
-          case e => InternalServerError("error")
-        })
-
+        if(typeData.send.isEmpty || typeData.send.equals(Some("Ignorer"))) {
+          //Insert card type
+          typeCardsDao.insert(TypeCards(
+            types = typeData.types,
+            modele = typeData.modele
+          )).map(
+              //Redirect to the inventary if sensor type was insert
+              e => Redirect(routes.TypeCardsManager.inventary())
+            ).recover({
+            //Send Internal Server Error if have mongoDB error
+            case e => InternalServerError("error")
+          })
+        }
+        else{
+          updateWithColumnDelete(Json.obj("modele" -> typeData.modele, "type" -> typeData.types),false)
+        }
       }
       }
   }
@@ -218,25 +223,28 @@ trait TypeCardsManagerLike extends Controller {
   ))
   def typeUpdate(id:String)=Action.async{
     implicit request=>
-
+      val msg=Messages("inventary.typeCards.error.typeExist")+" <input type=\"submit\" class=\"btn btn-danger\" value=\""+Messages("global.ignorer")+"\"/>"
       //Verify if the user is connect and if data received are valid
-      submitForm(routes.TypeCardsManager.typeUpdate(id)){
+      submitForm(msg,routes.TypeCardsManager.typeUpdate(id)){
         typeData => Json.obj("_id"->Json.obj("$ne"->BSONFormats.BSONObjectIDFormat.writes(BSONObjectID(id))),"modele" -> typeData.modele, "types" -> typeData.types)
       }{typeData=>{
-
-        //Update card type
-        typeCardsDao.updateById(BSONObjectID(id),
-          TypeCards(
-            _id=BSONObjectID(id),
-            types=typeData.types,
-            modele=typeData.modele
-          )).map(
-            //Redirect to the inventary if card type was update
-            e => Redirect(routes.TypeCardsManager.inventary())
-          ).recover({
-          //Send Internal Server Error if have mongoDB error
-          case e => InternalServerError("error")
-        })
+        if(typeData.send.isEmpty || typeData.send.equals(Some("Ignorer"))) {
+          //Update card type
+          typeCardsDao.updateById(BSONObjectID(id),
+            TypeCards(
+              _id = BSONObjectID(id),
+              types = typeData.types,
+              modele = typeData.modele
+            )).map(
+              //Redirect to the inventary if card type was update
+              e => Redirect(routes.TypeCardsManager.inventary())
+            ).recover({
+            //Send Internal Server Error if have mongoDB error
+            case e => InternalServerError("error")
+          })
+        }else{
+          printForm(Results.BadRequest, form.withGlobalError(msg).fill(typeData), routes.TypeCardsManager.typeUpdate(id))
+        }
       }
       }
   }
@@ -265,39 +273,15 @@ trait TypeCardsManagerLike extends Controller {
       UserManager.doIfconnectAsync(request) {
 
         val idFormat=BSONFormats.BSONObjectIDFormat.writes(BSONObjectID(id))
-        val findCards=cardDao.findOne(Json.obj("delete"->false,"types"->idFormat))
-        //find the card type
-        typeCardsDao.findOne(Json.obj("_id"->idFormat)).flatMap(
+        //find the card
+        cardDao.findOne(Json.obj("delete"->false,"types"->idFormat)).flatMap(
           data => data match{
 
-            //Cards type not found redirect to the cards inventary
-            case None =>future{Redirect(routes.TypeCardsManager.inventary())}
+            //Cards not found
+            case None => updateWithColumnDelete(Json.obj("_id"->idFormat),true)
 
-            //Cards type found
-            case Some(typeCardsData) => {
-              findCards.flatMap(
-                cardData=>cardData match{
-                  case None=>{
-
-                    //Update the card type and set the delete column to true
-                    typeCardsDao.updateById(
-                      BSONObjectID(id),
-                      typeCardsData.copy(delete=true)
-                    ).map(
-                        //Redirect to the cards inventary after delete cards type
-                        e => Redirect(routes.TypeCardsManager.inventary())
-                      ).recover({
-                      //Send Internal Server Error if have mongoDB error
-                      case e => InternalServerError("error")
-                    })
-                  }
-                  case _ => future{Redirect(routes.TypeCardsManager.inventary())}
-                }
-              ).recover({
-                //Send Internal Server Error if have mongoDB error
-                case e => InternalServerError("error")
-              })
-            }
+            //Cards found redirect to the cards inventary
+            case _ =>future{Redirect(routes.TypeCardsManager.inventary())}
           }
         ).recover({
           //Send Internal Server Error if have mongoDB error
@@ -316,6 +300,31 @@ trait TypeCardsManagerLike extends Controller {
     ).recover({case _=>InternalServerError("error")})
   }
 
+  def updateWithColumnDelete(selector:JsObject,delete:Boolean)={
+    typeCardsDao.findOne(selector).flatMap(
+      cardTypeData=>cardTypeData match{
+        case Some(typeCardsData)=>{
+
+          //Update the card type and set the delete column to true
+          typeCardsDao.updateById(
+            typeCardsData._id,
+            typeCardsData.copy(delete=delete)
+          ).map(
+              //Redirect to the cards inventary after delete cards type
+              e => Redirect(routes.TypeCardsManager.inventary())
+            ).recover({
+            //Send Internal Server Error if have mongoDB error
+            case e => InternalServerError("error")
+          })
+        }
+        case _ => future{Redirect(routes.TypeCardsManager.inventary())}
+      }
+    ).recover({
+      //Send Internal Server Error if have mongoDB error
+      case e => InternalServerError("error")
+    })
+  }
+
   /**
    * Verify if the user is connect and if data received are valid then apply function dedicated
    * @param r Route use for submit the form
@@ -325,7 +334,7 @@ trait TypeCardsManagerLike extends Controller {
    *         Return Redirect if dedicated function is a success
    *         Return Internal server error if have mongoDB error
    */
-  def submitForm(r:Call)(verif:TypeCardsForm=>JsObject)(f:TypeCardsForm=>Future[Result])(implicit request: Request[AnyContent]):Future[Result]={
+  def submitForm(errorMessage:String,r:Call)(verif:TypeCardsForm=>JsObject)(f:TypeCardsForm=>Future[Result])(implicit request: Request[AnyContent]):Future[Result]={
     //Verify if user is connect
     UserManager.doIfconnectAsync(request) {
       form.bindFromRequest.fold(
@@ -340,14 +349,19 @@ trait TypeCardsManagerLike extends Controller {
         typeData => {
 
           //Find the sensor type
-          typeCardsDao.findOne(verif(typeData)).flatMap(
-            e=> e match {
-
+          typeCardsDao.findAll(verif(typeData)).flatMap(
+            data =>{
               //If sensor type not found
-              case None => f(typeData)
-
-              //print form with prefilled data and a bad request
-              case _ => printForm(Results.BadRequest, form.withGlobalError(Messages("inventary.typeCards.error.typeExist")).fill(typeData), r)
+              if(data.size==0 || List(Some("Réactiver"),Some("Ignorer")).contains(typeData.send)) {
+                f(typeData)
+              }
+              else if(data.filter(p => !(p.delete) ).size>0) {
+                //print form with prefilled data and a bad request
+                printForm(Results.BadRequest, form.withGlobalError(Messages("inventary.typeCards.error.typeExist")).fill(typeData), r)
+              }
+              else {
+                printForm(Results.BadRequest, form.withGlobalError(errorMessage).fill(typeData), r)
+              }
             }
           ).recover({
             //Send Internal Server Error if have mongoDB error

@@ -286,7 +286,7 @@ class TypeCardsManagerSpec extends Specification with Mockito {
       f.typeCardsDaoMock.findListModele() returns future{Stream[BSONDocument]()}
       f.typeCardsDaoMock.findListType() returns future{Stream[BSONDocument]()}
 
-      val r = f.controller.submitForm(route)(function2)(function)(FakeRequest(POST, "url").withSession("user" -> """{"login":"test"}"""))
+      val r = f.controller.submitForm("error",route)(function2)(function)(FakeRequest(POST, "url").withSession("user" -> """{"login":"test"}"""))
 
       status(r) must equalTo(BAD_REQUEST)
       contentType(r) must beSome.which(_ == "text/html")
@@ -307,18 +307,44 @@ class TypeCardsManagerSpec extends Specification with Mockito {
       val typeCards=mock[TypeCards]
 
       function2.apply(any[TypeCardsForm]) returns Json.obj()
-      f.typeCardsDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{Some(typeCards)}
+      f.typeCardsDaoMock.findAll(any[JsObject],any[JsObject])(any[ExecutionContext]) returns future{List(typeCards)}
       f.typeCardsDaoMock.findListModele() returns future{Stream[BSONDocument]()}
       f.typeCardsDaoMock.findListType() returns future{Stream[BSONDocument]()}
 
-      val r = f.controller.submitForm(route)(function2)(function)(FakeRequest(POST, "url").withJsonBody(formData).withSession("user" -> """{"login":"test"}"""))
+      val r = f.controller.submitForm("error",route)(function2)(function)(FakeRequest(POST, "url").withJsonBody(formData).withSession("user" -> """{"login":"test"}"""))
 
       status(r) must equalTo(BAD_REQUEST)
       contentType(r) must beSome.which(_ == "text/html")
       val content = contentAsString(r)
       content must contain("<div class=\"alert alert-danger\" role=\"alert\">Ce type de carte existe déjà</div>")
 
-      there was one(f.typeCardsDaoMock).findOne(any[JsObject])(any[ExecutionContext])
+      there was one(f.typeCardsDaoMock).findAll(any[JsObject],any[JsObject])(any[ExecutionContext])
+      there was one(function2).apply(any[TypeCardsForm])
+      there was one(f.typeCardsDaoMock).findListModele()
+      there was one(f.typeCardsDaoMock).findListType()
+    }
+
+    "send Bad_Request for existing type but delete" in new WithApplication {
+      val formData = Json.parse("""{"modele":"mod","types":"typ"}""")
+      val route=mock[Call]
+      val function=mock[TypeCardsForm=>Future[Result]]
+      val function2=mock[TypeCardsForm=>JsObject]
+      val f=fixture
+      val typeCards=TypeCards(bson,"mod","type",true)
+
+      function2.apply(any[TypeCardsForm]) returns Json.obj()
+      f.typeCardsDaoMock.findAll(any[JsObject],any[JsObject])(any[ExecutionContext]) returns future{List(typeCards)}
+      f.typeCardsDaoMock.findListModele() returns future{Stream[BSONDocument]()}
+      f.typeCardsDaoMock.findListType() returns future{Stream[BSONDocument]()}
+
+      val r = f.controller.submitForm("error message",route)(function2)(function)(FakeRequest(POST, "url").withJsonBody(formData).withSession("user" -> """{"login":"test"}"""))
+
+      status(r) must equalTo(BAD_REQUEST)
+      contentType(r) must beSome.which(_ == "text/html")
+      val content = contentAsString(r)
+      content must contain("<div class=\"alert alert-danger\" role=\"alert\">error message</div>")
+
+      there was one(f.typeCardsDaoMock).findAll(any[JsObject],any[JsObject])(any[ExecutionContext])
       there was one(function2).apply(any[TypeCardsForm])
       there was one(f.typeCardsDaoMock).findListModele()
       there was one(f.typeCardsDaoMock).findListType()
@@ -329,24 +355,24 @@ class TypeCardsManagerSpec extends Specification with Mockito {
       val route=mock[Call]
       val function=mock[TypeCardsForm=>Future[Result]]
       val function2=mock[TypeCardsForm=>JsObject]
-      val futureMock=mock[Future[Option[TypeCards]]]
+      val futureMock=mock[Future[List[TypeCards]]]
       val fix=fixture
       val throwable=mock[Throwable]
 
       function2.apply(any[TypeCardsForm]) returns Json.obj()
-      fix.typeCardsDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns futureMock
-      futureMock.flatMap(any[Option[TypeCards]=>Future[Option[TypeCards]]])(any[ExecutionContext]) returns futureMock
+      fix.typeCardsDaoMock.findAll(any[JsObject],any[JsObject])(any[ExecutionContext]) returns futureMock
+      futureMock.flatMap(any[List[TypeCards]=>Future[List[TypeCards]]])(any[ExecutionContext]) returns futureMock
       futureMock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers (vals => future{vals.asInstanceOf[PartialFunction[Throwable,Result]](throwable)})
 
 
-      val r = fix.controller.submitForm(route)(function2)(function)(FakeRequest(POST, "url").withJsonBody(formData).withSession("user" -> """{"login":"test"}"""))
+      val r = fix.controller.submitForm("error",route)(function2)(function)(FakeRequest(POST, "url").withJsonBody(formData).withSession("user" -> """{"login":"test"}"""))
 
 
       status(r) must equalTo(INTERNAL_SERVER_ERROR)
 
       there was one(function2).apply(any[TypeCardsForm])
-      there was one(fix.typeCardsDaoMock).findOne(any[JsObject])(any[ExecutionContext])
-      there was one(futureMock).flatMap(any[Option[TypeCards]=>Future[Option[TypeCards]]])(any[ExecutionContext])
+      there was one(fix.typeCardsDaoMock).findAll(any[JsObject],any[JsObject])(any[ExecutionContext])
+      there was one(futureMock).flatMap(any[List[TypeCards]=>Future[List[TypeCards]]])(any[ExecutionContext])
       there was one(futureMock).recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext])
     }
   }
@@ -371,12 +397,12 @@ class TypeCardsManagerSpec extends Specification with Mockito {
       there was one(f.typeCardsDaoMock).findListType()
     }
 
-    "send redirect after type card" in new WithApplication {
+    "send redirect after insert type card" in new WithApplication {
       val formData = Json.parse("""{"modele":"mod","types":"typ"}""")
       val lastError=mock[LastError]
       val f=fixture
 
-      f.typeCardsDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{None}
+      f.typeCardsDaoMock.findAll(any[JsObject],any[JsObject])(any[ExecutionContext]) returns future{List()}
       f.typeCardsDaoMock.insert(any[TypeCards],any[GetLastError])(any[ExecutionContext]) returns future{lastError}
 
       val r = f.controller.typeInsert.apply(FakeRequest(POST, "/inventary/cards/type").withJsonBody(formData).withSession("user" -> """{"login":"test"}"""))
@@ -384,8 +410,28 @@ class TypeCardsManagerSpec extends Specification with Mockito {
       status(r) must equalTo(SEE_OTHER)
       header("Location",r) must beSome("/inventary/cards")
 
-      there was one(f.typeCardsDaoMock).findOne(any[JsObject])(any[ExecutionContext])
+      there was one(f.typeCardsDaoMock).findAll(any[JsObject],any[JsObject])(any[ExecutionContext])
       there was one(f.typeCardsDaoMock).insert(any[TypeCards],any[GetLastError])(any[ExecutionContext])
+    }
+
+    "send redirect after reactivat delete type card" in new WithApplication {
+      val formData = Json.parse("""{"modele":"mod","types":"typ","send":"Réactiver"}""")
+      val lastError=mock[LastError]
+      val f=fixture
+      val typeCards=TypeCards(bson,"mod","type",true)
+
+      f.typeCardsDaoMock.findAll(any[JsObject],any[JsObject])(any[ExecutionContext]) returns future{List(typeCards)}
+      f.typeCardsDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{Some(typeCards)}
+      f.typeCardsDaoMock.updateById(org.mockito.Matchers.eq(bson),any[TypeCards],any[GetLastError])(any[Writes[TypeCards]],any[ExecutionContext]) returns future{lastError}
+
+      val r = f.controller.typeInsert.apply(FakeRequest(POST, "/inventary/cards/type").withJsonBody(formData).withSession("user" -> """{"login":"test"}"""))
+
+      status(r) must equalTo(SEE_OTHER)
+      header("Location",r) must beSome("/inventary/cards")
+
+      there was one(f.typeCardsDaoMock).findAll(any[JsObject],any[JsObject])(any[ExecutionContext])
+      there was one(f.typeCardsDaoMock).findOne(any[JsObject])(any[ExecutionContext])
+      there was one(f.typeCardsDaoMock).updateById(org.mockito.Matchers.eq(bson),any[TypeCards],any[GetLastError])(any[Writes[TypeCards]],any[ExecutionContext])
     }
 
     "send internal server error if mongoDB error when insert card type" in new WithApplication {
@@ -394,7 +440,7 @@ class TypeCardsManagerSpec extends Specification with Mockito {
       val f=fixture
       val throwable=mock[Throwable]
 
-      f.typeCardsDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{None}
+      f.typeCardsDaoMock.findAll(any[JsObject],any[JsObject])(any[ExecutionContext]) returns future{List()}
       f.typeCardsDaoMock.insert(any[TypeCards],any[GetLastError])(any[ExecutionContext]) returns lastError
       lastError.map(any[LastError=>LastError])(any[ExecutionContext]) returns lastError
       lastError.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers {value => future{value.asInstanceOf[PartialFunction[Throwable,Result]](throwable)}}
@@ -403,7 +449,7 @@ class TypeCardsManagerSpec extends Specification with Mockito {
 
       status(r) must equalTo(INTERNAL_SERVER_ERROR)
 
-      there was one(f.typeCardsDaoMock).findOne(any[JsObject])(any[ExecutionContext])
+      there was one(f.typeCardsDaoMock).findAll(any[JsObject],any[JsObject])(any[ExecutionContext])
       there was one(f.typeCardsDaoMock).insert(any[TypeCards],any[GetLastError])(any[ExecutionContext])
       there was one(lastError).map(any[LastError=>LastError])(any[ExecutionContext])
       there was one(lastError).recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext])
@@ -471,7 +517,7 @@ class TypeCardsManagerSpec extends Specification with Mockito {
       val fix=fixture
       val lastError=mock[LastError]
 
-      fix.typeCardsDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{None}
+      fix.typeCardsDaoMock.findAll(any[JsObject],any[JsObject])(any[ExecutionContext]) returns future{List()}
       fix.typeCardsDaoMock.updateById(org.mockito.Matchers.eq(bson),any[TypeCards],any[GetLastError])(any[Writes[TypeCards]],any[ExecutionContext]) returns future{lastError}
 
       val r = fix.controller.typeUpdate(bson.stringify).apply(FakeRequest(POST, "/inventary/cards/"+bson.stringify+"/update").withJsonBody(formData).withSession("user" -> """{"login":"test"}"""))
@@ -479,7 +525,7 @@ class TypeCardsManagerSpec extends Specification with Mockito {
       status(r) must equalTo(SEE_OTHER)
       header("Location",r) must equalTo(Some("/inventary/cards"))
 
-      there was one(fix.typeCardsDaoMock).findOne(any[JsObject])(any[ExecutionContext])
+      there was one(fix.typeCardsDaoMock).findAll(any[JsObject],any[JsObject])(any[ExecutionContext])
       there was one(fix.typeCardsDaoMock).updateById(org.mockito.Matchers.eq(bson),any[TypeCards],any[GetLastError])(any[Writes[TypeCards]],any[ExecutionContext])
     }
 
@@ -490,7 +536,7 @@ class TypeCardsManagerSpec extends Specification with Mockito {
 
       val fix=fixture
 
-      fix.typeCardsDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{None}
+      fix.typeCardsDaoMock.findAll(any[JsObject],any[JsObject])(any[ExecutionContext]) returns future{List()}
       fix.typeCardsDaoMock.updateById(org.mockito.Matchers.eq(bson),any[TypeCards],any[GetLastError])(any[Writes[TypeCards]],any[ExecutionContext]) returns future_Mock
       future_Mock.map(any[LastError=>LastError])(any[ExecutionContext]) returns future_Mock
       future_Mock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers (vals => future{vals.asInstanceOf[PartialFunction[Throwable,Result]](throwable)})
@@ -499,14 +545,14 @@ class TypeCardsManagerSpec extends Specification with Mockito {
 
       status(r) must equalTo(INTERNAL_SERVER_ERROR)
 
-      there was one(fix.typeCardsDaoMock).findOne(any[JsObject])(any[ExecutionContext])
+      there was one(fix.typeCardsDaoMock).findAll(any[JsObject],any[JsObject])(any[ExecutionContext])
       there was one(fix.typeCardsDaoMock).updateById(org.mockito.Matchers.eq(bson),any[TypeCards],any[GetLastError])(any[Writes[TypeCards]],any[ExecutionContext])
       there was one(future_Mock).map(any[LastError=>LastError])(any[ExecutionContext])
       there was one(future_Mock).recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext])
     }
   }
 
-  "When user delete a type card, TypeCardsManager" should {
+  "When method updateWithDeleteColumn is called, TypeCardsManager" should{
     "send 500 Internal Error for mongoDB error when find card type" in new WithApplication{
       val futureMock = mock[Future[Option[TypeCards]]]
       val fix=fixture
@@ -516,8 +562,7 @@ class TypeCardsManagerSpec extends Specification with Mockito {
       futureMock.flatMap(any[(Option[TypeCards])=>Future[Option[TypeCards]]])(any[ExecutionContext]) returns futureMock
       futureMock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers (vals => future{vals.asInstanceOf[PartialFunction[Throwable,Result]](throwable)})
 
-      val r = fix.controller.delete(bson.stringify).apply(FakeRequest(GET, "/inventary/cards/"+bson.stringify+"/delete").withSession("user" -> """{"login":"test"}"""))
-
+      val r = fix.controller.updateWithColumnDelete(Json.obj(),true)
 
       status(r) must equalTo(INTERNAL_SERVER_ERROR)
 
@@ -526,44 +571,21 @@ class TypeCardsManagerSpec extends Specification with Mockito {
       there was one(futureMock).recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext])
     }
 
-    "send 500 Internal Error for mongoDB error when find card" in new WithApplication{
-      val futureMock=mock[Future[Option[Cards]]]
-      val fix=fixture
-      val throwable=mock[Throwable]
-
-      fix.typeCardsDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{Some(TypeCards(bson,"mod","type"))}
-      fix.cardDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns futureMock
-      futureMock.flatMap(any[Option[Cards]=>Future[Option[Cards]]])(any[ExecutionContext]) returns futureMock
-      futureMock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers (vals => future{vals.asInstanceOf[PartialFunction[Throwable,Result]](throwable)})
-
-      val r = fix.controller.delete(bson.stringify).apply(FakeRequest(GET, "/inventary/cards/"+bson.stringify+"/delete").withSession("user" -> """{"login":"test"}"""))
-
-
-      status(r) must equalTo(INTERNAL_SERVER_ERROR)
-
-      there was one(fix.typeCardsDaoMock).findOne(any[JsObject])(any[ExecutionContext])
-      there was one(fix.cardDaoMock).findOne(any[JsObject])(any[ExecutionContext])
-      there was one(futureMock).flatMap(any[Option[Cards]=>Future[Option[Cards]]])(any[ExecutionContext])
-      there was one(futureMock).recover(any[PartialFunction[Throwable,Results]])(any[ExecutionContext])
-    }
-
-    "send 500 Internal Error for mongoDB error when delete card type" in new WithApplication{
+    "send 500 Internal Error for mongoDB error when update card type" in new WithApplication{
       val futureMock=mock[Future[LastError]]
       val fix=fixture
       val throwable=mock[Throwable]
 
       fix.typeCardsDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{Some(TypeCards(bson,"mod","type"))}
-      fix.cardDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{None}
       fix.typeCardsDaoMock.updateById(any[BSONObjectID],any[TypeCards],any[GetLastError])(any[Writes[TypeCards]],any[ExecutionContext]) returns futureMock
       futureMock.map(any[LastError=>LastError])(any[ExecutionContext]) returns futureMock
       futureMock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers (vals => future{vals.asInstanceOf[PartialFunction[Throwable,Result]](throwable)})
 
-      val r = fix.controller.delete(bson.stringify).apply(FakeRequest(GET, "/inventary/cards/"+bson.stringify+"/delete").withSession("user" -> """{"login":"test"}"""))
+      val r = fix.controller.updateWithColumnDelete(Json.obj(),true)
 
       status(r) must equalTo(INTERNAL_SERVER_ERROR)
 
       there was one(fix.typeCardsDaoMock).findOne(any[JsObject])(any[ExecutionContext])
-      there was one(fix.cardDaoMock).findOne(any[JsObject])(any[ExecutionContext])
       there was one(fix.typeCardsDaoMock).updateById(any[BSONObjectID],any[TypeCards],any[GetLastError])(any[Writes[TypeCards]],any[ExecutionContext])
       there was one(futureMock).map(any[LastError=>LastError])(any[ExecutionContext])
       there was one(futureMock).recover(any[PartialFunction[Throwable,Results]])(any[ExecutionContext])
@@ -574,8 +596,7 @@ class TypeCardsManagerSpec extends Specification with Mockito {
 
       fix.typeCardsDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{None}
 
-      val r = fix.controller.delete(bson.stringify).apply(FakeRequest(GET, "/inventary/cards/"+bson.stringify+"/delete").withSession("user" -> """{"login":"test"}"""))
-
+      val r = fix.controller.updateWithColumnDelete(Json.obj(),true)
 
       status(r) must equalTo(SEE_OTHER)
       header("Location",r) must equalTo(Some("/inventary/cards"))
@@ -583,10 +604,46 @@ class TypeCardsManagerSpec extends Specification with Mockito {
       there was one(fix.typeCardsDaoMock).findOne(any[JsObject])(any[ExecutionContext])
     }
 
+    "send Redirect after update type card" in new WithApplication{
+      val fix=fixture
+      val lastError=mock[LastError]
+
+      fix.typeCardsDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{Some(TypeCards(bson,"mod","type"))}
+      fix.typeCardsDaoMock.updateById(any[BSONObjectID],any[TypeCards],any[GetLastError])(any[Writes[TypeCards]],any[ExecutionContext]) returns future{lastError}
+
+      val r = fix.controller.updateWithColumnDelete(Json.obj(),true)
+
+      status(r) must equalTo(SEE_OTHER)
+      header("Location",r) must equalTo(Some("/inventary/cards"))
+
+      there was one(fix.typeCardsDaoMock).findOne(any[JsObject])(any[ExecutionContext])
+      there was one(fix.typeCardsDaoMock).updateById(any[BSONObjectID],any[TypeCards],any[GetLastError])(any[Writes[TypeCards]],any[ExecutionContext])
+    }
+  }
+
+  "When user delete a type card, TypeCardsManager" should {
+
+    "send 500 Internal Error for mongoDB error when find card" in new WithApplication{
+      val futureMock=mock[Future[Option[Cards]]]
+      val fix=fixture
+      val throwable=mock[Throwable]
+
+      fix.cardDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns futureMock
+      futureMock.flatMap(any[Option[Cards]=>Future[Option[Cards]]])(any[ExecutionContext]) returns futureMock
+      futureMock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers (vals => future{vals.asInstanceOf[PartialFunction[Throwable,Result]](throwable)})
+
+      val r = fix.controller.delete(bson.stringify).apply(FakeRequest(GET, "/inventary/cards/"+bson.stringify+"/delete").withSession("user" -> """{"login":"test"}"""))
+
+      status(r) must equalTo(INTERNAL_SERVER_ERROR)
+
+      there was one(fix.cardDaoMock).findOne(any[JsObject])(any[ExecutionContext])
+      there was one(futureMock).flatMap(any[Option[Cards]=>Future[Option[Cards]]])(any[ExecutionContext])
+      there was one(futureMock).recover(any[PartialFunction[Throwable,Results]])(any[ExecutionContext])
+    }
+
     "send BadRequest if card found" in new WithApplication{
       val fix=fixture
 
-      fix.typeCardsDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{Some(TypeCards(bson,"mod","type"))}
       fix.cardDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{Some(Cards(bson2,"Id",bson,bson,new Date(),None,true,Some("v01"),true,Some("un com")))}
 
       val r = fix.controller.delete(bson.stringify).apply(FakeRequest(GET, "/inventary/cards/"+bson.stringify+"/delete").withSession("user" -> """{"login":"test"}"""))
@@ -594,7 +651,6 @@ class TypeCardsManagerSpec extends Specification with Mockito {
       status(r) must equalTo(SEE_OTHER)
       header("Location",r) must equalTo(Some("/inventary/cards"))
 
-      there was one(fix.typeCardsDaoMock).findOne(any[JsObject])(any[ExecutionContext])
       there was one(fix.cardDaoMock).findOne(any[JsObject])(any[ExecutionContext])
     }
 
