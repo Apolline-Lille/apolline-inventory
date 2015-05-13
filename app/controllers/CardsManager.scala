@@ -239,48 +239,53 @@ trait CardsManagerLike extends Controller{
   ))
   def cardInsert(id:String)=Action.async {
     implicit request =>
-
+      val msg=Messages("inventary.card.error.cardExist")+" <input type=\"submit\" class=\"btn btn-danger\" name=\"send\" value=\""+Messages("global.reactiver")+"\"/> <input type=\"submit\" class=\"btn btn-danger\" name=\"send\" value=\""+Messages("global.ignorer")+"\"/>"
       //Verify if the user is connect and if data received are valid
-      submitForm(id,routes.CardsManager.cardInsert(id)){
+      submitForm(msg,id,routes.CardsManager.cardInsert(id)){
 
         //Filter for verify if card exists
         cardData=>Json.obj("id" -> cardData.id, "types" -> BSONFormats.BSONObjectIDFormat.writes(BSONObjectID(id)))
 
       }{
         (cardData,firmware)=>
+          if(!cardData.send.equals("Réactiver")) {
+            //Insert the card into the mongoDB database
+            cardDao.insert(
+              Cards(
+                id = cardData.id,
+                types = BSONObjectID(id),
+                firmware = firmware,
+                acquisition = cardData.acquisition,
+                firstUse = cardData.firstUse,
+                hs = cardData.hs,
+                commentaire = cardData.commentaire,
+                agregateur = cardData.agregateur,
+                apolline = cardData.apolline
+              )
+            ).flatMap(e =>
+              //When the card was insert
+              cardData.send match {
 
-          //Insert the card into the mongoDB database
-          cardDao.insert(
-            Cards(
-              id = cardData.id,
-              types = BSONObjectID(id),
-              firmware = firmware,
-              acquisition = cardData.acquisition,
-              firstUse = cardData.firstUse,
-              hs = cardData.hs,
-              commentaire = cardData.commentaire,
-              agregateur=cardData.agregateur,
-              apolline=cardData.apolline
-            )
-          ).flatMap(e=>
-            //When the card was insert
-            cardData.send match {
+                //If use click on the button "Envoyer et continuer"
+                case "Envoyer et continuer" => {
+                  //Prepare prefilled data
+                  val cardForm = cardData.copy(id = "")
+                  //Print the form with prefilled data
+                  printForm(Results.Ok, id, form.fill(cardForm), routes.CardsManager.cardInsert(id))
+                }
 
-              //If use click on the button "Envoyer et continuer"
-              case "Envoyer et continuer" =>{
-                //Prepare prefilled data
-                val cardForm=cardData.copy(id="")
-                //Print the form with prefilled data
-                printForm(Results.Ok,id,form.fill(cardForm),routes.CardsManager.cardInsert(id))
+                //If user click on an other button redirect her to the card inventary for the current card type
+                case _ => future {
+                  Redirect(routes.CardsManager.inventary(id))
+                }
               }
-
-              //If user click on an other button redirect her to the card inventary for the current card type
-              case _ => future{Redirect(routes.CardsManager.inventary(id))}
-            }
-            ).recover({
-            //Send Internal Server Error if have mongoDB error
-            case e => InternalServerError("error")
-          })
+              ).recover({
+              //Send Internal Server Error if have mongoDB error
+              case e => InternalServerError("error")
+            })
+          }else{
+            updateWithColumnDelete(id,Json.obj("id" -> cardData.id, "types" -> BSONFormats.BSONObjectIDFormat.writes(BSONObjectID(id))),false)
+          }
       }
   }
 
@@ -315,8 +320,9 @@ trait CardsManagerLike extends Controller{
   ))
   def cardUpdate(idType:String,id:String)=Action.async{
     implicit request =>
+      val msg=Messages("inventary.card.error.cardExist")+" <input type=\"submit\" class=\"btn btn-danger\" value=\""+Messages("global.ignorer")+"\"/>"
       //Verify if the user is connect and if data received are valid
-      submitForm(idType,routes.CardsManager.cardUpdate(idType,id)){
+      submitForm(msg,idType,routes.CardsManager.cardUpdate(idType,id)){
 
         //Filter for verify if sensor exists
         cardData=>Json.obj("_id"->Json.obj("$ne"->BSONFormats.BSONObjectIDFormat.writes(BSONObjectID(id))),"id" -> cardData.id, "types" -> BSONFormats.BSONObjectIDFormat.writes(BSONObjectID(idType)))
@@ -324,29 +330,33 @@ trait CardsManagerLike extends Controller{
       }{
         //Update the card
         (cardData,firmware)=>{
-          //Update the card
-          cardDao.updateById(
-            BSONObjectID(id),
+          if(cardData.send.equals("Envoyer") || cardData.send.equals("Ignorer")) {
+            //Update the card
+            cardDao.updateById(
+              BSONObjectID(id),
 
-            //Create card information
-            Cards(
-              id = cardData.id,
-              types = BSONObjectID(id),
-              firmware = firmware,
-              acquisition = cardData.acquisition,
-              firstUse = cardData.firstUse,
-              hs = cardData.hs,
-              commentaire = cardData.commentaire,
-              agregateur=cardData.agregateur,
-              apolline=cardData.apolline
-            )
-          ).map(e=>
-            //If card was update, redirect to the card inventary
-            Redirect(routes.CardsManager.inventary(idType))
-          ).recover({
-            //Send Internal Server Error if have mongoDB error
-            case e => InternalServerError("error")
-          })
+              //Create card information
+              Cards(
+                id = cardData.id,
+                types = BSONObjectID(id),
+                firmware = firmware,
+                acquisition = cardData.acquisition,
+                firstUse = cardData.firstUse,
+                hs = cardData.hs,
+                commentaire = cardData.commentaire,
+                agregateur=cardData.agregateur,
+                apolline=cardData.apolline
+              )
+            ).map(e=>
+              //If card was update, redirect to the card inventary
+              Redirect(routes.CardsManager.inventary(idType))
+            ).recover({
+              //Send Internal Server Error if have mongoDB error
+              case e => InternalServerError("error")
+            })
+          }else{
+            printForm(Results.BadRequest, id, form.withGlobalError(msg).fill(cardData), routes.CardsManager.cardUpdate(idType,id))
+          }
         }
       }
   }
@@ -378,33 +388,7 @@ trait CardsManagerLike extends Controller{
       UserManager.doIfconnectAsync(request) {
         //Verify if card type found
         typeCardsManager.doIfTypeCardsFound(BSONObjectID(idType)) { _ =>
-          //Find the card
-          cardDao.findOne(Json.obj("_id" -> BSONFormats.BSONObjectIDFormat.writes(BSONObjectID(id)))).flatMap(
-
-            data => data match {
-
-              //If sensor not found redirect to the card inventary
-              case None => future {
-                Redirect(routes.CardsManager.inventary(idType))
-              }
-
-              //If card found
-              case Some(cardData) => {
-                cardDao.updateById(
-                  BSONObjectID(id),
-                  cardData.copy(delete=true)
-                ).map(e=>
-                  //If card was delete, redirect to the card inventary
-                  Redirect(routes.CardsManager.inventary(idType))
-                ).recover({
-                  //Send Internal Server Error if have mongoDB error
-                  case e => InternalServerError("error")
-                })
-              }
-            }).recover({
-            //Send Internal Server Error if have mongoDB error
-            case e => InternalServerError("error")
-          })
+          updateWithColumnDelete(idType,Json.obj("_id" -> BSONFormats.BSONObjectIDFormat.writes(BSONObjectID(id))),true)
         }{
           _=> future{Redirect(routes.TypeCardsManager.inventary())}
         }
@@ -423,6 +407,37 @@ trait CardsManagerLike extends Controller{
     ).recover({case _=>InternalServerError("error")})
   }
 
+  def updateWithColumnDelete(idType:String,selector:JsObject,delete:Boolean)={
+    //Find the card
+    cardDao.findOne(selector).flatMap(
+
+      data => data match {
+
+        //If sensor not found redirect to the card inventary
+        case None => future {
+          Redirect(routes.CardsManager.inventary(idType))
+        }
+
+        //If card found
+        case Some(cardData) => {
+          cardDao.updateById(
+            cardData._id,
+            cardData.copy(delete=true)
+          ).map(e=>
+            //If card was delete, redirect to the card inventary
+            Redirect(routes.CardsManager.inventary(idType))
+            ).recover({
+            //Send Internal Server Error if have mongoDB error
+            case e => InternalServerError("error")
+          })
+        }
+      }
+    ).recover({
+      //Send Internal Server Error if have mongoDB error
+      case e => InternalServerError("error")
+    })
+  }
+
   /**
    * Verify if the user is connect and if data received are valid then apply function dedicated
    * @param id Cards type id
@@ -434,7 +449,7 @@ trait CardsManagerLike extends Controller{
    *         Return Redirect if dedicated function is a success
    *         Return Internal server error if have mongoDB error
    */
-  def submitForm(id:String,routeSubmit:Call)(verif:CardsForm=>JsObject)(f:(CardsForm,BSONObjectID)=>Future[Result])(implicit request: Request[AnyContent]):Future[Result]={
+  def submitForm(errorMessage:String,id:String,routeSubmit:Call)(verif:CardsForm=>JsObject)(f:(CardsForm,BSONObjectID)=>Future[Result])(implicit request: Request[AnyContent]):Future[Result]={
     //Verify if user is connect
     UserManager.doIfconnectAsync(request) {
       //Verify if sensor type found
@@ -452,14 +467,17 @@ trait CardsManagerLike extends Controller{
             val formDate=verifyErrorAcquisitionAfterFirstUse(cardData,form)
             if(formDate.equals(form)) {
               //Find the card
-              cardDao.findOne(verif(cardData)).flatMap(
-                card => card match {
-
-                  //If card not found, execute dedicated function
-                  case None => insertFirmwareIfNotFound(cardData, f)
-
-                  //If card found, return bad request with prefilled form
-                  case _ => printForm(Results.BadRequest, id, form.withGlobalError(Messages("inventary.card.error.cardExist")).fill(cardData), routeSubmit)
+              cardDao.findAll(verif(cardData)).flatMap(data=>{
+                  if(data.size==0 || List("Réactiver","Ignorer").contains(cardData.send)) {
+                    insertFirmwareIfNotFound(cardData, f)
+                  }
+                  else if(data.filter(p => !(p.delete) ).size>0) {
+                    //print form with prefilled data and a bad request
+                    printForm(Results.BadRequest, id, form.withGlobalError(Messages("inventary.card.error.cardExist")).fill(cardData), routeSubmit)
+                  }
+                  else {
+                    printForm(Results.BadRequest, id, form.withGlobalError(errorMessage).fill(cardData), routeSubmit)
+                  }
                 }
               ).recover({
                 //Send Internal Server Error if have mongoDB error

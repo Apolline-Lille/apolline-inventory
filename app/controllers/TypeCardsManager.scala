@@ -352,7 +352,6 @@ trait TypeCardsManagerLike extends Controller {
           typeCardsDao.findAll(verif(typeData)).flatMap(
             data =>{
               //If sensor type not found
-              println(data+" "+typeData)
               if(data.size==0 || List(Some("Réactiver"),Some("Ignorer")).contains(typeData.send)) {
                 f(typeData)
               }
