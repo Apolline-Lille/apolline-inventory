@@ -398,12 +398,11 @@ trait TypeSensorManagerLike extends Controller{
           val especes = formWithErrors.data.getOrElse("espece[]",List[String]()).asInstanceOf[List[String]].filter(p => p.length > 0)
 
           //If don't have valid specie
-          if (especes.size == 0) {
+          especes match {
             //print form with prefilled data and a bad request
-            printForm(Results.BadRequest,formWithErrors.withError("espece",Messages("global.error.required")),r)
-          }else {
+            case List() => printForm(Results.BadRequest,formWithErrors.withError("espece",Messages("global.error.required")),r)
             //the form is redisplay with error descriptions
-            printForm(Results.BadRequest, formWithErrors, r)
+            case _ => printForm(Results.BadRequest, formWithErrors, r)
           }
         },
 

@@ -8,7 +8,6 @@ import models._
 import play.api.data.Form
 import play.api.data.Forms._
 import play.api.i18n.Messages
-import play.api.i18n.Messages
 import play.api.libs.json.{JsObject, Json}
 import play.api.mvc._
 import play.modules.reactivemongo.json.BSONFormats
@@ -263,54 +262,26 @@ trait SensorManagerLike extends Controller{
   ))
   def sensorInsert(id:String)=Action.async {
     implicit request =>
+      val msg=Messages("inventary.sensor.error.sensorExist")+" <input type=\"submit\" class=\"btn btn-danger\" name=\"send\" value=\""+Messages("global.reactiver")+"\"/> <input type=\"submit\" class=\"btn btn-danger\" name=\"send\" value=\""+Messages("global.ignorer")+"\"/>"
 
       //Verify if the user is connect and if data received are valid
-      submitForm(id,routes.SensorManager.sensorInsert(id)){
+      submitForm(msg,id,routes.SensorManager.sensorInsert(id)){
 
         //Filter for verify if sensor exists
         sensorData=>Json.obj("id" -> sensorData.id, "types" -> BSONFormats.BSONObjectIDFormat.writes(BSONObjectID(id)))
 
       }{
         sensorData=>
-
-          //Insert the sensor into the mongoDB database
-          sensorDao.insert(
-            Sensor(
-              id = sensorData.id,
-              types = BSONObjectID(id),
-              acquisition = sensorData.acquisition,
-              expiration = sensorData.expiration,
-              firstUse = sensorData.firstUse,
-              hs = sensorData.hs,
-              commentaire = sensorData.commentaire
-            )
-          ).map(e=>
-            //When the sensor was insert
-            sensorData.send match {
-
-              //If use click on the button "Envoyer et continuer"
-              case "Envoyer et continuer" =>{
-                //Prepare prefilled data
-                val sensorForm=SensorForm(
-                  "",
-                  sensorData.acquisition,
-                  sensorData.expiration,
-                  sensorData.firstUse,
-                  sensorData.hs,
-                  sensorData.commentaire,
-                  ""
-                )
-                //Print the form with prefilled data
-                Ok(views.html.sensors.formSensor(form.fill(sensorForm),id,routes.SensorManager.sensorInsert(id)))
+          if(!sensorData.send.equals("Réactiver")) {
+            insertSensor(id,sensorData)
+          }else{
+            sensorDao.findOne(Json.obj("id" -> sensorData.id, "types" -> BSONFormats.BSONObjectIDFormat.writes(BSONObjectID(id)))).flatMap(
+              sensorOpt=>sensorOpt match{
+                case Some(sensor)=>update(id,sensor._id.stringify,sensor,false)
+                case _=>future{Redirect(routes.SensorManager.inventary(id))}
               }
-
-              //If user click on an other button redirect her to the sensor inventary for the current sensor type
-              case _ => Redirect(routes.SensorManager.inventary(id))
-            }
-          ).recover({
-            //Send Internal Server Error if have mongoDB error
-            case e => InternalServerError("error")
-          })
+            ).recover({case _=>InternalServerError("error")})
+          }
       }
   }
 
@@ -343,8 +314,10 @@ trait SensorManagerLike extends Controller{
   ))
   def sensorUpdate(idType:String,id:String)=Action.async{
     implicit request =>
+      val msg=Messages("inventary.sensorSensor.error.sensorExist")+" <input type=\"submit\" class=\"btn btn-danger\" value=\""+Messages("global.ignorer")+"\"/>"
+
       //Verify if the user is connect and if data received are valid
-      submitForm(idType,routes.SensorManager.sensorUpdate(idType,id)){
+      submitForm(msg,idType,routes.SensorManager.sensorUpdate(idType,id)){
 
         //Filter for verify if sensor exists
         sensorData=>Json.obj("_id"->Json.obj("$ne"->BSONFormats.BSONObjectIDFormat.writes(BSONObjectID(id))),"id" -> sensorData.id, "types" -> BSONFormats.BSONObjectIDFormat.writes(BSONObjectID(idType)))
@@ -542,7 +515,7 @@ trait SensorManagerLike extends Controller{
    *         Return Redirect if dedicated function is a success
    *         Return Internal server error if have mongoDB error
    */
-  def submitForm(id:String,routeSubmit:Call)(verif:SensorForm=>JsObject)(f:SensorForm=>Future[Result])(implicit request: Request[AnyContent]):Future[Result]={
+  def submitForm(errorMessage:String,id:String,routeSubmit:Call)(verif:SensorForm=>JsObject)(f:SensorForm=>Future[Result])(implicit request: Request[AnyContent]):Future[Result]={
     //Verify if user is connect
     UserManager.doIfconnectAsync(request) {
       //Verify if sensor type found
@@ -565,23 +538,8 @@ trait SensorManagerLike extends Controller{
 
             //If dates ares consistent
             if (formWithVerif.equals(form)) {
+              actionWhenFormValid(errorMessage,id,routeSubmit,sensorData,verif,f)
 
-              //Find the sensor
-              sensorDao.findOne(verif(sensorData)).flatMap(
-                sensor => sensor match {
-
-                  //If sensor not found, execute dedicated function
-                  case None => f(sensorData)
-
-                  //If sensor found, return bad request with prefilled form
-                  case _ => future {
-                    BadRequest(views.html.sensors.formSensor(form.withGlobalError(Messages("inventary.sensor.error.sensorExist")).fill(sensorData), id, routeSubmit))
-                  }
-                }
-              ).recover({
-                //Send Internal Server Error if have mongoDB error
-                case e => InternalServerError("error")
-              })
             } else {
               //If dates aren't consistent, return bad request with prefilled form
               future {
@@ -596,6 +554,68 @@ trait SensorManagerLike extends Controller{
         }
       }
     }
+  }
+
+  def insertSensor(id:String,sensorData:SensorForm)(implicit request: Request[AnyContent])={
+    //Insert the sensor into the mongoDB database
+    sensorDao.insert(
+      Sensor(
+        id = sensorData.id,
+        types = BSONObjectID(id),
+        acquisition = sensorData.acquisition,
+        expiration = sensorData.expiration,
+        firstUse = sensorData.firstUse,
+        hs = sensorData.hs,
+        commentaire = sensorData.commentaire
+      )
+    ).map(e =>
+      //When the sensor was insert
+      sensorData.send match {
+
+        //If use click on the button "Envoyer et continuer"
+        case "Envoyer et continuer" => {
+          //Prepare prefilled data
+          val sensorForm = SensorForm(
+            "",
+            sensorData.acquisition,
+            sensorData.expiration,
+            sensorData.firstUse,
+            sensorData.hs,
+            sensorData.commentaire,
+            ""
+          )
+          //Print the form with prefilled data
+          Ok(views.html.sensors.formSensor(form.fill(sensorForm), id, routes.SensorManager.sensorInsert(id)))
+        }
+
+        //If user click on an other button redirect her to the sensor inventary for the current sensor type
+        case _ => Redirect(routes.SensorManager.inventary(id))
+      }
+      ).recover({
+      //Send Internal Server Error if have mongoDB error
+      case e => InternalServerError("error")
+    })
+  }
+
+  def actionWhenFormValid(errorMessage:String,id:String,r:Call,sensorData:SensorForm,verif:SensorForm=>JsObject,f:SensorForm=>Future[Result])(implicit request:Request[AnyContent])={
+    //Find the sensor
+    sensorDao.findAll(verif(sensorData)).flatMap(
+      sensor => {
+
+        //If sensor not found, execute dedicated function
+        if(sensor.size==0 || List("Réactiver","Ignorer").contains(sensorData.send)) {
+          f(sensorData)
+        }else if(sensor.filter(p => !(p.delete) ).size>0){
+          future{BadRequest(views.html.sensors.formSensor(form.withGlobalError(Messages("inventary.sensor.error.sensorExist")).fill(sensorData),id, r))}
+        }
+        else{
+          future{BadRequest(views.html.sensors.formSensor(form.withGlobalError(errorMessage).fill(sensorData),id, r))}
+        }
+      }
+    ).recover({
+      //Send Internal Server Error if have mongoDB error
+      case e => InternalServerError("error")
+    })
   }
 
   /**
