@@ -4,7 +4,7 @@
 
 @active(value:String)={
     @if(actif.equals(value)){
-        class="active"
+        active
     }
 }
 
@@ -17,8 +17,14 @@
             <a class="navbar-brand" href="#">@{Messages("global.sitename")}</a> </div>
         <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
             <ul class="nav navbar-nav">
-                <li @active("dashboard")><a href="@routes.Dashboard.index()">@{Messages("global.dashboard")}</a></li>
-                <li @active("inventaire")><a href="@routes.TypeSensorManager.inventary()">@{Messages("global.sensors")}</a></li>
+                <li class="@active("dashboard")"><a href="@routes.Dashboard.index()">@{Messages("global.dashboard")}</a></li>
+                <li class="dropdown @active("inventaire")">
+                    <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">@{Messages("global.sensors")} <span class="caret"></span></a>
+                    <ul class="dropdown-menu" role="menu">
+                        <li><a href="@routes.TypeCardsManager.inventary()">@Messages("inventary.onglet.cards")</a></li>
+                        <li><a href="@routes.TypeSensorManager.inventary()">@Messages("inventary.onglet.sensor")</a></li>
+                    </ul>
+                </li>
             </ul>
             <ul class="nav navbar-nav navbar-right">
                 @defining(Json.parse(request.session.get("user").getOrElse("{}"))){ user =>

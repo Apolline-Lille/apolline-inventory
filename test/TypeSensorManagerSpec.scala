@@ -19,7 +19,7 @@ import scala.concurrent._
 import scala.concurrent.duration.Duration
 
 @RunWith(classOf[JUnitRunner])
-class TypeSensorManagerSpec extends Specification with Mockito {
+class TypeSensorManagerSpec extends Specification with Mockito{
   class TypeSensorManagerTest extends TypeSensorManagerLike
 
   case class matchRegex(a: String) extends Matcher[String](){

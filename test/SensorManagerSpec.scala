@@ -20,7 +20,7 @@ import scala.concurrent._
 import scala.concurrent.duration.Duration
 
 @RunWith(classOf[JUnitRunner])
-class SensorManagerSpec extends Specification with Mockito {
+class SensorManagerSpec extends Specification with Mockito{
 
   class SensorManagerTest extends SensorManagerLike
   class TypeSensorManagerTest extends TypeSensorManagerLike
