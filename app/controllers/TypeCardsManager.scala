@@ -177,7 +177,7 @@ trait TypeCardsManagerLike extends Controller {
       val msg=Messages("inventary.typeCards.error.typeExist")+" <input type=\"submit\" class=\"btn btn-danger\" name=\"send\" value=\""+Messages("global.reactiver")+"\"/> <input type=\"submit\" class=\"btn btn-danger\" name=\"send\" value=\""+Messages("global.ignorer")+"\"/>"
       //Verify if the user is connect and if data received are valid
       submitForm(msg,routes.TypeCardsManager.typeInsert()) {
-        typeData => Json.obj("modele" -> typeData.modele, "type" -> typeData.types)
+        typeData => Json.obj("modele" -> typeData.modele, "types" -> typeData.types)
       }{typeData=>{
         if(typeData.send.isEmpty || typeData.send.equals(Some("Ignorer"))) {
           //Insert card type
@@ -193,7 +193,7 @@ trait TypeCardsManagerLike extends Controller {
           })
         }
         else{
-          updateWithColumnDelete(Json.obj("modele" -> typeData.modele, "type" -> typeData.types),false)
+          updateWithColumnDelete(Json.obj("modele" -> typeData.modele, "types" -> typeData.types),false)
         }
       }
       }
@@ -352,6 +352,7 @@ trait TypeCardsManagerLike extends Controller {
           typeCardsDao.findAll(verif(typeData)).flatMap(
             data =>{
               //If sensor type not found
+              println(data+" "+typeData)
               if(data.size==0 || List(Some("Réactiver"),Some("Ignorer")).contains(typeData.send)) {
                 f(typeData)
               }

@@ -10,6 +10,8 @@ global.sort=Trie
 global.all=All
 global.yes=Oui
 global.no=Non
+global.reactiver=Réactiver
+global.ignorer=Ignorer
 
 global.btn.submit=Envoyer
 global.btn.reset=Reset

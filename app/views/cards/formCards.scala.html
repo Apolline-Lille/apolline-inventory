@@ -11,7 +11,7 @@
         <a href="@routes.CardsManager.inventary(id)">Retour</a>
         @helper.form(action=routeSubmit){
           @for(error<-form.globalErrors){
-            <div class="alert alert-danger" role="alert">@error.message</div>
+            <div class="alert alert-danger" role="alert">@Html(error.message)</div>
           }
           <h5 style="color:red;float:right"><em>*</em> @Messages("global.fieldRequired")</h5>
           <div class="col-sm-12">
