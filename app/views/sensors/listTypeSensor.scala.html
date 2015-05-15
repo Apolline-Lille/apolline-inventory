@@ -7,7 +7,7 @@
   <div class="container">
     @inventary("capteur")
     <section>
-      <article class="col-sm-10">
+      <article class="col-sm-9">
         <div>
           @if(listType.size==0){
             <h3 style="text-align:center">@Messages("global.error.noResult")</h3>
@@ -57,7 +57,7 @@
           }
         </div>
       </article>
-      <nav class="col-sm-2">
+      <nav class="col-sm-3">
         @if(filtre.size>1) {
           <span class="bold">@Messages("inventary.typeSensor.type")</span>
           <ul class="nav nav-pills nav-stacked">
