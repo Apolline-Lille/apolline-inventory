@@ -194,7 +194,7 @@ class SensorManagerSpec extends Specification with Mockito{
        content must matchRegex("<span class=\"bold\">\\s*Fabricant\\s*</span>\\s*:\\s*fab1")
        content must matchRegex("<span class=\"bold\">\\s*Nombre de signaux\\s*</span>\\s*:\\s*1\\s*\\(\\s*mesure1\\s*\\)")
        content must matchRegex("<span class=\"bold\">\\s*Espèces\\s*</span>\\s*:\\s*esp1, esp2")
-       content must matchRegex("<span class=\"bold\">\\s*Stocks\\s*</span>\\s*:\\s*0")
+       content must matchRegex("<span class=\"bold\">\\s*Stock\\s*</span>\\s*:\\s*0")
      }
 
     "method printListSensor return 200 OK page with 2 sensors" in new WithApplication{

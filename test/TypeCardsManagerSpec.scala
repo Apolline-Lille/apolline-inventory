@@ -133,7 +133,7 @@ class TypeCardsManagerSpec extends Specification with Mockito {
       content must not contain("<h3 style=\"text-align:center\">Aucun résultat trouvé</h3>")
       content must contain("type")
       content must contain("mod")
-      content must matchRegex("<span class=\"bold\">\\s*Stocks\\s*</span>\\s*:\\s*5")
+      content must matchRegex("<span class=\"bold\">\\s*Stock\\s*</span>\\s*:\\s*5")
 
       there was one(f.typeCardsDaoMock).findAll(any[JsObject], any[JsObject])(any[ExecutionContext])
       there was one(f.typeCardsDaoMock).findListType()
@@ -159,11 +159,11 @@ class TypeCardsManagerSpec extends Specification with Mockito {
       content must not contain("<h3 style=\"text-align:center\">Aucun résultat trouvé</h3>")
       content must contain("type")
       content must contain("mod")
-      content must matchRegex("<span class=\"bold\">\\s*Stocks\\s*</span>\\s*:\\s*5")
+      content must matchRegex("<span class=\"bold\">\\s*Stock\\s*</span>\\s*:\\s*5")
 
       content must contain("type2")
       content must contain("mod2")
-      content must matchRegex("<span class=\"bold\">\\s*Stocks\\s*</span>\\s*:\\s*0")
+      content must matchRegex("<span class=\"bold\">\\s*Stock\\s*</span>\\s*:\\s*0")
 
       there was one(f.typeCardsDaoMock).findAll(any[JsObject], any[JsObject])(any[ExecutionContext])
       there was one(f.typeCardsDaoMock).findListType()

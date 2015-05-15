@@ -8,9 +8,11 @@ global.error.noResult=Aucun résultat trouvé
 
 global.fieldRequired=Champs requis
 global.sort=Trie
-global.all=All
+global.all=Tous
 global.yes=Oui
 global.no=Non
+global.dispo=Disponibles
+global.used=Utilisés
 global.reactiver=Réactiver
 global.ignorer=Ignorer
 
@@ -30,7 +32,7 @@ inventary.typeSensor.nbSignaux=Nombre de signaux
 inventary.typeSensor.espece=Espèces
 inventary.typeSensor.mesure=Type de signaux
 inventary.typeSensor.unite=Unité
-inventary.typeSensor.stock=Stocks
+inventary.typeSensor.stock=Stock
 inventary.typeSensor.error.typeExist=Ce type de capteur existe déjà
 inventary.typeSensor.error.typeNotExist=Ce type de capteur n''existe pas
 inventary.typeSensor.addType=Nouveau type
@@ -54,7 +56,7 @@ inventary.typeCards.addType=Nouveau type
 inventary.typeCards.modele=Modèle
 inventary.typeCards.types=Type de carte
 inventary.typeCards.error.typeExist=Ce type de carte existe déjà
-inventary.typeCards.stock=Stocks
+inventary.typeCards.stock=Stock
 inventary.typeCards.confirmDelete=Êtes-vous sûr de vouloir supprimer ce type de carte ?
 inventary.typeCards.error.typeNotExist=Ce type de carte n''existe pas
 

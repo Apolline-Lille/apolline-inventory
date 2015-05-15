@@ -75,8 +75,8 @@
         <span class="bold">@Messages("inventary.typeSensor.stock")</span>
         <ul class="nav nav-pills nav-stacked">
           <li role="presentation" @if(filtreSto.isEmpty){class="active"}><a href="@routes.TypeSensorManager.inventary(sort)" style="padding : 0px 15px !important">@Messages("global.all")</a></li>
-          <li role="presentation" @if(filtreSto.equals("yes")){class="active"}><a href="@routes.TypeSensorManager.inventary(sort,"yes")" style="padding : 0px 15px !important">@Messages("global.yes")</a></li>
-          <li role="presentation" @if(filtreSto.equals("no")){class="active"}><a href="@routes.TypeSensorManager.inventary(sort,"no")" style="padding : 0px 15px !important">@Messages("global.no")</a></li>
+          <li role="presentation" @if(filtreSto.equals("yes")){class="active"}><a href="@routes.TypeSensorManager.inventary(sort,"yes")" style="padding : 0px 15px !important">@Messages("global.dispo")</a></li>
+          <li role="presentation" @if(filtreSto.equals("no")){class="active"}><a href="@routes.TypeSensorManager.inventary(sort,"no")" style="padding : 0px 15px !important">@Messages("global.used")</a></li>
         </ul>
         <a href="@routes.TypeSensorManager.typePage" class="btn btn-success">
           <span class="glyphicon glyphicon-plus"></span>

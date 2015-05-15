@@ -150,7 +150,7 @@ class CardsManagerSpec extends Specification with Mockito {
       content must contain("<title>Inventaire des cartes</title>")
       content must matchRegex("type\\s*/\\s*mod")
       content must contain("<h3 style=\"text-align:center\">Aucun résultat trouvé</h3>")
-      content must matchRegex("<span class=\"bold\">\\s*Stocks\\s*</span>\\s*:\\s*0")
+      content must matchRegex("<span class=\"bold\">\\s*Stock\\s*</span>\\s*:\\s*0")
 
       there was one(f.typeCardsDaoMock).findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext])
       there was one(f.cardDaoMock).findAll(any[JsObject],any[JsObject])(any[ExecutionContext])
