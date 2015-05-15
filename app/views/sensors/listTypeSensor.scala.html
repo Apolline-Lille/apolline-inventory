@@ -27,9 +27,9 @@
                         types.modele
                       }</a>
                         <span>
-                          <a href="@routes.TypeSensorManager.typeUpdatePage(types._id.stringify)"><span class="glyphicon glyphicon-pencil"></span></a>
+                          <a href="@routes.TypeSensorManager.typeUpdatePage(types._id.stringify)" data-toggle-tooltip title="@Messages("global.tooltip.update")"><span class="glyphicon glyphicon-pencil"></span></a>
                           @if(sto == 0) {
-                            <a data-toggle="modal" href="#modal-delete" data-title="@types.nomType / @types.modele" data-link="@routes.TypeSensorManager.delete(types._id.stringify)">
+                            <a data-toggle="modal" data-toggle-tooltip href="#modal-delete" title="@Messages("global.tooltip.delete")" data-title="@types.nomType / @types.modele" data-link="@routes.TypeSensorManager.delete(types._id.stringify)">
                               <span class="glyphicon glyphicon-trash"></span>
                             </a>
                           }

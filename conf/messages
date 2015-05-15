@@ -14,6 +14,10 @@ global.no=Non
 global.reactiver=Réactiver
 global.ignorer=Ignorer
 
+global.tooltip.update=Modifier
+global.tooltip.delete=Supprimer
+global.tooltip.clone=Cloner
+
 global.btn.submit=Envoyer
 global.btn.reset=Reset
 global.btn.submitAndContinue=Envoyer et continuer

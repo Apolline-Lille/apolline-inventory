@@ -5,3 +5,7 @@ function addField(id,classe) {
 
 webshims.setOptions('forms-ext', {types: 'date'});
 webshims.polyfill('forms forms-ext');
+
+$(function () {
+    $('[data-toggle-tooltip]').tooltip()
+})
