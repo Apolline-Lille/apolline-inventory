@@ -13,6 +13,12 @@ import scala.concurrent._
 
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
 
+/**
+ * This class represent all information get when the user submit a form for insert or update a cards
+ * @param modele Name of the modele type card
+ * @param types Name of the type card
+ * @param send Value on the button used for send the form
+ */
 case class TypeCardsForm(modele:String,types:String,send:Option[String]=None)
 
 /**
@@ -27,8 +33,14 @@ trait TypeCardsManagerLike extends Controller {
    */
   val typeCardsDao: TypeCardsDao = TypeCardsDaoObj
 
+  /**
+   * DAO for cards
+   */
   val cardDao: CardsDao = CardsDaoObj
 
+  /**
+   * Value contains the configuration of the form
+   */
   lazy val form=Form[TypeCardsForm](
     mapping(
       "modele"->nonEmptyText,
@@ -58,7 +70,7 @@ trait TypeCardsManagerLike extends Controller {
     new ApiImplicitParam(value = "Cards type name for filter all cards type", name = "sort", dataType = "String", paramType = "query")
   ))
   def inventary(sort: String = "",filtreSto:String = "") = Action.async {
-    request =>
+    implicit request =>
       //Verify if user is connect
       UserManager.doIfconnectAsync(request) {
         //Create selector for select card type
@@ -290,17 +302,41 @@ trait TypeCardsManagerLike extends Controller {
       }
   }
 
-  def printForm(status: Results.Status,form:Form[TypeCardsForm],r:Call):Future[Result]={
+  /****************  Methods  ***********************/
+
+  /**
+   * This method print a form with datalist
+   * @param status Status of the response
+   * @param form Information contains in the form
+   * @param r Route used when submit a form
+   * @param request Request received
+   * @return
+   */
+  def printForm(status: Results.Status,form:Form[TypeCardsForm],r:Call)(implicit request:Request[AnyContent]):Future[Result]={
+    //Find modele
     val futureModele=typeCardsDao.findListModele()
+
+    //Find type
     val futureType=typeCardsDao.findListType()
+
     futureModele.flatMap(modele=>
       futureType.map(types=>
+
+        //Print the form
         status(views.html.cards.formType(form,modele.toList,types.toList,r))
+
       ).recover({case _=>InternalServerError("error")})
     ).recover({case _=>InternalServerError("error")})
   }
 
+  /**
+   * This method update just the delete column of a card type
+   * @param selector JsObject for select the card type
+   * @param delete Value of the delete column
+   * @return
+   */
   def updateWithColumnDelete(selector:JsObject,delete:Boolean)={
+    //Find the card type
     typeCardsDao.findOne(selector).flatMap(
       cardTypeData=>cardTypeData match{
         case Some(typeCardsData)=>{

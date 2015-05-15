@@ -1,4 +1,4 @@
-@(types:TypeCards,listCards:List[Cards],listFirmware:List[Firmware],trie:String,sens:Int)
+@(types:TypeCards,listCards:List[Cards],listFirmware:List[Firmware],trie:String,sens:Int)(implicit request: Request[AnyContent])
 
 @main(Messages("inventary.typeCards.title")){
   <script src="@routes.Assets.at("javascripts/modal-delete.js")" type="text/javascript" defer></script>

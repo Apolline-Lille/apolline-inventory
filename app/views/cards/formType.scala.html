@@ -2,7 +2,7 @@
         modele:List[reactivemongo.bson.BSONDocument],
         types:List[reactivemongo.bson.BSONDocument],
         route:Call
-)
+)(implicit request: Request[AnyContent])
 
 @import models.template.InlineInput.inlineInput
 

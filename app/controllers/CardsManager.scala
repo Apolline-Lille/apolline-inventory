@@ -15,6 +15,19 @@ import scala.concurrent._
 
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
 
+/**
+ * This class represent all information get when the user submit a form for insert or update a cards
+ * @param id Card id
+ * @param acquisition Acquistion date of the card
+ * @param firstUse First use date of the card
+ * @param agregateur Flag indicate if the card is an agregator
+ * @param apolline Apolline version install on the card
+ * @param firmware Firmware on the card
+ * @param versionFirmware Version of the firmware on the card
+ * @param hs Flag indicate if the sensor is out of order
+ * @param commentaire Comment for the sensor
+ * @param send Value on the button used for send the form
+ */
 case class CardsForm(
    id:String,
    acquisition:Date,
@@ -28,14 +41,36 @@ case class CardsForm(
    send:String
 )
 
+/**
+ * This object is a controller for manage all cards
+ */
 trait CardsManagerLike extends Controller{
 
+  /************* Property *********************/
+
+  /**
+   * DAO for cards type
+   */
   val typeCardsDao:TypeCardsDao=TypeCardsDaoObj
+
+  /**
+   * DAO for cards
+   */
   val cardDao:CardsDao=CardsDaoObj
+
+  /**
+   * DAO for firmware
+   */
   val firmwareDao:FirmwareDao=FirmwareDaoObj
 
+  /**
+   * Manager for cards type
+   */
   val typeCardsManager:TypeCardsManagerLike=TypeCardsManager
 
+  /**
+   * Value contains the configuration of the form
+   */
   val form=Form[CardsForm](
     mapping(
       "id"->nonEmptyText,
@@ -51,9 +86,11 @@ trait CardsManagerLike extends Controller{
     )(CardsForm.apply)(CardsForm.unapply)
   )
 
+  /****************** Route methods ***********/
+
   /**
-   * This method is call when the user is on the page /inventary/cards/:id. It list sensors available for a particular type
-   * @return Return Ok Action when the user is on the page /inventary/sensors/:id with the list of sensors
+   * This method is call when the user is on the page /inventary/cards/:id. It list cards available for a particular type
+   * @return Return Ok Action when the user is on the page /inventary/sensors/:id with the list of cards
    *         Return Redirect Action when the user is not log in
    *         Return Internal Server Error Action when have mongoDB error
    */
@@ -395,9 +432,25 @@ trait CardsManagerLike extends Controller{
       }
   }
 
-  def printForm(status: Results.Status,id:String,form:Form[CardsForm],r:Call):Future[Result]={
+  /****************  Methods  ***********************/
+
+  /**
+   * This method print a form with datalist
+   * @param status Status of the response
+   * @param id Cards type id
+   * @param form Information contains in the form
+   * @param r Route used when submit a form
+   * @param request Request received
+   * @return
+   */
+  def printForm(status: Results.Status,id:String,form:Form[CardsForm],r:Call)(implicit request:Request[AnyContent]):Future[Result]={
+    //Find apolline version
     val futureAppoline=cardDao.findApolline()
+
+    //Find firmware
     val futureFirmware=firmwareDao.findFirmware()
+
+    //Find firmware version
     firmwareDao.findVersionFirmware().flatMap(versionFirmware=>
       futureFirmware.flatMap(firmware=>
         futureAppoline.map(apolline=>
@@ -407,6 +460,13 @@ trait CardsManagerLike extends Controller{
     ).recover({case _=>InternalServerError("error")})
   }
 
+  /**
+   * This method update just the delete column of a card
+   * @param idType Cards type id
+   * @param selector JsObject for select the card
+   * @param delete Value of the delete column
+   * @return
+   */
   def updateWithColumnDelete(idType:String,selector:JsObject,delete:Boolean)={
     //Find the card
     cardDao.findOne(selector).flatMap(

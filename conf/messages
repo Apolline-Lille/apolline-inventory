@@ -30,6 +30,7 @@ inventary.typeSensor.stock=Stocks
 inventary.typeSensor.error.typeExist=Ce type de capteur existe déjà
 inventary.typeSensor.error.typeNotExist=Ce type de capteur n''existe pas
 inventary.typeSensor.addType=Nouveau type
+inventary.typeSensor.confirmDelete=Êtes-vous sûr de vouloir supprimer ce type de capteur ?
 
 inventary.sensor.id=Identifiant
 inventary.sensor.acquisition=Date d''acquisition
@@ -42,6 +43,7 @@ inventary.sensor.error.sensorExist=Ce capteur existe déjà
 inventary.sensor.error.firstUseBeforeAcquisition=La date de première utilisation doit être supèrieur à la date d''acquisition
 inventary.sensor.error.expirationBeforeAcquisition=La date d''expiration doit être supèrieur à la date d''acquisition
 inventary.sensor.addSensor=Nouveau capteur
+inventary.sensor.confirmDelete=Êtes-vous sûr de vouloir supprimer ce capteur ?
 
 inventary.typeCards.title=Inventaire des cartes
 inventary.typeCards.addType=Nouveau type

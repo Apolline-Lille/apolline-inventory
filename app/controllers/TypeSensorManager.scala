@@ -445,6 +445,18 @@ trait TypeSensorManagerLike extends Controller{
     })
   }
 
+  /**
+   * This method verify if the sensor exists before insert/update/reactivat the sensor
+   * @param errorMessage Error message print if the sensor exist
+   * @param id Sensor type id
+   * @param r Route used when submit a form
+   * @param typeData Data received from the form
+   * @param especes List of valid specie in the form
+   * @param verif A method return a JSON Object for get sensor to verify if the sensor exist
+   * @param f A method for insert/update/reactivat the sensor
+   * @param request
+   * @return
+   */
   def actionWhenFormValid(errorMessage:String,r:Call,typeData:TypeSensorForm,especes:List[String],verif:TypeSensorForm=>JsObject,f:(TypeSensorForm,List[String],TypeMesure)=>Future[Result])(implicit request:Request[AnyContent])={
     //Find the sensor type
     typeSensorDao.findAll(verif(typeData)).flatMap(
@@ -527,7 +539,14 @@ trait TypeSensorManagerLike extends Controller{
     )
   }
 
+  /**
+   * This method update just the delete column of a sensor type
+   * @param selector JsObject for select the sensor type
+   * @param delete Value of the delete column
+   * @return
+   */
   def updateWithDeleteColumn(selector:JsObject,delete:Boolean):Future[Result]={
+    //Find the sensor type
     typeSensorDao.findOne(selector).flatMap(
       data=>data match{
         case Some(typeSensorData)=>{

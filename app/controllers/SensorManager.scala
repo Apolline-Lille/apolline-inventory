@@ -556,6 +556,13 @@ trait SensorManagerLike extends Controller{
     }
   }
 
+  /**
+   * This method insert a sensor into the databse
+   * @param id Sensor type id
+   * @param sensorData Data received from the form
+   * @param request
+   * @return
+   */
   def insertSensor(id:String,sensorData:SensorForm)(implicit request: Request[AnyContent])={
     //Insert the sensor into the mongoDB database
     sensorDao.insert(
@@ -597,6 +604,17 @@ trait SensorManagerLike extends Controller{
     })
   }
 
+  /**
+   * This method verify if the sensor exists before insert/update/reactivat the sensor
+   * @param errorMessage Error message print if the sensor exist
+   * @param id Sensor type id
+   * @param r Route used when submit a form
+   * @param sensorData Data received from the form
+   * @param verif A method return a JSON Object for get sensor to verify if the sensor exist
+   * @param f A method for insert/update/reactivat the sensor
+   * @param request
+   * @return
+   */
   def actionWhenFormValid(errorMessage:String,id:String,r:Call,sensorData:SensorForm,verif:SensorForm=>JsObject,f:SensorForm=>Future[Result])(implicit request:Request[AnyContent])={
     //Find the sensor
     sensorDao.findAll(verif(sensorData)).flatMap(

@@ -1,4 +1,4 @@
-@(filtreSto:String,sort:String,funcFiltre:Int=>Boolean,listType:List[TypeCards],stock:List[reactivemongo.bson.BSONDocument],filtre:List[reactivemongo.bson.BSONDocument])
+@(filtreSto:String,sort:String,funcFiltre:Int=>Boolean,listType:List[TypeCards],stock:List[reactivemongo.bson.BSONDocument],filtre:List[reactivemongo.bson.BSONDocument])(implicit request: Request[AnyContent])
 
 @import reactivemongo.bson.BSONObjectID
 
