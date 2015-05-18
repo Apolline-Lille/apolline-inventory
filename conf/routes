@@ -9,7 +9,7 @@ GET         /api-docs.json/user                       controllers.ApiHelpControl
 GET         /api-docs.json/typeSensor                 controllers.ApiHelpController.getResource(path = "/typeSensor")
 GET         /api-docs.json/sensors                    controllers.ApiHelpController.getResource(path = "/sensors")
 GET         /api-docs.json/typeCards                  controllers.ApiHelpController.getResource(path = "/typeCards")
-GET         /api-docs.json/card                         controllers.ApiHelpController.getResource(path = "/card")
+GET         /api-docs.json/card                       controllers.ApiHelpController.getResource(path = "/card")
 
 #Dashboard page
 GET         /                                         controllers.Dashboard.index
@@ -53,5 +53,7 @@ GET         /inventary/cards/:id/:id2/clone           controllers.CardsManager.c
 
 # Map static resources from the /public folder to the /assets URL path
 GET         /assets/*file                             controllers.Assets.at(path="/public", file)
+
+GET         /api/*file                                  controllers.Assets.at(path="/public/api",file)
 
 GET         /*path                                    controllers.Dashboard.notFound(path)

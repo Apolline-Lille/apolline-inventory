@@ -7,6 +7,7 @@ after_success:
 - sbt coverageReport
 - sbt coverageAggregate
 - sbt codacyCoverage
+- sbt doc
 deploy:
   provider: heroku
   api_key:
