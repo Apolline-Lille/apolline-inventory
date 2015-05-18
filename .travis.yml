@@ -7,12 +7,16 @@ after_success:
 - sbt coverageReport
 - sbt coverageAggregate
 - sbt codacyCoverage
+before_deploy:
+  - "sbt doc"
+  - "git add public/api"
+  - "git config --global user.email 'thomas.vincent.59260@gmail.com'"
+  - "git config --global user.name 'thomas VINCENT'"
+  - "git commit -a -m 'fichier api'"
 deploy:
   provider: heroku
   api_key:
     secure: cf9n/uVo405Cybooics0148NMvpgPqz+a6evyfvUO7TaNsk1XNyMbqom5RMGocPuTats+kmaFXLIxaAv+V7wzdDWlxK+Blw0Sxu6tOeUNgKiKjEGghKv+ConF2J4kNnVD+fVvFdEWTkFf3i/zwOav5D6pIBkwLR12Xukb4kKwTI=
-  run:
-    "sbt doc"
   app: calm-cliffs-7440
   on:
     repo: Spirals-Team/apolline
