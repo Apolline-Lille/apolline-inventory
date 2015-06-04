@@ -134,12 +134,20 @@ class TypeSensorManagerSpec extends Specification with Mockito{
 
   "When user is on the resource /inventary/sensors , TypeSensorManager" should {
     "send 200 on OK with the message 'Aucun résultat trouvé'" in new WithApplication {
-      val f=fixture
+      val f = fixture
 
-      f.sensorDaoMock.countByType() returns future{Stream[BSONDocument]()}
-      f.typeSensorDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns future{List[TypeSensor]()}
-      f.typeMesureDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns future{List[TypeMesure]()}
-      f.typeSensorDaoMock.findAllType() returns future{Stream[BSONDocument]()}
+      f.sensorDaoMock.countByType() returns future {
+        Stream[BSONDocument]()
+      }
+      f.typeSensorDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns future {
+        List[TypeSensor]()
+      }
+      f.typeMesureDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns future {
+        List[TypeMesure]()
+      }
+      f.typeSensorDaoMock.findAllType(any[BSONDocument]) returns future {
+        Stream[BSONDocument]()
+      }
 
       val r = f.controller.inventary().apply(FakeRequest(GET, "/inventary/sensors").withSession("user" -> """{"login":"test"}"""))
       status(r) must equalTo(OK)
@@ -151,25 +159,33 @@ class TypeSensorManagerSpec extends Specification with Mockito{
       there was one(f.sensorDaoMock).countByType()
       there was one(f.typeSensorDaoMock).findAll(any[JsObject], any[JsObject])(any[ExecutionContext])
       there was one(f.typeMesureDaoMock).findAll(any[JsObject], any[JsObject])(any[ExecutionContext])
-      there was one(f.typeSensorDaoMock).findAllType()
+      there was one(f.typeSensorDaoMock).findAllType(any[BSONDocument])
     }
 
     "send 200 on OK with 1 result" in new WithApplication {
-      val f=fixture
+      val f = fixture
 
-      f.sensorDaoMock.countByType() returns future{Stream[BSONDocument](BSONDocument("_id"->bson,"count"->5))}
+      f.sensorDaoMock.countByType() returns future {
+        Stream[BSONDocument](BSONDocument("_id" -> bson, "count" -> 5))
+      }
 
-      f.typeSensorDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns future {List[TypeSensor](TypeSensor(bson,"type1","modele1",bson2,"fab1",1,List[String]("esp1","esp2")))}
-      f.typeMesureDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns future {List[TypeMesure](TypeMesure(bson2,"mesure1","unite1"))}
+      f.typeSensorDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns future {
+        List[TypeSensor](TypeSensor(bson, "type1", "modele1", bson2, "fab1", 1, List[String]("esp1", "esp2")))
+      }
+      f.typeMesureDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns future {
+        List[TypeMesure](TypeMesure(bson2, "mesure1", "unite1"))
+      }
 
-      f.typeSensorDaoMock.findAllType() returns future{Stream[BSONDocument]()}
+      f.typeSensorDaoMock.findAllType(any[BSONDocument]) returns future {
+        Stream[BSONDocument]()
+      }
 
       val r = f.controller.inventary().apply(FakeRequest(GET, "/inventary/sensors").withSession("user" -> """{"login":"test"}"""))
       status(r) must equalTo(OK)
       contentType(r) must beSome.which(_ == "text/html")
       val content = contentAsString(r)
       content must contain("<title>Inventaire des capteurs</title>")
-      content must not contain("<h3 style=\"text-align:center\">Aucun résultat trouvé</h3>")
+      content must not contain ("<h3 style=\"text-align:center\">Aucun résultat trouvé</h3>")
       content must contain("type1")
       content must contain("modele1")
       content must matchRegex("<span class=\"bold\">\\s*Fabricant\\s*</span>\\s*:\\s*fab1")
@@ -180,23 +196,29 @@ class TypeSensorManagerSpec extends Specification with Mockito{
       there was one(f.sensorDaoMock).countByType()
       there was one(f.typeSensorDaoMock).findAll(any[JsObject], any[JsObject])(any[ExecutionContext])
       there was one(f.typeMesureDaoMock).findAll(any[JsObject], any[JsObject])(any[ExecutionContext])
-      there was one(f.typeSensorDaoMock).findAllType()
+      there was one(f.typeSensorDaoMock).findAllType(any[BSONDocument])
     }
 
     "send 200 on OK with 2 results" in new WithApplication {
-      val f=fixture
+      val f = fixture
 
-      f.sensorDaoMock.countByType() returns future{Stream[BSONDocument](BSONDocument("_id"->bson,"count"->5),BSONDocument("_id"->bson3,"count"->0))}
+      f.sensorDaoMock.countByType() returns future {
+        Stream[BSONDocument](BSONDocument("_id" -> bson, "count" -> 5), BSONDocument("_id" -> bson3, "count" -> 0))
+      }
 
       f.typeSensorDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns future {
         List[TypeSensor](
-          TypeSensor(bson,"type1","modele1",bson2,"fab1",1,List[String]("esp1","esp2")),
-          TypeSensor(bson3,"type2","modele2",bson4,"fab2",2,List[String]("esp3","esp4"))
+          TypeSensor(bson, "type1", "modele1", bson2, "fab1", 1, List[String]("esp1", "esp2")),
+          TypeSensor(bson3, "type2", "modele2", bson4, "fab2", 2, List[String]("esp3", "esp4"))
         )
       }
-      f.typeMesureDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns future {List[TypeMesure](TypeMesure(bson2,"mesure1","unite1"),TypeMesure(bson4,"mesure2","unite2"))}
+      f.typeMesureDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns future {
+        List[TypeMesure](TypeMesure(bson2, "mesure1", "unite1"), TypeMesure(bson4, "mesure2", "unite2"))
+      }
 
-      f.typeSensorDaoMock.findAllType() returns future{Stream[BSONDocument]()}
+      f.typeSensorDaoMock.findAllType(any[BSONDocument]) returns future {
+        Stream[BSONDocument]()
+      }
 
       val r = f.controller.inventary().apply(FakeRequest(GET, "/inventary/sensors").withSession("user" -> """{"login":"test"}"""))
 
@@ -204,7 +226,7 @@ class TypeSensorManagerSpec extends Specification with Mockito{
       contentType(r) must beSome.which(_ == "text/html")
       val content = contentAsString(r)
       content must contain("<title>Inventaire des capteurs</title>")
-      content must not contain("<h3 style=\"text-align:center\">Aucun résultat trouvé</h3>")
+      content must not contain ("<h3 style=\"text-align:center\">Aucun résultat trouvé</h3>")
       content must contain("type1")
       content must contain("modele1")
       content must matchRegex("<span class=\"bold\">\\s*Fabricant\\s*</span>\\s*:\\s*fab1")
@@ -222,103 +244,146 @@ class TypeSensorManagerSpec extends Specification with Mockito{
       there was one(f.sensorDaoMock).countByType()
       there was one(f.typeSensorDaoMock).findAll(any[JsObject], any[JsObject])(any[ExecutionContext])
       there was one(f.typeMesureDaoMock).findAll(any[JsObject], any[JsObject])(any[ExecutionContext])
-      there was one(f.typeSensorDaoMock).findAllType()
+      there was one(f.typeSensorDaoMock).findAllType(any[BSONDocument])
+    }
+
+  }
+
+  "When method getInventaryTypeSensor is called, TypeSensorManager" should{
+
+    "Call function for print result" in new WithApplication {
+      val f = fixture
+      val func=mock[(List[TypeSensor],List[TypeMesure],List[BSONDocument],List[BSONDocument])=>Result]
+
+      f.sensorDaoMock.countByType() returns future {Stream[BSONDocument]()}
+      f.typeSensorDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns future {List[TypeSensor]()}
+      f.typeMesureDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns future {List[TypeMesure]()}
+      f.typeSensorDaoMock.findAllType(any[BSONDocument]) returns future {Stream[BSONDocument]()}
+      func.apply(any[List[TypeSensor]],any[List[TypeMesure]],any[List[BSONDocument]],any[List[BSONDocument]]) returns Results.Ok("call function")
+
+      val req=FakeRequest(GET, "/inventary/sensors").withSession("user" -> """{"login":"test"}""")
+      val action = Action.async{f.controller.getInventaryTypeSensor(Json.obj(),"")(func)}
+      val r=call(action,req)
+      status(r) must equalTo(OK)
+      contentAsString(r) must equalTo("call function")
+
+      there was one(f.sensorDaoMock).countByType()
+      there was one(f.typeSensorDaoMock).findAll(any[JsObject], any[JsObject])(any[ExecutionContext])
+      there was one(f.typeMesureDaoMock).findAll(any[JsObject], any[JsObject])(any[ExecutionContext])
+      there was one(f.typeSensorDaoMock).findAllType(any[BSONDocument])
+      there was one(func).apply(any[List[TypeSensor]],any[List[TypeMesure]],any[List[BSONDocument]],any[List[BSONDocument]])
     }
 
     "send 500 internal error if mongoDB error when find type sensor" in new WithApplication{
       val f=fixture
       val futureMock=mock[Future[List[TypeSensor]]]
       val throwable=mock[Throwable]
+      val func=mock[(List[TypeSensor],List[TypeMesure],List[BSONDocument],List[BSONDocument])=>Result]
 
       f.sensorDaoMock.countByType() returns future{Stream[BSONDocument]()}
       f.typeSensorDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns futureMock
       futureMock.flatMap(any[List[TypeSensor]=>Future[List[TypeSensor]]])(any[ExecutionContext]) returns futureMock
       futureMock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers (value => future{value.asInstanceOf[PartialFunction[Throwable,Result]](throwable)})
       f.typeMesureDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns future{List[TypeMesure]()}
-      f.typeSensorDaoMock.findAllType() returns future{Stream[BSONDocument]()}
+      f.typeSensorDaoMock.findAllType(any[BSONDocument]) returns future{Stream[BSONDocument]()}
 
-      val r = f.controller.inventary().apply(FakeRequest(GET, "/inventary/sensors").withSession("user" -> """{"login":"test"}"""))
+      val req=FakeRequest(GET, "/inventary/sensors").withSession("user" -> """{"login":"test"}""")
+      val action = Action.async{f.controller.getInventaryTypeSensor(Json.obj(),"")(func)}
+      val r=call(action,req)
 
       status(r) must equalTo(INTERNAL_SERVER_ERROR)
 
       there was one(f.sensorDaoMock).countByType()
       there was one(f.typeSensorDaoMock).findAll(any[JsObject], any[JsObject])(any[ExecutionContext])
       there was one(f.typeMesureDaoMock).findAll(any[JsObject], any[JsObject])(any[ExecutionContext])
-      there was one(f.typeSensorDaoMock).findAllType()
+      there was one(f.typeSensorDaoMock).findAllType(any[BSONDocument])
       there was one(futureMock).flatMap(any[List[TypeSensor]=>Future[List[TypeSensor]]])(any[ExecutionContext])
       there was one(futureMock).recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext])
+      there was no(func).apply(any[List[TypeSensor]],any[List[TypeMesure]],any[List[BSONDocument]],any[List[BSONDocument]])
     }
 
     "send 500 internal error if mongoDB error when find type mesure" in new WithApplication{
       val f=fixture
       val futureMock=mock[Future[List[TypeMesure]]]
       val throwable=mock[Throwable]
+      val func=mock[(List[TypeSensor],List[TypeMesure],List[BSONDocument],List[BSONDocument])=>Result]
 
       f.sensorDaoMock.countByType() returns future{Stream[BSONDocument]()}
       f.typeSensorDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns future{List[TypeSensor]()}
       f.typeMesureDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns futureMock
       futureMock.flatMap(any[List[TypeMesure]=>Future[List[TypeMesure]]])(any[ExecutionContext]) returns futureMock
       futureMock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers (value => future{value.asInstanceOf[PartialFunction[Throwable,Result]](throwable)})
-      f.typeSensorDaoMock.findAllType() returns future{Stream[BSONDocument]()}
+      f.typeSensorDaoMock.findAllType(any[BSONDocument]) returns future{Stream[BSONDocument]()}
 
-      val r = f.controller.inventary().apply(FakeRequest(GET, "/inventary/sensors").withSession("user" -> """{"login":"test"}"""))
+      val req=FakeRequest(GET, "/inventary/sensors").withSession("user" -> """{"login":"test"}""")
+      val action = Action.async{f.controller.getInventaryTypeSensor(Json.obj(),"")(func)}
+      val r=call(action,req)
 
       status(r) must equalTo(INTERNAL_SERVER_ERROR)
 
       there was one(f.sensorDaoMock).countByType()
       there was one(f.typeSensorDaoMock).findAll(any[JsObject], any[JsObject])(any[ExecutionContext])
       there was one(f.typeMesureDaoMock).findAll(any[JsObject], any[JsObject])(any[ExecutionContext])
-      there was one(f.typeSensorDaoMock).findAllType()
+      there was one(f.typeSensorDaoMock).findAllType(any[BSONDocument])
       there was one(futureMock).flatMap(any[List[TypeMesure]=>Future[List[TypeMesure]]])(any[ExecutionContext])
       there was one(futureMock).recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext])
+      there was no(func).apply(any[List[TypeSensor]],any[List[TypeMesure]],any[List[BSONDocument]],any[List[BSONDocument]])
     }
 
     "send 500 internal error if mongoDB error when find stock" in new WithApplication{
       val f=fixture
       val futureMock=mock[Future[Stream[BSONDocument]]]
       val throwable=mock[Throwable]
+      val func=mock[(List[TypeSensor],List[TypeMesure],List[BSONDocument],List[BSONDocument])=>Result]
 
       f.sensorDaoMock.countByType() returns futureMock
       futureMock.flatMap(any[Stream[BSONDocument]=>Future[Stream[BSONDocument]]])(any[ExecutionContext]) returns futureMock
       futureMock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers (value => future{value.asInstanceOf[PartialFunction[Throwable,Result]](throwable)})
       f.typeSensorDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns future{List[TypeSensor]()}
       f.typeMesureDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns future{List[TypeMesure]()}
-      f.typeSensorDaoMock.findAllType() returns future{Stream[BSONDocument]()}
+      f.typeSensorDaoMock.findAllType(any[BSONDocument]) returns future{Stream[BSONDocument]()}
 
-      val r = f.controller.inventary().apply(FakeRequest(GET, "/inventary/sensors").withSession("user" -> """{"login":"test"}"""))
+      val req=FakeRequest(GET, "/inventary/sensors").withSession("user" -> """{"login":"test"}""")
+      val action = Action.async{f.controller.getInventaryTypeSensor(Json.obj(),"")(func)}
+      val r=call(action,req)
 
       status(r) must equalTo(INTERNAL_SERVER_ERROR)
 
       there was one(f.sensorDaoMock).countByType()
       there was one(f.typeSensorDaoMock).findAll(any[JsObject], any[JsObject])(any[ExecutionContext])
       there was one(f.typeMesureDaoMock).findAll(any[JsObject], any[JsObject])(any[ExecutionContext])
-      there was one(f.typeSensorDaoMock).findAllType()
+      there was one(f.typeSensorDaoMock).findAllType(any[BSONDocument])
       there was one(futureMock).flatMap(any[Stream[BSONDocument]=>Future[Stream[BSONDocument]]])(any[ExecutionContext])
       there was one(futureMock).recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext])
+      there was no(func).apply(any[List[TypeSensor]],any[List[TypeMesure]],any[List[BSONDocument]],any[List[BSONDocument]])
     }
 
     "send 500 internal error if mongoDB error when find type name" in new WithApplication{
       val f=fixture
       val futureMock=mock[Future[Stream[BSONDocument]]]
       val throwable=mock[Throwable]
+      val func=mock[(List[TypeSensor],List[TypeMesure],List[BSONDocument],List[BSONDocument])=>Result]
 
       f.sensorDaoMock.countByType() returns future{Stream[BSONDocument]()}
       f.typeSensorDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns future{List[TypeSensor]()}
       f.typeMesureDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns future{List[TypeMesure]()}
-      f.typeSensorDaoMock.findAllType() returns futureMock
+      f.typeSensorDaoMock.findAllType(any[BSONDocument]) returns futureMock
       futureMock.map(any[Stream[BSONDocument]=>Stream[BSONDocument]])(any[ExecutionContext]) returns futureMock
       futureMock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers (value => future{value.asInstanceOf[PartialFunction[Throwable,Result]](throwable)})
 
-      val r = f.controller.inventary().apply(FakeRequest(GET, "/inventary/sensors").withSession("user" -> """{"login":"test"}"""))
+      val req=FakeRequest(GET, "/inventary/sensors").withSession("user" -> """{"login":"test"}""")
+      val action = Action.async{f.controller.getInventaryTypeSensor(Json.obj(),"")(func)}
+      val r=call(action,req)
 
       status(r) must equalTo(INTERNAL_SERVER_ERROR)
 
       there was one(f.sensorDaoMock).countByType()
       there was one(f.typeSensorDaoMock).findAll(any[JsObject], any[JsObject])(any[ExecutionContext])
       there was one(f.typeMesureDaoMock).findAll(any[JsObject], any[JsObject])(any[ExecutionContext])
-      there was one(f.typeSensorDaoMock).findAllType()
+      there was one(f.typeSensorDaoMock).findAllType(any[BSONDocument])
       there was one(futureMock).map(any[Stream[BSONDocument]=>Stream[BSONDocument]])(any[ExecutionContext])
       there was one(futureMock).recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext])
+      there was no(func).apply(any[List[TypeSensor]],any[List[TypeMesure]],any[List[BSONDocument]],any[List[BSONDocument]])
     }
   }
 

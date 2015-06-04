@@ -1,0 +1,84 @@
+@(form:Form[SelectInfo],types:TypeSensor,mesure:TypeMesure,listSensor:List[Sensor],trie:String,sens:Int)(implicit request: Request[AnyContent])
+
+@main(Messages("inventary.module.title")){
+  @navigation("inventary")
+  <div class="container">
+    @inventary("module")
+    <section>
+      @module.stateForm("sensors")
+      <article>
+        <div class="row">
+          <div class="col-sm-12">
+            <h4>@{types.nomType} / @{types.modele}</h4>
+          </div>
+          <div class="col-sm-11 col-sm-offset-1">
+            <div class="row"> <span class="bold">@Messages("inventary.typeSensor.fabricant")</span> : @{types.fabricant} </div>
+            <div class="row"> <span class="bold">@Messages("inventary.typeSensor.nbSignaux")</span> : @{types.nbSignaux} (@{mesure.nom}) </div>
+            <div class="row"> <span class="bold">@Messages("inventary.typeSensor.espece")</span> : @{types.espece.mkString(", ")} </div>
+            <div class="row"> <span class="bold">@Messages("inventary.typeSensor.stock")</span> : @{listSensor.size} </div>
+          </div>
+        </div>
+        @if(listSensor.size>0){
+          <div class="row">
+            <div class="col-sm-offset-10 col-sm-2">
+              <div class="input-group-btn">
+                <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown" aria-expanded="false" style="width: 100%">@Messages("global.sort") <span class="caret"></span></button>
+                <ul class="dropdown-menu" role="menu">
+                @for(col<-List[String]("id","acquisition","expiration","firstUse","etat")){
+                  <li>
+                    <a href="@routes.ModuleManager.formSensors(types._id.stringify,col,if(trie.equals(col)){-sens}else{1})">
+                      @if(trie.equals(col)){<span class="glyphicon glyphicon-ok"></span>}
+                      @Messages("inventary.sensor."+col)
+                    </a>
+                  </li>
+                }
+                </ul>
+              </div>
+            </div>
+          </div>
+          @helper.form(action=routes.ModuleManager.addSensors(types._id.stringify)) {
+            <div class="row table-responsive">
+              <table class="table table-hover table-bordered">
+                <thead>
+                  <tr>
+                    <th></th>
+                    <th>@Messages("inventary.sensor.id")</th>
+                    <th>@Messages("inventary.sensor.acquisition")</th>
+                    <th>@Messages("inventary.sensor.expiration")</th>
+                    <th>@Messages("inventary.sensor.firstUse")</th>
+                    <th>@Messages("inventary.sensor.etat")</th>
+                  </tr>
+                </thead>
+                <tbody>
+                @for(sensor <- listSensor) {
+                  <tr>
+                    <td><input type="checkbox" name="elements[]" value="@sensor._id.stringify"/></td>
+                    <td>@sensor.id</td>
+                    <td>@{SensorManager.format(sensor.acquisition)}</td>
+                    <td>@if(sensor.expiration.nonEmpty){@{SensorManager.format(sensor.expiration.get)}}else{-}</td>
+                    <td>@if(sensor.firstUse.nonEmpty){@{SensorManager.format(sensor.firstUse.get)}}else{-}</td>
+                    <td>@if(sensor.hs){@Messages("inventary.sensor.hs")}</td>
+                  </tr>
+                }
+                </tbody>
+              </table>
+            </div>
+            <p>
+              <span style="float:right">
+                <input type="submit" value="@Messages("global.btn.submit")" class="btn btn-default"/>
+                <a href="@routes.ModuleManager.validate()" class="btn btn-default">@Messages("inventary.module.nextState")</a>
+              </span>
+            </p>
+          }
+        }else{
+          <h3 style="text-align:center">@Messages("global.error.noResult")</h3>
+          <p>
+            <span style="float:right">
+              <a href="@routes.ModuleManager.validate()" class="btn btn-default">@Messages("inventary.module.nextState")</a>
+            </span>
+          </p>
+        }
+      </article>
+    </section>
+  </div>
+}

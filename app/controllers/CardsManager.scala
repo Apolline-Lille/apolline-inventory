@@ -10,7 +10,7 @@ import play.api.i18n.Messages
 import play.api.libs.json.{Json, JsObject}
 import play.api.mvc._
 import play.modules.reactivemongo.json.BSONFormats
-import reactivemongo.bson.BSONObjectID
+import reactivemongo.bson.{BSONDocument, BSONObjectID}
 import scala.concurrent._
 
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
@@ -110,26 +110,9 @@ trait CardsManagerLike extends Controller{
     implicit request =>
       //Verify if user is connect
       UserManager.doIfconnectAsync(request) {
-        val futureCards=cardDao.findAll(Json.obj("delete"->false,"types"->BSONFormats.BSONObjectIDFormat.writes(BSONObjectID(id))),Json.obj(sort->sens))
-        val futureFirmware=firmwareDao.findAll()
-        //Find the card type
-        typeCardsDao.findById(BSONObjectID(id)).flatMap(
-          data=> data match{
-
-              //If card type not found
-            case None => future{Redirect(routes.TypeCardsManager.inventary())}
-
-              //If card type found
-            case Some(typeCards) => {
-              futureCards.flatMap(listCards=>
-                futureFirmware.map(firmware=>
-                  Ok(views.html.cards.listCards(typeCards,listCards,firmware,sort,sens))
-                ).recover({case _=>InternalServerError("error")})
-              ).recover({case _=>InternalServerError("error")})
-
-            }
-          }
-        ).recover({case _=>InternalServerError("error")})
+        getInventaryCards(Json.obj("delete"->false,"types"->BSONFormats.BSONObjectIDFormat.writes(BSONObjectID(id))),Json.obj(sort->sens),BSONObjectID(id),Redirect(routes.TypeCardsManager.inventary())){
+          (typeCards,listCards,firmware)=>Ok(views.html.cards.listCards(typeCards,listCards,firmware,sort,sens))
+        }
       }
   }
 
@@ -433,6 +416,44 @@ trait CardsManagerLike extends Controller{
   }
 
   /****************  Methods  ***********************/
+
+  /**
+   * List cards get depending on the query
+   * @param selector Query for get cards
+   * @param sort List of column and her direction used for sort cards
+   * @param redirect Page display when type cards or firmware not found
+   * @param f Function for print the list of cards
+   * @return
+   */
+  def getInventaryCards(selector:JsObject,sort:JsObject,id:BSONObjectID,redirect:Result)(f:(TypeCards,List[Cards],List[Firmware])=>Result)={
+    //Find all cards
+    val futureCards=cardDao.findAll(selector,sort)
+
+    //Find firmware
+    val futureFirmware=firmwareDao.findAll()
+
+    //Find the card type
+    typeCardsDao.findById(id).flatMap(
+      data=> data match{
+
+        //If card type not found
+        case None => future{redirect}
+
+        //If card type found
+        case Some(typeCards) => {
+          futureCards.flatMap(listCards=>
+            futureFirmware.map(firmware=>
+
+              //Display the list of cards
+              f(typeCards,listCards,firmware)
+
+            ).recover({case _=>InternalServerError("error")})
+          ).recover({case _=>InternalServerError("error")})
+
+        }
+      }
+    ).recover({case _=>InternalServerError("error")})
+  }
 
   /**
    * This method print a form with datalist

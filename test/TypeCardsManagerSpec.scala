@@ -103,7 +103,7 @@ class TypeCardsManagerSpec extends Specification with Mockito {
       val f=fixture
 
       f.typeCardsDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns future{List[TypeCards]()}
-      f.typeCardsDaoMock.findListType() returns future{Stream[BSONDocument]()}
+      f.typeCardsDaoMock.findListType(any[BSONDocument]) returns future{Stream[BSONDocument]()}
       f.cardDaoMock.countCards() returns future{Stream[BSONDocument]()}
 
       val r = f.controller.inventary().apply(FakeRequest(GET, "/inventary/cards").withSession("user" -> """{"login":"test"}"""))
@@ -114,7 +114,7 @@ class TypeCardsManagerSpec extends Specification with Mockito {
       content must contain("<h3 style=\"text-align:center\">Aucun résultat trouvé</h3>")
 
       there was one(f.typeCardsDaoMock).findAll(any[JsObject], any[JsObject])(any[ExecutionContext])
-      there was one(f.typeCardsDaoMock).findListType()
+      there was one(f.typeCardsDaoMock).findListType(any[BSONDocument])
       there was one(f.cardDaoMock).countCards()
     }
 
@@ -122,7 +122,7 @@ class TypeCardsManagerSpec extends Specification with Mockito {
       val f=fixture
 
       f.typeCardsDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns future{List[TypeCards](TypeCards(bson,"mod","type"))}
-      f.typeCardsDaoMock.findListType() returns future{Stream[BSONDocument]()}
+      f.typeCardsDaoMock.findListType(any[BSONDocument]) returns future{Stream[BSONDocument]()}
       f.cardDaoMock.countCards() returns future{Stream[BSONDocument](BSONDocument("_id"->bson,"count"->5))}
 
       val r = f.controller.inventary().apply(FakeRequest(GET, "/inventary/cards").withSession("user" -> """{"login":"test"}"""))
@@ -136,7 +136,7 @@ class TypeCardsManagerSpec extends Specification with Mockito {
       content must matchRegex("<span class=\"bold\">\\s*Stock\\s*</span>\\s*:\\s*5")
 
       there was one(f.typeCardsDaoMock).findAll(any[JsObject], any[JsObject])(any[ExecutionContext])
-      there was one(f.typeCardsDaoMock).findListType()
+      there was one(f.typeCardsDaoMock).findListType(any[BSONDocument])
       there was one(f.cardDaoMock).countCards()
     }
 
@@ -147,7 +147,7 @@ class TypeCardsManagerSpec extends Specification with Mockito {
         TypeCards(bson,"mod","type"),
         TypeCards(bson2,"mod2","type2")
       )}
-      f.typeCardsDaoMock.findListType() returns future{Stream[BSONDocument]()}
+      f.typeCardsDaoMock.findListType(any[BSONDocument]) returns future{Stream[BSONDocument]()}
       f.cardDaoMock.countCards() returns future{Stream[BSONDocument](BSONDocument("_id"->bson,"count"->5))}
 
       val r = f.controller.inventary().apply(FakeRequest(GET, "/inventary/cards").withSession("user" -> """{"login":"test"}"""))
@@ -166,48 +166,105 @@ class TypeCardsManagerSpec extends Specification with Mockito {
       content must matchRegex("<span class=\"bold\">\\s*Stock\\s*</span>\\s*:\\s*0")
 
       there was one(f.typeCardsDaoMock).findAll(any[JsObject], any[JsObject])(any[ExecutionContext])
-      there was one(f.typeCardsDaoMock).findListType()
+      there was one(f.typeCardsDaoMock).findListType(any[BSONDocument])
       there was one(f.cardDaoMock).countCards()
+    }
+  }
+
+  "When method getInventaryTypeCards is called, TypeCardsManager" should{
+
+    "Call function for print result" in new WithApplication {
+      val f=fixture
+      val func=mock[(List[TypeCards],List[BSONDocument],List[BSONDocument])=>Result]
+
+      f.typeCardsDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns future{List[TypeCards]()}
+      f.typeCardsDaoMock.findListType(any[BSONDocument]) returns future{Stream[BSONDocument]()}
+      f.cardDaoMock.countCards() returns future{Stream[BSONDocument]()}
+      func.apply(any[List[TypeCards]],any[List[BSONDocument]],any[List[BSONDocument]]) returns Results.Ok("call function")
+
+      val req=FakeRequest(GET, "/inventary/cards").withSession("user" -> """{"login":"test"}""")
+      val action = Action.async{f.controller.getInventaryTypeCards(Json.obj(),"")(func)}
+      val r=call(action,req)
+      status(r) must equalTo(OK)
+      contentAsString(r) must equalTo("call function")
+
+      there was one(f.typeCardsDaoMock).findAll(any[JsObject], any[JsObject])(any[ExecutionContext])
+      there was one(f.typeCardsDaoMock).findListType(any[BSONDocument])
+      there was one(f.cardDaoMock).countCards()
+      there was one(func).apply(any[List[TypeCards]],any[List[BSONDocument]],any[List[BSONDocument]])
     }
 
     "send 500 internal error if mongoDB error when find all card type" in new WithApplication{
       val f=fixture
       val futureMock=mock[Future[List[TypeCards]]]
       val throwable=mock[Throwable]
+      val func=mock[(List[TypeCards],List[BSONDocument],List[BSONDocument])=>Result]
 
       f.typeCardsDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns futureMock
       futureMock.flatMap(any[List[TypeCards]=>Future[List[TypeCards]]])(any[ExecutionContext]) returns futureMock
       futureMock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers {value=>future{value.asInstanceOf[PartialFunction[Throwable,Result]](throwable)}}
-      f.typeCardsDaoMock.findListType() returns future{Stream[BSONDocument]()}
+      f.typeCardsDaoMock.findListType(any[BSONDocument]) returns future{Stream[BSONDocument]()}
 
-      val r = f.controller.inventary().apply(FakeRequest(GET, "/inventary/cards").withSession("user" -> """{"login":"test"}"""))
+      val req=FakeRequest(GET, "/inventary/cards").withSession("user" -> """{"login":"test"}""")
+      val action = Action.async{f.controller.getInventaryTypeCards(Json.obj(),"")(func)}
+      val r=call(action,req)
 
       status(r) must equalTo(INTERNAL_SERVER_ERROR)
 
       there was one(f.typeCardsDaoMock).findAll(any[JsObject], any[JsObject])(any[ExecutionContext])
       there was one(futureMock).flatMap(any[List[TypeCards]=>Future[List[TypeCards]]])(any[ExecutionContext])
       there was one(futureMock).recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext])
-      there was one(f.typeCardsDaoMock).findListType()
+      there was one(f.typeCardsDaoMock).findListType(any[BSONDocument])
+      there was no(func).apply(any[List[TypeCards]],any[List[BSONDocument]],any[List[BSONDocument]])
     }
 
     "send 500 internal error if mongoDB error when find all card type name" in new WithApplication{
       val f=fixture
       val futureMock=mock[Future[Stream[BSONDocument]]]
       val throwable=mock[Throwable]
+      val func=mock[(List[TypeCards],List[BSONDocument],List[BSONDocument])=>Result]
 
       f.typeCardsDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns future{List[TypeCards]()}
-      f.typeCardsDaoMock.findListType() returns futureMock
+      f.typeCardsDaoMock.findListType(any[BSONDocument]) returns futureMock
       futureMock.flatMap(any[Stream[BSONDocument]=>Future[Stream[BSONDocument]]])(any[ExecutionContext]) returns futureMock
       futureMock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers {value=>future{value.asInstanceOf[PartialFunction[Throwable,Result]](throwable)}}
 
-      val r = f.controller.inventary().apply(FakeRequest(GET, "/inventary/cards").withSession("user" -> """{"login":"test"}"""))
+      val req=FakeRequest(GET, "/inventary/cards").withSession("user" -> """{"login":"test"}""")
+      val action = Action.async{f.controller.getInventaryTypeCards(Json.obj(),"")(func)}
+      val r=call(action,req)
 
       status(r) must equalTo(INTERNAL_SERVER_ERROR)
 
       there was one(f.typeCardsDaoMock).findAll(any[JsObject], any[JsObject])(any[ExecutionContext])
       there was one(futureMock).flatMap(any[Stream[BSONDocument]=>Future[Stream[BSONDocument]]])(any[ExecutionContext])
       there was one(futureMock).recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext])
-      there was one(f.typeCardsDaoMock).findListType()
+      there was one(f.typeCardsDaoMock).findListType(any[BSONDocument])
+      there was no(func).apply(any[List[TypeCards]],any[List[BSONDocument]],any[List[BSONDocument]])
+    }
+
+    "send 500 internal error if mongoDB error when find number of cards" in new WithApplication {
+      val f=fixture
+      val func=mock[(List[TypeCards],List[BSONDocument],List[BSONDocument])=>Result]
+      val futureMock=mock[Future[Stream[BSONDocument]]]
+      val throwable=mock[Throwable]
+
+      f.typeCardsDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns future{List[TypeCards]()}
+      f.typeCardsDaoMock.findListType(any[BSONDocument]) returns future{Stream[BSONDocument]()}
+      f.cardDaoMock.countCards() returns futureMock
+      futureMock.map(any[Stream[BSONDocument]=>Stream[BSONDocument]])(any[ExecutionContext]) returns futureMock
+      futureMock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers {value=>future{value.asInstanceOf[PartialFunction[Throwable,Result]](throwable)}}
+
+      val req=FakeRequest(GET, "/inventary/cards").withSession("user" -> """{"login":"test"}""")
+      val action = Action.async{f.controller.getInventaryTypeCards(Json.obj(),"")(func)}
+      val r=call(action,req)
+      status(r) must equalTo(INTERNAL_SERVER_ERROR)
+
+      there was one(f.typeCardsDaoMock).findAll(any[JsObject], any[JsObject])(any[ExecutionContext])
+      there was one(f.typeCardsDaoMock).findListType(any[BSONDocument])
+      there was one(f.cardDaoMock).countCards()
+      there was one(futureMock).map(any[Stream[BSONDocument]=>Stream[BSONDocument]])(any[ExecutionContext])
+      there was one(futureMock).recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext])
+      there was no(func).apply(any[List[TypeCards]],any[List[BSONDocument]],any[List[BSONDocument]])
     }
   }
 
@@ -216,7 +273,7 @@ class TypeCardsManagerSpec extends Specification with Mockito {
       val f=fixture
 
       f.typeCardsDaoMock.findListModele() returns future{Stream[BSONDocument]()}
-      f.typeCardsDaoMock.findListType() returns future{Stream[BSONDocument]()}
+      f.typeCardsDaoMock.findListType(any[BSONDocument]) returns future{Stream[BSONDocument]()}
 
       val req=FakeRequest(GET, "/inventary/cards/type").withSession("user" -> """{"login":"test"}""")
       val action = Action.async{implicit request=>f.controller.printForm(Results.Ok,TypeCardsManager.form,mock[Call])}
@@ -231,7 +288,7 @@ class TypeCardsManagerSpec extends Specification with Mockito {
       content must contain("<input id=\"types\" name=\"types\" class=\"form-control\" list=\"list_type\" type=\"text\" autocomplete=\"off\" value=\"\"/>")
 
       there was one(f.typeCardsDaoMock).findListModele()
-      there was one(f.typeCardsDaoMock).findListType()
+      there was one(f.typeCardsDaoMock).findListType(any[BSONDocument])
     }
 
     "send Internal Error if mongoDB error when find list of modele" in new WithApplication{
@@ -260,7 +317,7 @@ class TypeCardsManagerSpec extends Specification with Mockito {
       val throwable=mock[Throwable]
 
       f.typeCardsDaoMock.findListModele() returns future{Stream[BSONDocument]()}
-      f.typeCardsDaoMock.findListType() returns futureMock
+      f.typeCardsDaoMock.findListType(any[BSONDocument]) returns futureMock
       futureMock.map(any[Stream[BSONDocument]=>Stream[BSONDocument]])(any[ExecutionContext]) returns futureMock
       futureMock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers {value=>future{value.asInstanceOf[PartialFunction[Throwable,Result]](throwable)}}
       val req=FakeRequest(GET, "/inventary/cards/type").withSession("user" -> """{"login":"test"}""")
@@ -270,7 +327,7 @@ class TypeCardsManagerSpec extends Specification with Mockito {
       status(r) must equalTo(INTERNAL_SERVER_ERROR)
 
       there was one(f.typeCardsDaoMock).findListModele()
-      there was one(f.typeCardsDaoMock).findListType()
+      there was one(f.typeCardsDaoMock).findListType(any[BSONDocument])
       there was one(futureMock).map(any[Stream[BSONDocument]=>Stream[BSONDocument]])(any[ExecutionContext])
       there was one(futureMock).recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext])
     }
@@ -284,7 +341,7 @@ class TypeCardsManagerSpec extends Specification with Mockito {
       val f=fixture
 
       f.typeCardsDaoMock.findListModele() returns future{Stream[BSONDocument]()}
-      f.typeCardsDaoMock.findListType() returns future{Stream[BSONDocument]()}
+      f.typeCardsDaoMock.findListType(any[BSONDocument]) returns future{Stream[BSONDocument]()}
 
       val r = f.controller.submitForm("error",route)(function2)(function)(FakeRequest(POST, "url").withSession("user" -> """{"login":"test"}"""))
 
@@ -295,7 +352,7 @@ class TypeCardsManagerSpec extends Specification with Mockito {
       content must contains("<span class=\"control-label errors\">This field is required</span>", 2)
 
       there was one(f.typeCardsDaoMock).findListModele()
-      there was one(f.typeCardsDaoMock).findListType()
+      there was one(f.typeCardsDaoMock).findListType(any[BSONDocument])
     }
 
     "send Bad_Request for existing type" in new WithApplication {
@@ -309,7 +366,7 @@ class TypeCardsManagerSpec extends Specification with Mockito {
       function2.apply(any[TypeCardsForm]) returns Json.obj()
       f.typeCardsDaoMock.findAll(any[JsObject],any[JsObject])(any[ExecutionContext]) returns future{List(typeCards)}
       f.typeCardsDaoMock.findListModele() returns future{Stream[BSONDocument]()}
-      f.typeCardsDaoMock.findListType() returns future{Stream[BSONDocument]()}
+      f.typeCardsDaoMock.findListType(any[BSONDocument]) returns future{Stream[BSONDocument]()}
 
       val r = f.controller.submitForm("error",route)(function2)(function)(FakeRequest(POST, "url").withJsonBody(formData).withSession("user" -> """{"login":"test"}"""))
 
@@ -321,7 +378,7 @@ class TypeCardsManagerSpec extends Specification with Mockito {
       there was one(f.typeCardsDaoMock).findAll(any[JsObject],any[JsObject])(any[ExecutionContext])
       there was one(function2).apply(any[TypeCardsForm])
       there was one(f.typeCardsDaoMock).findListModele()
-      there was one(f.typeCardsDaoMock).findListType()
+      there was one(f.typeCardsDaoMock).findListType(any[BSONDocument])
     }
 
     "send Bad_Request for existing type but delete" in new WithApplication {
@@ -335,7 +392,7 @@ class TypeCardsManagerSpec extends Specification with Mockito {
       function2.apply(any[TypeCardsForm]) returns Json.obj()
       f.typeCardsDaoMock.findAll(any[JsObject],any[JsObject])(any[ExecutionContext]) returns future{List(typeCards)}
       f.typeCardsDaoMock.findListModele() returns future{Stream[BSONDocument]()}
-      f.typeCardsDaoMock.findListType() returns future{Stream[BSONDocument]()}
+      f.typeCardsDaoMock.findListType(any[BSONDocument]) returns future{Stream[BSONDocument]()}
 
       val r = f.controller.submitForm("error message",route)(function2)(function)(FakeRequest(POST, "url").withJsonBody(formData).withSession("user" -> """{"login":"test"}"""))
 
@@ -347,7 +404,7 @@ class TypeCardsManagerSpec extends Specification with Mockito {
       there was one(f.typeCardsDaoMock).findAll(any[JsObject],any[JsObject])(any[ExecutionContext])
       there was one(function2).apply(any[TypeCardsForm])
       there was one(f.typeCardsDaoMock).findListModele()
-      there was one(f.typeCardsDaoMock).findListType()
+      there was one(f.typeCardsDaoMock).findListType(any[BSONDocument])
     }
 
     "send 500 Internal error for mongoDB error" in new WithApplication {
@@ -382,7 +439,7 @@ class TypeCardsManagerSpec extends Specification with Mockito {
       val f=fixture
 
       f.typeCardsDaoMock.findListModele() returns future{Stream[BSONDocument]()}
-      f.typeCardsDaoMock.findListType() returns future{Stream[BSONDocument]()}
+      f.typeCardsDaoMock.findListType(any[BSONDocument]) returns future{Stream[BSONDocument]()}
 
       val r = f.controller.typePage.apply(FakeRequest(GET, "/inventary/cards/type").withSession("user" -> """{"login":"test"}"""))
 
@@ -394,7 +451,7 @@ class TypeCardsManagerSpec extends Specification with Mockito {
       content must contain("<input id=\"types\" name=\"types\" class=\"form-control\" list=\"list_type\" type=\"text\" autocomplete=\"off\" value=\"\"/>")
 
       there was one(f.typeCardsDaoMock).findListModele()
-      there was one(f.typeCardsDaoMock).findListType()
+      there was one(f.typeCardsDaoMock).findListType(any[BSONDocument])
     }
 
     "send redirect after insert type card" in new WithApplication {
@@ -464,7 +521,7 @@ class TypeCardsManagerSpec extends Specification with Mockito {
 
       fix.typeCardsDaoMock.findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext]) returns future{typeCards}
       fix.typeCardsDaoMock.findListModele() returns future{Stream[BSONDocument]()}
-      fix.typeCardsDaoMock.findListType() returns future{Stream[BSONDocument]()}
+      fix.typeCardsDaoMock.findListType(any[BSONDocument]) returns future{Stream[BSONDocument]()}
 
       val r = fix.controller.typeUpdatePage(bson.stringify).apply(FakeRequest(GET, "/inventary/cards/" + bson.stringify + "/update").withSession("user" -> """{"login":"test"}"""))
 
@@ -477,7 +534,7 @@ class TypeCardsManagerSpec extends Specification with Mockito {
 
       there was one(fix.typeCardsDaoMock).findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext])
       there was one(fix.typeCardsDaoMock).findListModele()
-      there was one(fix.typeCardsDaoMock).findListType()
+      there was one(fix.typeCardsDaoMock).findListType(any[BSONDocument])
     }
 
     "send Redirect for type card not found" in new WithApplication {

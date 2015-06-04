@@ -10,7 +10,7 @@ import play.api.data.Forms._
 import play.api.i18n.Messages
 import play.api.libs.json.{JsObject, Json}
 import play.api.mvc._
-import play.modules.reactivemongo.json.BSONFormats
+import play.modules.reactivemongo.json.BSONFormats.BSONObjectIDFormat
 import reactivemongo.bson
 import reactivemongo.bson.{BSONObjectID, BSONDocument}
 import reactivemongo.core.commands.LastError
@@ -108,23 +108,9 @@ trait SensorManagerLike extends Controller{
     implicit request =>
       //Verify if user is connect
       UserManager.doIfconnectAsync(request) {
-        //find all sensors
-        val future_sensors=sensorDao.findAll(
-          Json.obj("delete"->false,"types"->BSONFormats.BSONObjectIDFormat.writes(BSONObjectID(id))),
-          Json.obj(sort->sens)
-        )
-
-        //Find the sensor type
-        findTypeSensorForPrint(
-          BSONObjectID(id),
-          future_sensors
-        )(
-          //Find the signal
-          findTypeMesureForPrint(future_sensors),
-
-          //Get sensors on the future and print the page
-          findSensorsForPrint(future_sensors,sort,sens,request)
-        )
+        getInventarySensor(Json.obj("delete"->false,"types"->BSONObjectID(id)),Json.obj(sort->sens),BSONObjectID(id),Redirect(routes.TypeSensorManager.inventary())){
+          (typeSensor,typeMesure,listSensor)=>Ok(views.html.sensors.listSensor(typeSensor,typeMesure,listSensor,sort,sens))
+        }
       }
   }
 
@@ -268,14 +254,14 @@ trait SensorManagerLike extends Controller{
       submitForm(msg,id,routes.SensorManager.sensorInsert(id)){
 
         //Filter for verify if sensor exists
-        sensorData=>Json.obj("id" -> sensorData.id, "types" -> BSONFormats.BSONObjectIDFormat.writes(BSONObjectID(id)))
+        sensorData=>Json.obj("id" -> sensorData.id, "types" -> BSONObjectID(id))
 
       }{
         sensorData=>
           if(!sensorData.send.equals("Réactiver")) {
             insertSensor(id,sensorData)
           }else{
-            sensorDao.findOne(Json.obj("id" -> sensorData.id, "types" -> BSONFormats.BSONObjectIDFormat.writes(BSONObjectID(id)))).flatMap(
+            sensorDao.findOne(Json.obj("id" -> sensorData.id, "types" -> BSONObjectID(id))).flatMap(
               sensorOpt=>sensorOpt match{
                 case Some(sensor)=>update(id,sensor._id.stringify,sensor,false)
                 case _=>future{Redirect(routes.SensorManager.inventary(id))}
@@ -320,7 +306,7 @@ trait SensorManagerLike extends Controller{
       submitForm(msg,idType,routes.SensorManager.sensorUpdate(idType,id)){
 
         //Filter for verify if sensor exists
-        sensorData=>Json.obj("_id"->Json.obj("$ne"->BSONFormats.BSONObjectIDFormat.writes(BSONObjectID(id))),"id" -> sensorData.id, "types" -> BSONFormats.BSONObjectIDFormat.writes(BSONObjectID(idType)))
+        sensorData=>Json.obj("_id"->Json.obj("$ne"->BSONObjectID(id)),"id" -> sensorData.id, "types" -> BSONObjectID(idType))
 
       }{
         //Update the sensor
@@ -356,7 +342,7 @@ trait SensorManagerLike extends Controller{
         //Verify if sensor type found
         typeSensorManager.doIfTypeSensorFound(BSONObjectID(idType)) { _ =>
           //Find the sensor
-          sensorDao.findOne(Json.obj("_id" -> BSONFormats.BSONObjectIDFormat.writes(BSONObjectID(id)))).flatMap(
+          sensorDao.findOne(Json.obj("_id" -> BSONObjectID(id))).flatMap(
 
             data => data match {
 
@@ -383,79 +369,47 @@ trait SensorManagerLike extends Controller{
   /****************  Methods  ***********************/
 
   /**
-   * Print the page with the list of sensors for a particular sensor type
-   * @param typeSensor Sensor type for which display sensors
-   * @param typeMesure Signal associated to the sensor type
-   * @param listSensor List of sensors
-   * @return Return Ok page with the list of sensors
+   * List sensors get depending on the query
+   * @param selector Query for get sensors
+   * @param sort List of column and her direction used for sort sensors
+   * @param r Page display when type sensors or typeMesure not found
+   * @param f Function for print the list of cards
+   * @return
    */
-  def printListSensor(typeSensor:TypeSensor,typeMesure:TypeMesure,listSensor:List[Sensor],sort:String,sens:Int)(implicit request:Request[AnyContent]):Result=Ok(views.html.sensors.listSensor(typeSensor,typeMesure,listSensor,sort,sens))
+  def getInventarySensor(selector:JsObject,sort:JsObject,id:BSONObjectID,r:Result)(f:(TypeSensor,TypeMesure,List[Sensor])=>Result)={
+    //Find sensors
+    val future_sensors=sensorDao.findAll(selector,sort)
 
-  /**
-   * Get the list of sensors on the future and print it
-   * @param future_sensors Future contains the list of sensors
-   * @param typeSensor Sensor type for which display sensors
-   * @param typeMesure Signal associated to the sensor type
-   * @return Return Ok page with the list of sensors
-   *         Return Internal server error if have mongoDB error
-   */
-  def findSensorsForPrint(future_sensors:Future[List[Sensor]],sort:String,sens:Int,request:Request[AnyContent])(typeSensor:TypeSensor)(typeMesure:TypeMesure): Future[Result] ={
-    //Get the list of sensors
-    future_sensors.map(listSensor=>
-      //Print the list of sensors
-      printListSensor(typeSensor,typeMesure,listSensor,sort,sens)(request)
-    ).recover({
-      //Send Internal Server Error if have mongoDB error
-      case e => InternalServerError("error")
-    })
-  }
-
-  /**
-   * Get the signal associated to the sensor type for print list of sensors
-   * @param future_sensors Future contains the list of sensors
-   * @param typeSensor Sensor type for which display sensors
-   * @param func Function for get list of sensors
-   * @return Return Ok page with the list of sensors
-   *         Return redirect if signal not found
-   *         Return Internal server error if have mongoDB error
-   */
-  def findTypeMesureForPrint(future_sensors:Future[List[Sensor]])(typeSensor:TypeSensor,func:TypeMesure=>Future[Result]): Future[Result] ={
-    //Find the signal
-    typeMesureDao.findById(typeSensor.mesure).flatMap(typeMesure=>
-      typeMesure match {
-
-        //If signal not found, redirect to the inventary
-        case None => future{Redirect(routes.TypeSensorManager.inventary())}
-
-        //If signal found, apply function for get list of sensors
-        case _ => func(typeMesure.get)
-      }
-    ).recover({
-      //Send Internal Server Error if have mongoDB error
-      case e => InternalServerError("error")
-    })
-  }
-
-  /**
-   * Get the sensor type for print list of sensors
-   * @param id Sensor type id
-   * @param future_sensors Future contains the list of sensors
-   * @param func Function for get signal associated to the sensor type
-   * @param func2 Function for get list of sensors
-   * @return Return Ok page with the list of sensors
-   *         Return redirect if sensor type or signal not found
-   *         Return Internal server error if have mongoDB error
-   */
-  def findTypeSensorForPrint(id:BSONObjectID,future_sensors:Future[List[Sensor]])(func:((TypeSensor,(TypeMesure=>Future[Result]))=>Future[Result]), func2:(TypeSensor=>TypeMesure=>Future[Result])): Future[Result] ={
-    //Find the sensor type
-    typeSensorDao.findById(id).flatMap(typeSensor=>
-      typeSensor match {
+    //Find type sensors
+    typeSensorDao.findById(id).flatMap(typeSensorOpt=>
+      typeSensorOpt match {
 
         //If the sensor type not found, Redirect to the inventary
-        case None => future{Redirect(routes.TypeSensorManager.inventary())}
+        case None => future{r}
 
         //If the sensor type found, applied function for get signal
-        case _ => func(typeSensor.get,func2(typeSensor.get))
+        case Some(typeSensor) =>
+          //Find type mesure
+          typeMesureDao.findById(typeSensor.mesure).flatMap(typeMesureOpt=>
+            typeMesureOpt match {
+
+              //If signal not found, redirect to the inventary
+              case None => future{r}
+
+              //If signal found, apply function for get list of sensors
+              case Some(typeMesure) =>
+                future_sensors.map(listSensor=>
+                  //Print the list of sensors
+                  f(typeSensor,typeMesure,listSensor)
+                ).recover({
+                  //Send Internal Server Error if have mongoDB error
+                  case e => InternalServerError("error")
+                })
+            }
+          ).recover({
+            //Send Internal Server Error if have mongoDB error
+            case e => InternalServerError("error")
+          })
       }
     ).recover({
       //Send Internal Server Error if have mongoDB error

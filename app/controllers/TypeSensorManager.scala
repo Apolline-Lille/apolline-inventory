@@ -97,31 +97,11 @@ trait TypeSensorManagerLike extends Controller{
     implicit request =>
       //Verify if user is connect
       UserManager.doIfconnectAsync(request) {
-        //create a selector for filter sensors type
-        val selector=if(sort.isEmpty){Json.obj("delete"->false)}else{Json.obj("delete"->false,"nomType"->sort)}
-
-        //Find sensors quantity for all type
-        val future_stock=sensorDao.countByType()
-        //Find all sensors type with the selector
-        val future_type=typeSensorDao.findAll(selector)
-        //Find all signal
-        val future_mesure=typeMesureDao.findAll()
-        //Find all sensors type name for the filter
-        val future_nomType=typeSensorDao.findAllType()
-
-        //Get value defined on future
-        future_type.flatMap(typeSensor=>
-          future_mesure.flatMap(typeMesure=>
-            future_stock.flatMap(stock=>
-              future_nomType.map(nomType=>
-
-                //Display the HTML page
-                Ok(views.html.sensors.listTypeSensor(filtreSto,sort,filtreStock(filtreSto),typeSensor,typeMesure,List[String](),stock.toList,nomType.toList))
-
-              ).recover({case e=>InternalServerError("error")})
-            ).recover({case e=>InternalServerError("error")})
-          ).recover({case e=>InternalServerError("error")})
-        ).recover({case e=>InternalServerError("error")})
+        getInventaryTypeSensor(Json.obj("delete"->false),sort){
+          (typeSensor,typeMesure,stock,nomType)=>
+          //Display the HTML page
+          Ok(views.html.sensors.listTypeSensor(filtreSto,sort,filtreStock(filtreSto),typeSensor,typeMesure,stock,nomType))
+        }
       }
   }
 
@@ -380,6 +360,38 @@ trait TypeSensorManagerLike extends Controller{
   /****************  Methods  ***********************/
 
   /**
+   * List type sensors get depending on the query
+   * @param selector Query for get type sensors
+   * @param filtreType Name of a particular type found
+   * @param f Function for print the list of type sensors
+   * @return
+   */
+  def getInventaryTypeSensor(selector:JsObject,filtreType:String)(f:(List[TypeSensor],List[TypeMesure],List[BSONDocument],List[BSONDocument])=>Result)={
+    val selectorAll=if(filtreType.isEmpty){selector}else{selector ++ Json.obj("nomType"->filtreType)}
+
+    //Find sensors quantity for all type
+    val future_stock=sensorDao.countByType()
+    //Find all signal
+    val future_mesure=typeMesureDao.findAll()
+    //Find all sensors type name for the filter
+    val future_nomType=typeSensorDao.findAllType(BSONFormats.toBSON(selector).get.asInstanceOf[BSONDocument])
+
+    //Get value defined on future
+    typeSensorDao.findAll(selectorAll).flatMap(typeSensor=>
+      future_mesure.flatMap(typeMesure=>
+        future_stock.flatMap(stock=>
+          future_nomType.map(nomType=>
+
+            //Print the list of sensors type
+            f(typeSensor,typeMesure,stock.toList,nomType.toList)
+
+          ).recover({case e=>InternalServerError("error")})
+        ).recover({case e=>InternalServerError("error")})
+      ).recover({case e=>InternalServerError("error")})
+    ).recover({case e=>InternalServerError("error")})
+  }
+
+  /**
    * Verify if the user is connect and if data received are valid then apply function dedicated
    * @param r Route use for submit the form
    * @param f Function dedicated
@@ -448,7 +460,6 @@ trait TypeSensorManagerLike extends Controller{
   /**
    * This method verify if the sensor exists before insert/update/reactivat the sensor
    * @param errorMessage Error message print if the sensor exist
-   * @param id Sensor type id
    * @param r Route used when submit a form
    * @param typeData Data received from the form
    * @param especes List of valid specie in the form

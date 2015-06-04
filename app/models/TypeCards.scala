@@ -21,7 +21,7 @@ abstract class TypeCardsDao extends JsonDao[TypeCards, BSONObjectID](ReactiveMon
   this:JsonDao[TypeCards, BSONObjectID]=>
 
   def findListModele():Future[Stream[BSONDocument]]=collection.db.command(Aggregate(collection.name, Seq(Match(BSONDocument("delete"->false)),GroupField("modele")("count" -> SumValue(1)))))
-  def findListType():Future[Stream[BSONDocument]]=collection.db.command(Aggregate(collection.name, Seq(Match(BSONDocument("delete"->false)),GroupField("types")("count" -> SumValue(1)))))
+  def findListType(selector:BSONDocument):Future[Stream[BSONDocument]]=collection.db.command(Aggregate(collection.name, Seq(Match(selector),GroupField("types")("count" -> SumValue(1)))))
 }
 
 object TypeCardsDaoObj extends TypeCardsDao

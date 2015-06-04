@@ -243,7 +243,7 @@ object UserManager extends Controller with MongoController{
 
   }
 
-  def doIfconnect(request:Request[AnyContent])(f:Result):Result={
+  def doIfconnect(request:Request[AnyContent])(f: => Result):Result={
     request.session.get("user").map(user => {
       f
     }
@@ -252,7 +252,7 @@ object UserManager extends Controller with MongoController{
      )
   }
 
-  def doIfconnectAsync(request:Request[AnyContent])(f:Future[Result]):Future[Result]={
+  def doIfconnectAsync(request:Request[AnyContent])(f: => Future[Result]):Future[Result]={
     request.session.get("user").map(user => {
       f
     }

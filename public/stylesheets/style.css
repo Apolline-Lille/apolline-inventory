@@ -19,3 +19,11 @@ form dl{
 .pointer{
     cursor:pointer !important;
 }
+
+.breadcrumb .active a{
+ color:#777
+}
+
+.breadcrumb>li+li:before {
+    content: ">\00a0";
+}

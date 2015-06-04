@@ -1,0 +1,74 @@
+@(sort:String,listType:List[TypeSensor],listMesure:List[TypeMesure],stock:List[reactivemongo.bson.BSONDocument],filtre:List[reactivemongo.bson.BSONDocument])(implicit request: Request[AnyContent])
+
+@import reactivemongo.bson.BSONObjectID
+
+@main(Messages("inventary.module.title")){
+  @navigation("inventary")
+  <div class="container">
+    @inventary("module")
+    <section>
+      @module.stateForm("sensors")
+      <article class="col-sm-9">
+        <div>
+        @if(listType.size==0){
+          <h3 style="text-align:center">@Messages("global.error.noResult")</h3>
+        }else {
+          @for(types <- listType) {
+            @defining(stock.filter(p=>p.getAs[BSONObjectID]("_id").get.equals(types._id))){s=>
+              @defining(if(s.nonEmpty){
+                s.head.getAs[reactivemongo.bson.BSONInteger]("count").get.value
+              }else{
+                0
+              }) { sto =>
+                <div class="col-sm-12">
+                  <h4><a href="@routes.ModuleManager.formTypeSensors(types.nomType)">@{
+                    types.nomType
+                  }</a> / <a href="@routes.ModuleManager.formSensors(types._id.stringify)">@{
+                    types.modele
+                  }</a>
+                  </h4>
+                </div>
+                <div class="col-sm-11 col-sm-offset-1">
+                  <div class="row"> <span class="bold">@Messages("inventary.typeSensor.fabricant")</span> : @{
+                    types.fabricant
+                  } </div>
+                  <div class="row"> <span class="bold">@Messages("inventary.typeSensor.nbSignaux")</span> : @{
+                    types.nbSignaux
+                  } (@{
+                    listMesure.filter(m => m._id == types.mesure).head.nom
+                  }) </div>
+                  <div class="row"> <span class="bold">@Messages("inventary.typeSensor.espece")</span> : @{
+                    types.espece.mkString(", ")
+                  } </div>
+                  <div class="row"> <span class="bold">@Messages("inventary.typeSensor.stock")</span> : @sto</div>
+                </div>
+              }
+            }
+          }
+        }
+        </div>
+        <p>
+          <span style="float:right">
+            <a href="@routes.ModuleManager.validate()" class="btn btn-default">@Messages("inventary.module.nextState")</a>
+          </span>
+        </p>
+      </article>
+      <nav class="col-sm-3">
+        @if(filtre.size>1) {
+          <span class="bold">@Messages("inventary.typeSensor.type")</span>
+          <ul class="nav nav-pills nav-stacked">
+            <li role="presentation" @if(sort.isEmpty) {
+              class="active"}><a href="@routes.ModuleManager.formTypeSensors("")" style="padding:0px 15px !important">
+            @Messages("global.all")</a></li>
+            @for(types <- filtre) {
+              @defining(types.getAs[String]("_id").get) { nomType =>
+                <li role="presentation" @if(sort.equals(nomType)) {
+                  class="active"}><a href="@routes.ModuleManager.formTypeSensors(nomType)" style="padding:0px 15px !important">@nomType</a></li>
+              }
+            }
+          </ul>
+        }
+      </nav>
+    </section>
+  </div>
+}

@@ -1,0 +1,98 @@
+@(mod:Module,typesCards:List[TypeCards],cards:List[Cards],listFirmware:List[Firmware],typeSensors:List[TypeSensor],typeMesure:List[TypeMesure],sensors:List[Sensor])(implicit request:Request[AnyContent])
+
+@main(Messages("inventary.module.title")) {
+  @navigation("inventary")
+  <div class="container">
+    @inventary("module")
+    <section>
+      <article>
+        <div class="col-sm-12">
+          <h4>@mod.types / @mod.id</h4>
+        </div>
+        <div class="col-sm-11 col-sm-offset-1">
+          <div class="row"><span class="bold">@Messages("inventary.module.commentaire")</span> : @mod.commentaire</div>
+          <div class="row"><span class="bold">@Messages("inventary.module.dateAssemblage")</span> : @SensorManager.format(mod.dateAssemblage)</div>
+          <div class="row">
+            <span class="bold">@Messages("inventary.module.onglet.cards")</span> :
+            <ul>
+            @for(typeCard <- typesCards) {
+              <li>
+                <h5 class="bold">@typeCard.types / @typeCard.modele</h5>
+                <div class="table-responsive">
+                  <table class="table table-hover table-bordered">
+                    <thead>
+                      <tr>
+                        <th>@Messages("inventary.card.id")</th>
+                        <th>@Messages("inventary.card.acquisition")</th>
+                        <th>@Messages("inventary.card.firstUse")</th>
+                        <th>@Messages("inventary.card.firmware")</th>
+                        <th>@Messages("inventary.card.agregateur")</th>
+                        <th>@Messages("inventary.card.apolline")</th>
+                        <th>@Messages("inventary.card.etat")</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                    @for(mod <- cards.filter(p => p.types.equals(typeCard._id))) {
+                      <tr>
+                        <td>@mod.id</td>
+                        <td>@{SensorManager.format(mod.acquisition)}</td>
+                        <td>@if(mod.firstUse.nonEmpty) {@{SensorManager.format(mod.firstUse.get)}} else {-}</td>
+                        <td>@defining(listFirmware.filter(firm => firm._id.equals(mod.firmware))) { firm =>@firm.head.nom (@firm.head.version)}</td>
+                        <td>@if(mod.agregateur) { @Messages("global.yes") } else { @Messages("global.no") }</td>
+                        <td>@mod.apolline.getOrElse("-")</td>
+                        <td>@if(mod.hs) {@Messages("inventary.card.hs")}</td>
+                      </tr>
+                    }
+                    </tbody>
+                  </table>
+                </div>
+              </li>
+            }
+            </ul>
+          </div>
+          <div class="row">
+            <span class="bold">@Messages("inventary.module.onglet.sensors")</span> :
+            <ul>
+            @for(types <- typeSensors) {
+              <li>
+                <h5 class="bold">@types.nomType / @types.modele</h5>
+                <div class="row">
+                  <div class="col-sm-11 col-sm-offset-1">
+                    <div class="row"> <span class="bold">@Messages("inventary.typeSensor.fabricant")</span> : @types.fabricant</div>
+                    <div class="row"> <span class="bold">@Messages("inventary.typeSensor.nbSignaux")</span> : @types.nbSignaux (@typeMesure.filter(m => m._id == types.mesure).head.nom)</div>
+                    <div class="row"> <span class="bold">@Messages("inventary.typeSensor.espece")</span> : @types.espece.mkString(", ")</div>
+                  </div>
+                </div>
+                <div class="table-responsive">
+                  <table class="table table-hover table-bordered">
+                    <thead>
+                      <tr>
+                        <th>@Messages("inventary.sensor.id")</th>
+                        <th>@Messages("inventary.sensor.acquisition")</th>
+                        <th>@Messages("inventary.sensor.expiration")</th>
+                        <th>@Messages("inventary.sensor.firstUse")</th>
+                        <th>@Messages("inventary.sensor.etat")</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                    @for(sensor <- sensors.filter(p => p.types.equals(types._id))) {
+                      <tr>
+                        <td>@sensor.id</td>
+                        <td>@{SensorManager.format(sensor.acquisition)}</td>
+                        <td>@if(sensor.expiration.nonEmpty) {@{SensorManager.format(sensor.expiration.get)}} else {-}</td>
+                        <td>@if(sensor.firstUse.nonEmpty) {@{SensorManager.format(sensor.firstUse.get)}} else {-}</td>
+                        <td>@if(sensor.hs) {@Messages("inventary.sensor.hs")}</td>
+                      </tr>
+                    }
+                    </tbody>
+                  </table>
+                </div>
+              </li>
+            }
+            </ul>
+          </div>
+        </div>
+      </article>
+    </section>
+  </div>
+}

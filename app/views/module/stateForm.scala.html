@@ -1,0 +1,7 @@
+@(activ:String)
+<ol class="breadcrumb">
+  <li @if(activ.equals("infoModule")){class="active"}><a href="@routes.ModuleManager.formUpdate()">@Messages("inventary.module.onglet.info")</a></li>
+  <li @if(activ.equals("cards")){class="active"}><a href="@routes.ModuleManager.formTypeCards()">@Messages("inventary.module.onglet.cards")</a></li>
+  <li @if(activ.equals("sensors")){class="active"}><a href="@routes.ModuleManager.formTypeSensors()">@Messages("inventary.module.onglet.sensors")</a></li>
+  <li @if(activ.equals("valid")){class="active"}><a href="@routes.ModuleManager.validate()">@Messages("inventary.module.onglet.validate")</a></li>
+</ol>

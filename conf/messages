@@ -1,6 +1,7 @@
 global.sitename=Apolline
 global.dashboard=Dashboard
 global.sensors=Inventaire
+global.campaign=Campagnes
 global.disconnect=Déconnexion
 
 global.error.required=This field is required
@@ -75,8 +76,30 @@ inventary.card.error.firstUseBeforeAcquisition=La date de première utilisation 
 inventary.card.error.cardExist=Cette carte existe déjà
 inventary.card.confirmDelete=Êtes-vous sûr de vouloir supprimer cette carte ?
 
+inventary.module.title=Inventaire des modules
+inventary.module.addModule=Nouveau module
+inventary.module.nextState=Passer à l''étape suivante
+inventary.module.types=Type de module
+inventary.module.id=Identifiant
+inventary.module.dateAssemblage=Date d''assemblage
+inventary.module.commentaire=Commentaires
+inventary.module.onglet.info=Informations générales
+inventary.module.onglet.cards=Cartes
+inventary.module.onglet.sensors=Capteurs
+inventary.module.onglet.validate=Validation
+inventary.module.error.moduleExist=Ce module existe déjà
+inventary.module.error.cardsOrSensorNotFound=Attention certaines cartes ou capteurs ne sont plus disponibles
+inventary.module.confirmDelete=Êtes-vous sûr de vouloir supprimer ce module ?
+
 inventary.onglet.sensor=Capteurs
 inventary.onglet.cards=Cartes
+inventary.onglet.module=Modules
+
+campaign.list.title=Liste des campagnes
+campaign.list.addCampaign=Nouvelle campagne
+campaign.list.error.campaignExist=Cette campagne existe déjà
+campaign.list.conditions=Conditions
+campaign.list.nom=Nom de la campagne
 
 login.username=Login
 login.password=Password

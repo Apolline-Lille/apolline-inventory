@@ -1,0 +1,39 @@
+@(campaigns:List[Campagne])(implicit request: Request[AnyContent])
+
+@main(Messages("campaign.list.title")){
+  @navigation("campaign")
+  <div class="container">
+    <section>
+      <article class="col-sm-9">
+        @if(campaigns.size==0){
+          <h3 style="text-align:center">@Messages("global.error.noResult")</h3>
+        }else{
+          @for(camp<-campaigns){
+            <div class="col-sm-12">
+              <h4>
+                @camp.nom
+                <span>
+                  <a href="@routes.CampagneManager.updateCampaignPage(camp._id.stringify)" data-toggle-tooltip title="@Messages("global.tooltip.update")"><span class="glyphicon glyphicon-pencil"></span></a>
+                  @*if(sto == 0) {
+                    <a data-toggle="modal" href="#modal-delete" data-toggle-tooltip title="@Messages("global.tooltip.delete")" data-title="@types.types / @types.modele" data-link="@routes.TypeCardsManager.delete(types._id.stringify)">
+                      <span class="glyphicon glyphicon-trash"></span>
+                    </a>
+                  }*@
+                </span>
+              </h4>
+              <div class="col-sm-11 col-sm-offset-1">
+                <div class="row"><span class="bold">@Messages("campaign.list.conditions")</span> : @camp.conditions.size</div>
+              </div>
+            </div>
+          }
+        }
+      </article>
+      <nav class="col-sm-3">
+        <a href="@routes.CampagneManager.addCampaign()" class="btn btn-success">
+          <span class="glyphicon glyphicon-plus"></span>
+          @Messages("campaign.list.addCampaign")
+        </a>
+      </nav>
+    </section>
+  </div>
+}

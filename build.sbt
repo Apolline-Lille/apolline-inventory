@@ -19,3 +19,7 @@ libraryDependencies ++= Seq(
   "org.reactivemongo" %% "play2-reactivemongo" % "0.10.5.0.akka23",
   "com.wordnik" %% "swagger-play2" % "1.3.11"
 )
+
+fork := false
+
+fork in Test := false

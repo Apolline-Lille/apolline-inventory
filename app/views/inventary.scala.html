@@ -6,5 +6,8 @@
     <li role="presentation" @if(current.equals("capteur")){class="active"}>
       <a href="@routes.TypeSensorManager.inventary()" @if(current.equals("capteur")){class="pointer"}>@Messages("inventary.onglet.sensor")</a>
     </li>
+    <li role="presentation" @if(current.equals("module")){class="active"}>
+      <a href="@routes.ModuleManager.inventary()" @if(current.equals("module")){class="pointer"}>@Messages("inventary.onglet.module")</a>
+    </li>
   </ul>
 </nav>

@@ -23,7 +23,11 @@
                     <ul class="dropdown-menu" role="menu">
                         <li><a href="@routes.TypeCardsManager.inventary()">@Messages("inventary.onglet.cards")</a></li>
                         <li><a href="@routes.TypeSensorManager.inventary()">@Messages("inventary.onglet.sensor")</a></li>
+                        <li><a href="@routes.ModuleManager.inventary()">@Messages("inventary.onglet.module")</a></li>
                     </ul>
+                </li>
+                <li class="@active("campaign")">
+                    <a href="@routes.CampagneManager.listCampaign()">@{Messages("global.campaign")}</a>
                 </li>
             </ul>
             <ul class="nav navbar-nav navbar-right">

@@ -1,4 +1,4 @@
-@(filtreSto:String,sort:String,funcFiltre:Int=>Boolean,listType:List[TypeSensor],listMesure:List[TypeMesure],listCategorie:List[String],stock:List[reactivemongo.bson.BSONDocument],filtre:List[reactivemongo.bson.BSONDocument])(implicit request: Request[AnyContent])
+@(filtreSto:String,sort:String,funcFiltre:Int=>Boolean,listType:List[TypeSensor],listMesure:List[TypeMesure],stock:List[reactivemongo.bson.BSONDocument],filtre:List[reactivemongo.bson.BSONDocument])(implicit request: Request[AnyContent])
 @import reactivemongo.bson.BSONObjectID
 
 @main(Messages("inventary.typeSensor.title")){

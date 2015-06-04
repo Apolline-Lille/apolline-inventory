@@ -32,7 +32,7 @@ abstract class TypeSensorDao extends JsonDao[TypeSensor, BSONObjectID](ReactiveM
   def findListEspece(key:String):Future[Stream[BSONDocument]]=collection.db.command(Aggregate(collection.name, Seq(Match(BSONDocument("delete"->false)),Unwind(key),GroupField(key)("count" -> SumValue(1)))))
   def findListFabricant(key:String):Future[Stream[BSONDocument]]=collection.db.command(Aggregate(collection.name, Seq(Match(BSONDocument("delete"->false)),GroupField(key)("count" -> SumValue(1)))))
   def findListType(key:String):Future[Stream[BSONDocument]]=collection.db.command(Aggregate(collection.name, Seq(Match(BSONDocument("delete"->false)),GroupField(key)("count" -> SumValue(1)))))
-  def findAllType():Future[Stream[BSONDocument]]=collection.db.command(Aggregate(collection.name, Seq(Match(BSONDocument("delete"->false)),GroupField("nomType")("count" -> SumValue(1)))))
+  def findAllType(selector:BSONDocument):Future[Stream[BSONDocument]]=collection.db.command(Aggregate(collection.name, Seq(Match(selector),GroupField("nomType")("count" -> SumValue(1)))))
 }
 
 object TypeSensorDaoObj extends TypeSensorDao
