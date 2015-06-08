@@ -412,7 +412,7 @@ class SensorManagerSpec extends Specification with Mockito{
       val content = contentAsString(r)
       content must contain("<title>Inventaire des capteurs</title>")
       content must contain("<input type=\"text\" id=\"id\" name=\"id\" value=\"\" class=\"form-control\"/>")
-      content must contain("<input type=\"date\" id=\"acquisition\" name=\"acquisition\" value=\"\" class=\"form-control\"/>")
+      content must matchRegex("<input type=\"date\" id=\"acquisition\" name=\"acquisition\" value=\"\\d{4}-\\d{2}-\\d{2}\" class=\"form-control\"/>")
       content must contain("<input type=\"date\" id=\"expiration\" name=\"expiration\" value=\"\" class=\"form-control\"/>")
       content must contain("<input type=\"date\" id=\"firstUse\" name=\"firstUse\" value=\"\" class=\"form-control\"/>")
       content must contain("<input type=\"checkbox\" id=\"hs\" name=\"hs\" value=\"true\"  />")

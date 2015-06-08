@@ -889,7 +889,7 @@ class ModuleManagerSpec extends Specification with Mockito {
       val content=contentAsString(r)
       content must contain("<input id=\"types\" name=\"types\" class=\"form-control\" list=\"list_type\" type=\"text\" autocomplete=\"off\" value=\"\"/>")
       content must contain("<input type=\"text\" id=\"id\" name=\"id\" value=\"\" class=\"form-control\"/>")
-      content must contain("<input type=\"date\" id=\"dateAssemblage\" name=\"dateAssemblage\" value=\"\" class=\"form-control\"/>")
+      content must matchRegex("<input type=\"date\" id=\"dateAssemblage\" name=\"dateAssemblage\" value=\"\\d{4}-\\d{2}-\\d{2}\" class=\"form-control\"/>")
       content must contain("<textarea id=\"commentaire\" name=\"commentaire\" class=\"form-control\"></textarea>")
       val s=session(r)
       s.get("module") must not equalTo(None)

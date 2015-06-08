@@ -1,5 +1,6 @@
 package controllers
 
+import java.text.SimpleDateFormat
 import java.util.Date
 
 import com.wordnik.swagger.annotations._
@@ -139,10 +140,10 @@ trait CardsManagerLike extends Controller{
         //Verify if card type found
         typeCardsManager.doIfTypeCardsFound(BSONObjectID(id)) {_=>
           //Print an empty form for add new card
-          printForm(Results.Ok,id,form,routes.CardsManager.cardInsert(id))
+          printForm(Results.Ok,id,form.bind(Map("acquisition"->new SimpleDateFormat("YYYY-MM-dd").format(new Date))).discardingErrors,routes.CardsManager.cardInsert(id))
         }{_=>
           //Print an empty form with error type not found
-          printForm(Results.BadRequest,id,form.withGlobalError(Messages("inventary.typeCards.error.typeNotExist")),routes.SensorManager.sensorInsert(id))
+          printForm(Results.BadRequest,id,form.bind(Map("acquisition"->new SimpleDateFormat("YYYY-MM-dd").format(new Date))).discardingErrors.withGlobalError(Messages("inventary.typeCards.error.typeNotExist")),routes.SensorManager.sensorInsert(id))
         }
       }
   }

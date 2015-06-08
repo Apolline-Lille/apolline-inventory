@@ -137,10 +137,10 @@ trait SensorManagerLike extends Controller{
       //Verify if sensor type found
       typeSensorManager.doIfTypeSensorFound(BSONObjectID(id)) {_=>
         //Print an empty form for add new sensor
-        future{Ok(views.html.sensors.formSensor(form, id, routes.SensorManager.sensorInsert(id)))}
+        future{Ok(views.html.sensors.formSensor(form.bind(Map("acquisition"->new SimpleDateFormat("YYYY-MM-dd").format(new Date))).discardingErrors, id, routes.SensorManager.sensorInsert(id)))}
       }{_=>
         //Print an empty form with error type not found
-        future{BadRequest(views.html.sensors.formSensor(form.withGlobalError(Messages("inventary.typeSensor.error.typeNotExist")), id, routes.SensorManager.sensorInsert(id)))}
+        future{BadRequest(views.html.sensors.formSensor(form.bind(Map("acquisition"->new SimpleDateFormat("YYYY-MM-dd").format(new Date))).discardingErrors.withGlobalError(Messages("inventary.typeSensor.error.typeNotExist")), id, routes.SensorManager.sensorInsert(id)))}
       }
     }
   }

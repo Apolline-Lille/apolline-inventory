@@ -1,5 +1,6 @@
 package controllers
 
+import java.text.SimpleDateFormat
 import java.util.Date
 
 import com.wordnik.swagger.annotations._
@@ -217,7 +218,7 @@ trait ModuleManagerLike extends Controller {
         val session=request.session + ("moduleForm" -> "insert") + ("module" -> Module.toStrings(Module(id="",types="",dateAssemblage=new Date,cartes=List(),capteurs=List(),commentaire=None)))
 
         //Print the form
-        printForm(form,Results.Ok,session)
+        printForm(form.bind(Map("dateAssemblage"->new SimpleDateFormat("YYYY-MM-dd").format(new Date))).discardingErrors,Results.Ok,session)
       }
   }
 
