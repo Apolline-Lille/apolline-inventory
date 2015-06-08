@@ -1,4 +1,4 @@
-@(sort:String,listType:List[TypeSensor],listMesure:List[TypeMesure],stock:List[reactivemongo.bson.BSONDocument],filtre:List[reactivemongo.bson.BSONDocument])(implicit request: Request[AnyContent])
+@(sort:String,listType:List[TypeSensor],listMesure:List[TypeMesure],stock:List[reactivemongo.bson.BSONDocument],stockUsed:List[(reactivemongo.bson.BSONObjectID,Int)],filtre:List[reactivemongo.bson.BSONDocument])(implicit request: Request[AnyContent])
 
 @import reactivemongo.bson.BSONObjectID
 
@@ -20,28 +20,30 @@
               }else{
                 0
               }) { sto =>
-                <div class="col-sm-12">
-                  <h4><a href="@routes.ModuleManager.formTypeSensors(types.nomType)">@{
-                    types.nomType
-                  }</a> / <a href="@routes.ModuleManager.formSensors(types._id.stringify)">@{
-                    types.modele
-                  }</a>
-                  </h4>
-                </div>
-                <div class="col-sm-11 col-sm-offset-1">
-                  <div class="row"> <span class="bold">@Messages("inventary.typeSensor.fabricant")</span> : @{
-                    types.fabricant
-                  } </div>
-                  <div class="row"> <span class="bold">@Messages("inventary.typeSensor.nbSignaux")</span> : @{
-                    types.nbSignaux
-                  } (@{
-                    listMesure.filter(m => m._id == types.mesure).head.nom
-                  }) </div>
-                  <div class="row"> <span class="bold">@Messages("inventary.typeSensor.espece")</span> : @{
-                    types.espece.mkString(", ")
-                  } </div>
-                  <div class="row"> <span class="bold">@Messages("inventary.typeSensor.stock")</span> : @sto</div>
-                </div>
+                @defining(sto - stockUsed.filter(p=>p._1.equals(types._id)).head._2) { stoUnused =>
+                  <div class="col-sm-12">
+                    <h4><a href="@routes.ModuleManager.formTypeSensors(types.nomType)">@{
+                      types.nomType
+                    }</a> / <a href="@routes.ModuleManager.formSensors(types._id.stringify)">@{
+                      types.modele
+                    }</a>
+                    </h4>
+                  </div>
+                  <div class="col-sm-11 col-sm-offset-1">
+                    <div class="row"> <span class="bold">@Messages("inventary.typeSensor.fabricant")</span> : @{
+                      types.fabricant
+                    } </div>
+                    <div class="row"> <span class="bold">@Messages("inventary.typeSensor.nbSignaux")</span> : @{
+                      types.nbSignaux
+                    } (@{
+                      listMesure.filter(m => m._id == types.mesure).head.nom
+                    }) </div>
+                    <div class="row"> <span class="bold">@Messages("inventary.typeSensor.espece")</span> : @{
+                      types.espece.mkString(", ")
+                    } </div>
+                    <div class="row"> <span class="bold">@Messages("inventary.typeSensor.stock")</span> : @stoUnused / @sto</div>
+                  </div>
+                }
               }
             }
           }

@@ -1,4 +1,4 @@
-@(filtreSto:String,sort:String,funcFiltre:Int=>Boolean,listType:List[TypeCards],stock:List[reactivemongo.bson.BSONDocument],filtre:List[reactivemongo.bson.BSONDocument])(implicit request: Request[AnyContent])
+@(filtreSto:String,sort:String,funcFiltre:Int=>Boolean,listType:List[TypeCards],stock:List[reactivemongo.bson.BSONDocument],stockUsed:List[(reactivemongo.bson.BSONObjectID,Int)],filtre:List[reactivemongo.bson.BSONDocument])(implicit request: Request[AnyContent])
 
 @import reactivemongo.bson.BSONObjectID
 
@@ -20,26 +20,28 @@
               }else{
                 0
               }) { sto =>
-                @if(funcFiltre(sto)) {
-                  <div class="col-sm-12">
-                    <h4><a href="@routes.TypeCardsManager.inventary(types.types)">@{
-                      types.types
-                    }</a> / <a href="@routes.CardsManager.inventary(types._id.stringify)">@{
-                      types.modele
-                    }</a>
-                      <span>
-                        <a href="@routes.TypeCardsManager.typeUpdatePage(types._id.stringify)" data-toggle-tooltip title="@Messages("global.tooltip.update")"><span class="glyphicon glyphicon-pencil"></span></a>
-                        @if(sto == 0) {
-                          <a data-toggle="modal" href="#modal-delete" data-toggle-tooltip title="@Messages("global.tooltip.delete")" data-title="@types.types / @types.modele" data-link="@routes.TypeCardsManager.delete(types._id.stringify)">
-                            <span class="glyphicon glyphicon-trash"></span>
-                          </a>
-                        }
-                      </span>
-                    </h4>
-                  </div>
-                  <div class="col-sm-11 col-sm-offset-1">
-                    <div class="row"> <span class="bold">@Messages("inventary.typeCards.stock")</span> : @sto</div>
-                  </div>
+                @defining(sto - stockUsed.filter(p=>p._1.equals(types._id)).head._2) { stoUnused =>
+                  @if(funcFiltre(stoUnused)) {
+                    <div class="col-sm-12">
+                      <h4><a href="@routes.TypeCardsManager.inventary(types.types)">@{
+                        types.types
+                      }</a> / <a href="@routes.CardsManager.inventary(types._id.stringify)">@{
+                        types.modele
+                      }</a>
+                        <span>
+                          <a href="@routes.TypeCardsManager.typeUpdatePage(types._id.stringify)" data-toggle-tooltip title="@Messages("global.tooltip.update")"><span class="glyphicon glyphicon-pencil"></span></a>
+                          @if(sto == 0) {
+                            <a data-toggle="modal" href="#modal-delete" data-toggle-tooltip title="@Messages("global.tooltip.delete")" data-title="@types.types / @types.modele" data-link="@routes.TypeCardsManager.delete(types._id.stringify)">
+                              <span class="glyphicon glyphicon-trash"></span>
+                            </a>
+                          }
+                        </span>
+                      </h4>
+                    </div>
+                    <div class="col-sm-11 col-sm-offset-1">
+                      <div class="row"> <span class="bold">@Messages("inventary.typeCards.stock")</span> : @stoUnused / @sto</div>
+                    </div>
+                  }
                 }
               }
             }

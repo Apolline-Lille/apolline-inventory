@@ -1,4 +1,4 @@
-@(types:TypeSensor,mesure:TypeMesure,listSensor:List[Sensor],trie:String,sens:Int)(implicit request: Request[AnyContent])
+@(types:TypeSensor,mesure:TypeMesure,listSensor:List[Sensor],stockUsed:List[(reactivemongo.bson.BSONObjectID,Int)],trie:String,sens:Int)(implicit request: Request[AnyContent])
 
 @main(Messages("inventary.typeSensor.title")){
   <script src="@routes.Assets.at("/public","javascripts/modal-delete.js")" type="text/javascript" defer></script>
@@ -15,7 +15,7 @@
               <div class="row"> <span class="bold">@Messages("inventary.typeSensor.fabricant")</span> : @{types.fabricant} </div>
               <div class="row"> <span class="bold">@Messages("inventary.typeSensor.nbSignaux")</span> : @{types.nbSignaux} (@{mesure.nom}) </div>
               <div class="row"> <span class="bold">@Messages("inventary.typeSensor.espece")</span> : @{types.espece.mkString(", ")} </div>
-              <div class="row"> <span class="bold">@Messages("inventary.typeSensor.stock")</span> : @{listSensor.size} </div>
+              <div class="row"> <span class="bold">@Messages("inventary.typeSensor.stock")</span> : @stockUsed.head._2 / @{listSensor.size} </div>
             </div>
         </div>
         @if(listSensor.size>0){

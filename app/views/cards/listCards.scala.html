@@ -1,4 +1,4 @@
-@(types:TypeCards,listCards:List[Cards],listFirmware:List[Firmware],trie:String,sens:Int)(implicit request: Request[AnyContent])
+@(types:TypeCards,listCards:List[Cards],listFirmware:List[Firmware],stockUsed:List[(reactivemongo.bson.BSONObjectID,Int)],trie:String,sens:Int)(implicit request: Request[AnyContent])
 
 @main(Messages("inventary.typeCards.title")){
   <script src="@routes.Assets.at("/public","javascripts/modal-delete.js")" type="text/javascript" defer></script>
@@ -12,7 +12,7 @@
             <h4>@{types.types} / @{types.modele}</h4>
           </div>
           <div class="col-sm-11 col-sm-offset-1">
-            <div class="row"> <span class="bold">@Messages("inventary.typeCards.stock")</span> : @listCards.size </div>
+            <div class="row"> <span class="bold">@Messages("inventary.typeCards.stock")</span> : @listCards.size / @{listCards.size+stockUsed.head._2}</div>
           </div>
         </div>
         @if(listCards.size>0){

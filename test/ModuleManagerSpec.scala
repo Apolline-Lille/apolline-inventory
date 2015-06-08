@@ -351,8 +351,8 @@ class ModuleManagerSpec extends Specification with Mockito {
 
       f.moduleDaoMock.fold(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->Json.obj("$ne"->bson))),any[JsObject],org.mockito.Matchers.eq(module.cartes))(any[(List[BSONObjectID],Module)=>List[BSONObjectID]])(any[ExecutionContext]) returns future{List[BSONObjectID](bson4)}
       f.cardsDaoMock.fold(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->Json.obj("$nin"->listCards))),org.mockito.Matchers.eq(Json.obj()),org.mockito.Matchers.eq(HashSet[JsValue]()))(any[(HashSet[JsValue],Cards)=>HashSet[JsValue]])(any[ExecutionContext]) returns future{HashSet[JsValue]()}
-      f.typeCardsManagerMock.getInventaryTypeCards(any[JsObject],anyString)(any[(List[TypeCards],List[BSONDocument],List[BSONDocument])=>Result]) answers { (params, _) => params match {
-        case Array(_,_, p: ((List[TypeCards],List[BSONDocument],List[BSONDocument])=>Result))=>future{p.apply(List[TypeCards](),List[BSONDocument](),List[BSONDocument]())}
+      f.typeCardsManagerMock.getInventaryTypeCards(any[JsObject],anyString)(any[(List[TypeCards],List[BSONDocument],List[BSONDocument],List[(BSONObjectID,Int)])=>Result]) answers { (params, _) => params match {
+        case Array(_,_, p: ((List[TypeCards],List[BSONDocument],List[BSONDocument],List[(BSONObjectID,Int)])=>Result))=>future{p.apply(List[TypeCards](),List[BSONDocument](),List[BSONDocument](),List[(BSONObjectID,Int)]())}
       }}
 
       val r = f.controller.formTypeCards().apply(FakeRequest(GET, "/inventary/modules/form/typeCards").withSession("user" -> """{"login":"test"}""","module"->Module.toStrings(module)))
@@ -364,7 +364,7 @@ class ModuleManagerSpec extends Specification with Mockito {
 
       there was one(f.moduleDaoMock).fold(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->Json.obj("$ne"->bson))),any[JsObject],org.mockito.Matchers.eq(module.cartes))(any[(List[BSONObjectID],Module)=>List[BSONObjectID]])(any[ExecutionContext])
       there was one(f.cardsDaoMock).fold(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->Json.obj("$nin"->listCards))),org.mockito.Matchers.eq(Json.obj()),org.mockito.Matchers.eq(HashSet[JsValue]()))(any[(HashSet[JsValue],Cards)=>HashSet[JsValue]])(any[ExecutionContext])
-      there was one(f.typeCardsManagerMock).getInventaryTypeCards(any[JsObject],anyString)(any[(List[TypeCards],List[BSONDocument],List[BSONDocument])=>Result])
+      there was one(f.typeCardsManagerMock).getInventaryTypeCards(any[JsObject],anyString)(any[(List[TypeCards],List[BSONDocument],List[BSONDocument],List[(BSONObjectID,Int)])=>Result])
     }
 
     "send 200 on OK with 1 result" in new WithApplication {
@@ -374,8 +374,8 @@ class ModuleManagerSpec extends Specification with Mockito {
 
       f.moduleDaoMock.fold(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->Json.obj("$ne"->bson))),any[JsObject],org.mockito.Matchers.eq(module.cartes))(any[(List[BSONObjectID],Module)=>List[BSONObjectID]])(any[ExecutionContext]) returns future{List[BSONObjectID](bson4)}
       f.cardsDaoMock.fold(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->Json.obj("$nin"->listCards))),org.mockito.Matchers.eq(Json.obj()),org.mockito.Matchers.eq(HashSet[JsValue]()))(any[(HashSet[JsValue],Cards)=>HashSet[JsValue]])(any[ExecutionContext]) returns future{HashSet[JsValue]()}
-      f.typeCardsManagerMock.getInventaryTypeCards(any[JsObject],anyString)(any[(List[TypeCards],List[BSONDocument],List[BSONDocument])=>Result]) answers { (params, _) => params match {
-        case Array(_,_, p: ((List[TypeCards],List[BSONDocument],List[BSONDocument])=>Result))=>future{p.apply(List[TypeCards](TypeCards(bson,"mod","type")),List[BSONDocument](),List[BSONDocument](BSONDocument("_id" -> bson, "count" -> 5)))}
+      f.typeCardsManagerMock.getInventaryTypeCards(any[JsObject],anyString)(any[(List[TypeCards],List[BSONDocument],List[BSONDocument],List[(BSONObjectID,Int)])=>Result]) answers { (params, _) => params match {
+        case Array(_,_, p: ((List[TypeCards],List[BSONDocument],List[BSONDocument],List[(BSONObjectID,Int)])=>Result))=>future{p.apply(List[TypeCards](TypeCards(bson,"mod","type")),List[BSONDocument](),List[BSONDocument](BSONDocument("_id" -> bson, "count" -> 5)),List((bson,3)))}
       }}
 
       val r = f.controller.formTypeCards().apply(FakeRequest(GET, "/inventary/modules/form/typeCards").withSession("user" -> """{"login":"test"}""","module"->Module.toStrings(module)))
@@ -386,11 +386,11 @@ class ModuleManagerSpec extends Specification with Mockito {
       content must not contain("<h3 style=\"text-align:center\">Aucun résultat trouvé</h3>")
       content must contain("type")
       content must contain("mod")
-      content must matchRegex("<span class=\"bold\">\\s*Stock\\s*</span>\\s*:\\s*5")
+      content must matchRegex("<span class=\"bold\">\\s*Stock\\s*</span>\\s*:\\s*2 / 5")
 
       there was one(f.moduleDaoMock).fold(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->Json.obj("$ne"->bson))),any[JsObject],org.mockito.Matchers.eq(module.cartes))(any[(List[BSONObjectID],Module)=>List[BSONObjectID]])(any[ExecutionContext])
       there was one(f.cardsDaoMock).fold(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->Json.obj("$nin"->listCards))),org.mockito.Matchers.eq(Json.obj()),org.mockito.Matchers.eq(HashSet[JsValue]()))(any[(HashSet[JsValue],Cards)=>HashSet[JsValue]])(any[ExecutionContext])
-      there was one(f.typeCardsManagerMock).getInventaryTypeCards(any[JsObject],anyString)(any[(List[TypeCards],List[BSONDocument],List[BSONDocument])=>Result])
+      there was one(f.typeCardsManagerMock).getInventaryTypeCards(any[JsObject],anyString)(any[(List[TypeCards],List[BSONDocument],List[BSONDocument],List[(BSONObjectID,Int)])=>Result])
     }
 
     "send 200 on OK with 2 results" in new WithApplication {
@@ -400,8 +400,8 @@ class ModuleManagerSpec extends Specification with Mockito {
 
       f.moduleDaoMock.fold(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->Json.obj("$ne"->bson))),any[JsObject],org.mockito.Matchers.eq(module.cartes))(any[(List[BSONObjectID],Module)=>List[BSONObjectID]])(any[ExecutionContext]) returns future{List[BSONObjectID](bson4)}
       f.cardsDaoMock.fold(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->Json.obj("$nin"->listCards))),org.mockito.Matchers.eq(Json.obj()),org.mockito.Matchers.eq(HashSet[JsValue]()))(any[(HashSet[JsValue],Cards)=>HashSet[JsValue]])(any[ExecutionContext]) returns future{HashSet[JsValue]()}
-      f.typeCardsManagerMock.getInventaryTypeCards(any[JsObject],anyString)(any[(List[TypeCards],List[BSONDocument],List[BSONDocument])=>Result]) answers { (params, _) => params match {
-        case Array(_,_, p: ((List[TypeCards],List[BSONDocument],List[BSONDocument])=>Result))=>future{p.apply(List[TypeCards](TypeCards(bson,"mod","type"),TypeCards(bson2,"mod2","type2")),List[BSONDocument](),List[BSONDocument](BSONDocument("_id" -> bson, "count" -> 5),BSONDocument("_id" -> bson2, "count" -> 3)))}
+      f.typeCardsManagerMock.getInventaryTypeCards(any[JsObject],anyString)(any[(List[TypeCards],List[BSONDocument],List[BSONDocument],List[(BSONObjectID,Int)])=>Result]) answers { (params, _) => params match {
+        case Array(_,_, p: ((List[TypeCards],List[BSONDocument],List[BSONDocument],List[(BSONObjectID,Int)])=>Result))=>future{p.apply(List[TypeCards](TypeCards(bson,"mod","type"),TypeCards(bson2,"mod2","type2")),List[BSONDocument](),List[BSONDocument](BSONDocument("_id" -> bson, "count" -> 5),BSONDocument("_id" -> bson2, "count" -> 3)),List((bson,3),(bson2,2)))}
       }}
 
       val r = f.controller.formTypeCards().apply(FakeRequest(GET, "/inventary/modules/form/typeCards").withSession("user" -> """{"login":"test"}""","module"->Module.toStrings(module)))
@@ -413,15 +413,15 @@ class ModuleManagerSpec extends Specification with Mockito {
       content must not contain("<h3 style=\"text-align:center\">Aucun résultat trouvé</h3>")
       content must contain("type")
       content must contain("mod")
-      content must matchRegex("<span class=\"bold\">\\s*Stock\\s*</span>\\s*:\\s*5")
+      content must matchRegex("<span class=\"bold\">\\s*Stock\\s*</span>\\s*:\\s*2 / 5")
 
       content must contain("type2")
       content must contain("mod2")
-      content must matchRegex("<span class=\"bold\">\\s*Stock\\s*</span>\\s*:\\s*3")
+      content must matchRegex("<span class=\"bold\">\\s*Stock\\s*</span>\\s*:\\s*1 / 3")
 
       there was one(f.moduleDaoMock).fold(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->Json.obj("$ne"->bson))),any[JsObject],org.mockito.Matchers.eq(module.cartes))(any[(List[BSONObjectID],Module)=>List[BSONObjectID]])(any[ExecutionContext])
       there was one(f.cardsDaoMock).fold(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->Json.obj("$nin"->listCards))),org.mockito.Matchers.eq(Json.obj()),org.mockito.Matchers.eq(HashSet[JsValue]()))(any[(HashSet[JsValue],Cards)=>HashSet[JsValue]])(any[ExecutionContext])
-      there was one(f.typeCardsManagerMock).getInventaryTypeCards(any[JsObject],anyString)(any[(List[TypeCards],List[BSONDocument],List[BSONDocument])=>Result])
+      there was one(f.typeCardsManagerMock).getInventaryTypeCards(any[JsObject],anyString)(any[(List[TypeCards],List[BSONDocument],List[BSONDocument],List[(BSONObjectID,Int)])=>Result])
     }
   }
 
@@ -432,8 +432,8 @@ class ModuleManagerSpec extends Specification with Mockito {
       val listCards=JsArray(Seq(BSONObjectIDFormat.writes(bson4)))
 
       f.moduleDaoMock.fold(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->Json.obj("$ne"->bson))),any[JsObject],org.mockito.Matchers.eq(module.cartes))(any[(List[BSONObjectID],Module)=>List[BSONObjectID]])(any[ExecutionContext]) returns future{List[BSONObjectID](bson4)}
-      f.cardsManagerMock.getInventaryCards(any[JsObject],any[JsObject],any[BSONObjectID],any[Result])(any[(TypeCards,List[Cards],List[Firmware])=>Result]) answers { (params, _) => params match {
-        case Array(_,_,_,_, p: ((TypeCards,List[Cards],List[Firmware])=>Result))=>future{p.apply(TypeCards(bson,"mod","type"),List[Cards](),List[Firmware]())}
+      f.cardsManagerMock.getInventaryCards(any[JsObject],any[JsObject],any[BSONObjectID],any[Result])(any[(TypeCards,List[Cards],List[Firmware],List[(BSONObjectID,Int)])=>Result]) answers { (params, _) => params match {
+        case Array(_,_,_,_, p: ((TypeCards,List[Cards],List[Firmware],List[(BSONObjectID,Int)])=>Result))=>future{p.apply(TypeCards(bson,"mod","type"),List[Cards](),List[Firmware](),List((bson,0)))}
       }}
 
       val r = f.controller.formCards(bson.stringify).apply(FakeRequest(GET, "/inventary/modules/form/cards/"+bson.stringify).withSession("user" -> """{"login":"test"}""","module"->Module.toStrings(module)))
@@ -443,10 +443,10 @@ class ModuleManagerSpec extends Specification with Mockito {
       content must contain("<title>Inventaire des modules</title>")
       content must matchRegex("type\\s*/\\s*mod")
       content must contain("<h3 style=\"text-align:center\">Aucun résultat trouvé</h3>")
-      content must matchRegex("<span class=\"bold\">\\s*Stock\\s*</span>\\s*:\\s*0")
+      content must matchRegex("<span class=\"bold\">\\s*Stock\\s*</span>\\s*:\\s*0 / 0")
 
       there was one(f.moduleDaoMock).fold(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->Json.obj("$ne"->bson))),any[JsObject],org.mockito.Matchers.eq(module.cartes))(any[(List[BSONObjectID],Module)=>List[BSONObjectID]])(any[ExecutionContext])
-      there was one(f.cardsManagerMock).getInventaryCards(any[JsObject],any[JsObject],any[BSONObjectID],any[Result])(any[(TypeCards,List[Cards],List[Firmware])=>Result])
+      there was one(f.cardsManagerMock).getInventaryCards(any[JsObject],any[JsObject],any[BSONObjectID],any[Result])(any[(TypeCards,List[Cards],List[Firmware],List[(BSONObjectID,Int)])=>Result])
     }
 
     "send 200 on OK with 1 result" in new WithApplication {
@@ -458,8 +458,8 @@ class ModuleManagerSpec extends Specification with Mockito {
       val listCards=JsArray(Seq(BSONObjectIDFormat.writes(bson4)))
 
       f.moduleDaoMock.fold(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->Json.obj("$ne"->bson))),any[JsObject],org.mockito.Matchers.eq(module.cartes))(any[(List[BSONObjectID],Module)=>List[BSONObjectID]])(any[ExecutionContext]) returns future{List[BSONObjectID](bson4)}
-      f.cardsManagerMock.getInventaryCards(any[JsObject],any[JsObject],any[BSONObjectID],any[Result])(any[(TypeCards,List[Cards],List[Firmware])=>Result]) answers { (params, _) => params match {
-        case Array(_,_,_,_, p: ((TypeCards,List[Cards],List[Firmware])=>Result))=>future{p.apply(typeCards,card,firmware)}
+      f.cardsManagerMock.getInventaryCards(any[JsObject],any[JsObject],any[BSONObjectID],any[Result])(any[(TypeCards,List[Cards],List[Firmware],List[(BSONObjectID,Int)])=>Result]) answers { (params, _) => params match {
+        case Array(_,_,_,_, p: ((TypeCards,List[Cards],List[Firmware],List[(BSONObjectID,Int)])=>Result))=>future{p.apply(typeCards,card,firmware,List((bson,0)))}
       }}
 
       val r = f.controller.formCards(bson.stringify).apply(FakeRequest(GET, "/inventary/modules/form/cards/"+bson.stringify).withSession("user" -> """{"login":"test"}""","module"->Module.toStrings(module)))
@@ -477,7 +477,7 @@ class ModuleManagerSpec extends Specification with Mockito {
       content must contain("<td>Hors service</td>")
 
       there was one(f.moduleDaoMock).fold(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->Json.obj("$ne"->bson))),any[JsObject],org.mockito.Matchers.eq(module.cartes))(any[(List[BSONObjectID],Module)=>List[BSONObjectID]])(any[ExecutionContext])
-      there was one(f.cardsManagerMock).getInventaryCards(any[JsObject],any[JsObject],any[BSONObjectID],any[Result])(any[(TypeCards,List[Cards],List[Firmware])=>Result])
+      there was one(f.cardsManagerMock).getInventaryCards(any[JsObject],any[JsObject],any[BSONObjectID],any[Result])(any[(TypeCards,List[Cards],List[Firmware],List[(BSONObjectID,Int)])=>Result])
     }
 
     "send 200 on OK with 2 results" in new WithApplication {
@@ -489,8 +489,8 @@ class ModuleManagerSpec extends Specification with Mockito {
       val listCards=JsArray(Seq(BSONObjectIDFormat.writes(bson4)))
 
       f.moduleDaoMock.fold(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->Json.obj("$ne"->bson))),any[JsObject],org.mockito.Matchers.eq(module.cartes))(any[(List[BSONObjectID],Module)=>List[BSONObjectID]])(any[ExecutionContext]) returns future{List[BSONObjectID](bson4)}
-      f.cardsManagerMock.getInventaryCards(any[JsObject],any[JsObject],any[BSONObjectID],any[Result])(any[(TypeCards,List[Cards],List[Firmware])=>Result]) answers { (params, _) => params match {
-        case Array(_,_,_,_, p: ((TypeCards,List[Cards],List[Firmware])=>Result))=>future{p.apply(typeCards,card,firmware)}
+      f.cardsManagerMock.getInventaryCards(any[JsObject],any[JsObject],any[BSONObjectID],any[Result])(any[(TypeCards,List[Cards],List[Firmware],List[(BSONObjectID,Int)])=>Result]) answers { (params, _) => params match {
+        case Array(_,_,_,_, p: ((TypeCards,List[Cards],List[Firmware],List[(BSONObjectID,Int)])=>Result))=>future{p.apply(typeCards,card,firmware,List((bson,1)))}
       }}
 
       val r = f.controller.formCards(bson.stringify).apply(FakeRequest(GET, "/inventary/modules/form/cards/"+bson.stringify).withSession("user" -> """{"login":"test"}""","module"->Module.toStrings(module)))
@@ -515,7 +515,7 @@ class ModuleManagerSpec extends Specification with Mockito {
       content must contain("<td>v03</td>")
 
       there was one(f.moduleDaoMock).fold(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->Json.obj("$ne"->bson))),any[JsObject],org.mockito.Matchers.eq(module.cartes))(any[(List[BSONObjectID],Module)=>List[BSONObjectID]])(any[ExecutionContext])
-      there was one(f.cardsManagerMock).getInventaryCards(any[JsObject],any[JsObject],any[BSONObjectID],any[Result])(any[(TypeCards,List[Cards],List[Firmware])=>Result])
+      there was one(f.cardsManagerMock).getInventaryCards(any[JsObject],any[JsObject],any[BSONObjectID],any[Result])(any[(TypeCards,List[Cards],List[Firmware],List[(BSONObjectID,Int)])=>Result])
     }
 
     "send bad request with list of cards if form submit have error" in new WithApplication{
@@ -540,8 +540,8 @@ class ModuleManagerSpec extends Specification with Mockito {
         case Array(p: (Form[SelectInfo]=>Future[Result]),_)=>p.apply(f.controller.selectElement)
       }}
 
-      f.cardsManagerMock.getInventaryCards(any[JsObject],any[JsObject],any[BSONObjectID],any[Result])(any[(TypeCards,List[Cards],List[Firmware])=>Result]) answers { (params, _) => params match {
-        case Array(_,_,_,_, p: ((TypeCards,List[Cards],List[Firmware])=>Result))=>future{p.apply(typeCards,card,firmware)}
+      f.cardsManagerMock.getInventaryCards(any[JsObject],any[JsObject],any[BSONObjectID],any[Result])(any[(TypeCards,List[Cards],List[Firmware],List[(BSONObjectID,Int)])=>Result]) answers { (params, _) => params match {
+        case Array(_,_,_,_, p: ((TypeCards,List[Cards],List[Firmware],List[(BSONObjectID,Int)])=>Result))=>future{p.apply(typeCards,card,firmware,List((bson,0)))}
       }}
 
       val r=controller.addCards(bson.stringify).apply(req)
@@ -551,7 +551,7 @@ class ModuleManagerSpec extends Specification with Mockito {
       there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[Unit => Future[Result]])(any[Unit => Future[Result]])
       there was one(controller.selectElement).bindFromRequest()(org.mockito.Matchers.eq(req))
       there was one(controller.selectElement).fold(any[Form[SelectInfo]=>Future[Result]],any[SelectInfo=>Result])
-      there was one(f.cardsManagerMock).getInventaryCards(any[JsObject],any[JsObject],any[BSONObjectID],any[Result])(any[(TypeCards,List[Cards],List[Firmware])=>Result])
+      there was one(f.cardsManagerMock).getInventaryCards(any[JsObject],any[JsObject],any[BSONObjectID],any[Result])(any[(TypeCards,List[Cards],List[Firmware],List[(BSONObjectID,Int)])=>Result])
     }
 
     "send redirect if cards type not found" in new WithApplication{
@@ -616,8 +616,8 @@ class ModuleManagerSpec extends Specification with Mockito {
 
       f.moduleDaoMock.fold(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->Json.obj("$ne"->bson))),any[JsObject],org.mockito.Matchers.eq(module.capteurs))(any[(List[BSONObjectID],Module)=>List[BSONObjectID]])(any[ExecutionContext]) returns future{List[BSONObjectID](bson4)}
       f.sensorsDaoMock.fold(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->Json.obj("$nin"->listSensors))),org.mockito.Matchers.eq(Json.obj()),org.mockito.Matchers.eq(HashSet[JsValue]()))(any[(HashSet[JsValue],Sensor)=>HashSet[JsValue]])(any[ExecutionContext]) returns future{HashSet[JsValue]()}
-      f.typeSensorManagerMock.getInventaryTypeSensor(any[JsObject],anyString)(any[(List[TypeSensor],List[TypeMesure],List[BSONDocument],List[BSONDocument])=>Result]) answers { (params, _) => params match {
-        case Array(_,_, p: ((List[TypeSensor],List[TypeMesure],List[BSONDocument],List[BSONDocument])=>Result))=>future{p.apply(List[TypeSensor](),List[TypeMesure](),List[BSONDocument](),List[BSONDocument]())}
+      f.typeSensorManagerMock.getInventaryTypeSensor(any[JsObject],anyString)(any[(List[TypeSensor],List[TypeMesure],List[BSONDocument],List[(BSONObjectID,Int)],List[BSONDocument])=>Result]) answers { (params, _) => params match {
+        case Array(_,_, p: ((List[TypeSensor],List[TypeMesure],List[BSONDocument],List[(BSONObjectID,Int)],List[BSONDocument])=>Result))=>future{p.apply(List[TypeSensor](),List[TypeMesure](),List[BSONDocument](),List(),List[BSONDocument]())}
       }}
 
       val r = f.controller.formTypeSensors().apply(FakeRequest(GET, "/inventary/modules/form/typeSensors").withSession("user" -> """{"login":"test"}""","module"->Module.toStrings(module)))
@@ -629,7 +629,7 @@ class ModuleManagerSpec extends Specification with Mockito {
 
       there was one(f.moduleDaoMock).fold(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->Json.obj("$ne"->bson))),any[JsObject],org.mockito.Matchers.eq(module.capteurs))(any[(List[BSONObjectID],Module)=>List[BSONObjectID]])(any[ExecutionContext])
       there was one(f.sensorsDaoMock).fold(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->Json.obj("$nin"->listSensors))),org.mockito.Matchers.eq(Json.obj()),org.mockito.Matchers.eq(HashSet[JsValue]()))(any[(HashSet[JsValue],Sensor)=>HashSet[JsValue]])(any[ExecutionContext])
-      there was one(f.typeSensorManagerMock).getInventaryTypeSensor(any[JsObject],anyString)(any[(List[TypeSensor],List[TypeMesure],List[BSONDocument],List[BSONDocument])=>Result])
+      there was one(f.typeSensorManagerMock).getInventaryTypeSensor(any[JsObject],anyString)(any[(List[TypeSensor],List[TypeMesure],List[BSONDocument],List[(BSONObjectID,Int)],List[BSONDocument])=>Result])
     }
 
     "send 200 on OK with 1 result" in new WithApplication {
@@ -639,8 +639,8 @@ class ModuleManagerSpec extends Specification with Mockito {
 
       f.moduleDaoMock.fold(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->Json.obj("$ne"->bson))),any[JsObject],org.mockito.Matchers.eq(module.capteurs))(any[(List[BSONObjectID],Module)=>List[BSONObjectID]])(any[ExecutionContext]) returns future{List[BSONObjectID](bson4)}
       f.sensorsDaoMock.fold(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->Json.obj("$nin"->listSensors))),org.mockito.Matchers.eq(Json.obj()),org.mockito.Matchers.eq(HashSet[JsValue]()))(any[(HashSet[JsValue],Sensor)=>HashSet[JsValue]])(any[ExecutionContext]) returns future{HashSet[JsValue]()}
-      f.typeSensorManagerMock.getInventaryTypeSensor(any[JsObject],anyString)(any[(List[TypeSensor],List[TypeMesure],List[BSONDocument],List[BSONDocument])=>Result]) answers { (params, _) => params match {
-        case Array(_,_, p: ((List[TypeSensor],List[TypeMesure],List[BSONDocument],List[BSONDocument])=>Result))=>future{p.apply(List[TypeSensor](TypeSensor(bson, "type1", "modele1", bson2, "fab1", 1, List[String]("esp1", "esp2"))),List[TypeMesure](TypeMesure(bson2, "mesure1", "unite1")),List[BSONDocument](BSONDocument("_id" -> bson, "count" -> 5)),List[BSONDocument]())}
+      f.typeSensorManagerMock.getInventaryTypeSensor(any[JsObject],anyString)(any[(List[TypeSensor],List[TypeMesure],List[BSONDocument],List[(BSONObjectID,Int)],List[BSONDocument])=>Result]) answers { (params, _) => params match {
+        case Array(_,_, p: ((List[TypeSensor],List[TypeMesure],List[BSONDocument],List[(BSONObjectID,Int)],List[BSONDocument])=>Result))=>future{p.apply(List[TypeSensor](TypeSensor(bson, "type1", "modele1", bson2, "fab1", 1, List[String]("esp1", "esp2"))),List[TypeMesure](TypeMesure(bson2, "mesure1", "unite1")),List[BSONDocument](BSONDocument("_id" -> bson, "count" -> 5)),List((bson,3)),List[BSONDocument]())}
       }}
 
       val r = f.controller.formTypeSensors().apply(FakeRequest(GET, "/inventary/modules/form/typeSensors").withSession("user" -> """{"login":"test"}""","module"->Module.toStrings(module)))
@@ -654,11 +654,11 @@ class ModuleManagerSpec extends Specification with Mockito {
       content must matchRegex("<span class=\"bold\">\\s*Fabricant\\s*</span>\\s*:\\s*fab1")
       content must matchRegex("<span class=\"bold\">\\s*Nombre de signaux\\s*</span>\\s*:\\s*1\\s*\\(\\s*mesure1\\s*\\)")
       content must matchRegex("<span class=\"bold\">\\s*Espèces\\s*</span>\\s*:\\s*esp1, esp2")
-      content must matchRegex("<span class=\"bold\">\\s*Stock\\s*</span>\\s*:\\s*5")
+      content must matchRegex("<span class=\"bold\">\\s*Stock\\s*</span>\\s*:\\s*2 / 5")
 
       there was one(f.moduleDaoMock).fold(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->Json.obj("$ne"->bson))),any[JsObject],org.mockito.Matchers.eq(module.capteurs))(any[(List[BSONObjectID],Module)=>List[BSONObjectID]])(any[ExecutionContext])
       there was one(f.sensorsDaoMock).fold(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->Json.obj("$nin"->listSensors))),org.mockito.Matchers.eq(Json.obj()),org.mockito.Matchers.eq(HashSet[JsValue]()))(any[(HashSet[JsValue],Sensor)=>HashSet[JsValue]])(any[ExecutionContext])
-      there was one(f.typeSensorManagerMock).getInventaryTypeSensor(any[JsObject],anyString)(any[(List[TypeSensor],List[TypeMesure],List[BSONDocument],List[BSONDocument])=>Result])
+      there was one(f.typeSensorManagerMock).getInventaryTypeSensor(any[JsObject],anyString)(any[(List[TypeSensor],List[TypeMesure],List[BSONDocument],List[(BSONObjectID,Int)],List[BSONDocument])=>Result])
     }
 
     "send 200 on OK with 2 results" in new WithApplication {
@@ -674,8 +674,8 @@ class ModuleManagerSpec extends Specification with Mockito {
 
       f.moduleDaoMock.fold(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->Json.obj("$ne"->bson))),any[JsObject],org.mockito.Matchers.eq(module.capteurs))(any[(List[BSONObjectID],Module)=>List[BSONObjectID]])(any[ExecutionContext]) returns future{List[BSONObjectID](bson4)}
       f.sensorsDaoMock.fold(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->Json.obj("$nin"->listSensors))),org.mockito.Matchers.eq(Json.obj()),org.mockito.Matchers.eq(HashSet[JsValue]()))(any[(HashSet[JsValue],Sensor)=>HashSet[JsValue]])(any[ExecutionContext]) returns future{HashSet[JsValue]()}
-      f.typeSensorManagerMock.getInventaryTypeSensor(any[JsObject],anyString)(any[(List[TypeSensor],List[TypeMesure],List[BSONDocument],List[BSONDocument])=>Result]) answers { (params, _) => params match {
-        case Array(_,_, p: ((List[TypeSensor],List[TypeMesure],List[BSONDocument],List[BSONDocument])=>Result))=>future{p.apply(listTypeSensor,listTypeMesure,countSensor,List[BSONDocument]())}
+      f.typeSensorManagerMock.getInventaryTypeSensor(any[JsObject],anyString)(any[(List[TypeSensor],List[TypeMesure],List[BSONDocument],List[(BSONObjectID,Int)],List[BSONDocument])=>Result]) answers { (params, _) => params match {
+        case Array(_,_, p: ((List[TypeSensor],List[TypeMesure],List[BSONDocument],List[(BSONObjectID,Int)],List[BSONDocument])=>Result))=>future{p.apply(listTypeSensor,listTypeMesure,countSensor,List((bson,3),(bson3,2)),List[BSONDocument]())}
       }}
 
       val r = f.controller.formTypeSensors().apply(FakeRequest(GET, "/inventary/modules/form/typeSensors").withSession("user" -> """{"login":"test"}""","module"->Module.toStrings(module)))
@@ -689,18 +689,18 @@ class ModuleManagerSpec extends Specification with Mockito {
       content must matchRegex("<span class=\"bold\">\\s*Fabricant\\s*</span>\\s*:\\s*fab1")
       content must matchRegex("<span class=\"bold\">\\s*Nombre de signaux\\s*</span>\\s*:\\s*1\\s*\\(\\s*mesure1\\s*\\)")
       content must matchRegex("<span class=\"bold\">\\s*Espèces\\s*</span>\\s*:\\s*esp1, esp2")
-      content must matchRegex("<span class=\"bold\">\\s*Stock\\s*</span>\\s*:\\s*5")
+      content must matchRegex("<span class=\"bold\">\\s*Stock\\s*</span>\\s*:\\s*2 / 5")
 
       content must contain("type2")
       content must contain("modele2")
       content must matchRegex("<span class=\"bold\">\\s*Fabricant\\s*</span>\\s*:\\s*fab2")
       content must matchRegex("<span class=\"bold\">\\s*Nombre de signaux\\s*</span>\\s*:\\s*2\\s*\\(\\s*mesure2\\s*\\)")
       content must matchRegex("<span class=\"bold\">\\s*Espèces\\s*</span>\\s*:\\s*esp3, esp4")
-      content must matchRegex("<span class=\"bold\">\\s*Stock\\s*</span>\\s*:\\s*3")
+      content must matchRegex("<span class=\"bold\">\\s*Stock\\s*</span>\\s*:\\s*1 / 3")
 
       there was one(f.moduleDaoMock).fold(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->Json.obj("$ne"->bson))),any[JsObject],org.mockito.Matchers.eq(module.capteurs))(any[(List[BSONObjectID],Module)=>List[BSONObjectID]])(any[ExecutionContext])
       there was one(f.sensorsDaoMock).fold(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->Json.obj("$nin"->listSensors))),org.mockito.Matchers.eq(Json.obj()),org.mockito.Matchers.eq(HashSet[JsValue]()))(any[(HashSet[JsValue],Sensor)=>HashSet[JsValue]])(any[ExecutionContext])
-      there was one(f.typeSensorManagerMock).getInventaryTypeSensor(any[JsObject],anyString)(any[(List[TypeSensor],List[TypeMesure],List[BSONDocument],List[BSONDocument])=>Result])
+      there was one(f.typeSensorManagerMock).getInventaryTypeSensor(any[JsObject],anyString)(any[(List[TypeSensor],List[TypeMesure],List[BSONDocument],List[(BSONObjectID,Int)],List[BSONDocument])=>Result])
     }
   }
 
@@ -711,8 +711,8 @@ class ModuleManagerSpec extends Specification with Mockito {
       val listSensors=JsArray(Seq(BSONObjectIDFormat.writes(bson4)))
 
       f.moduleDaoMock.fold(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->Json.obj("$ne"->bson))),any[JsObject],org.mockito.Matchers.eq(module.capteurs))(any[(List[BSONObjectID],Module)=>List[BSONObjectID]])(any[ExecutionContext]) returns future{List[BSONObjectID](bson4)}
-      f.sensorsManagerMock.getInventarySensor(any[JsObject],any[JsObject],any[BSONObjectID],any[Result])(any[(TypeSensor,TypeMesure,List[Sensor])=>Result]) answers { (params, _) => params match {
-        case Array(_,_,_,_, p: ((TypeSensor,TypeMesure,List[Sensor])=>Result))=>future{p.apply(TypeSensor(bson,"type1","modele1",bson2,"fab1",1,List[String]("esp1","esp2")),TypeMesure(bson2, "mesure1", "unite1"),List[Sensor]())}
+      f.sensorsManagerMock.getInventarySensor(any[JsObject],any[JsObject],any[BSONObjectID],any[Result])(any[(TypeSensor,TypeMesure,List[Sensor],List[(BSONObjectID,Int)])=>Result]) answers { (params, _) => params match {
+        case Array(_,_,_,_, p: ((TypeSensor,TypeMesure,List[Sensor],List[(BSONObjectID,Int)])=>Result))=>future{p.apply(TypeSensor(bson,"type1","modele1",bson2,"fab1",1,List[String]("esp1","esp2")),TypeMesure(bson2, "mesure1", "unite1"),List[Sensor](),List((bson,0)))}
       }}
 
       val r = f.controller.formSensors(bson.stringify).apply(FakeRequest(GET, "/inventary/modules/form/sensors/"+bson.stringify).withSession("user" -> """{"login":"test"}""","module"->Module.toStrings(module)))
@@ -725,10 +725,10 @@ class ModuleManagerSpec extends Specification with Mockito {
       content must matchRegex("<span class=\"bold\">\\s*Fabricant\\s*</span>\\s*:\\s*fab1")
       content must matchRegex("<span class=\"bold\">\\s*Nombre de signaux\\s*</span>\\s*:\\s*1\\s*\\(\\s*mesure1\\s*\\)")
       content must matchRegex("<span class=\"bold\">\\s*Espèces\\s*</span>\\s*:\\s*esp1, esp2")
-      content must matchRegex("<span class=\"bold\">\\s*Stock\\s*</span>\\s*:\\s*0")
+      content must matchRegex("<span class=\"bold\">\\s*Stock\\s*</span>\\s*:\\s*0 / 0")
 
       there was one(f.moduleDaoMock).fold(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->Json.obj("$ne"->bson))),any[JsObject],org.mockito.Matchers.eq(module.capteurs))(any[(List[BSONObjectID],Module)=>List[BSONObjectID]])(any[ExecutionContext])
-      there was one(f.sensorsManagerMock).getInventarySensor(any[JsObject],any[JsObject],any[BSONObjectID],any[Result])(any[(TypeSensor,TypeMesure,List[Sensor])=>Result])
+      there was one(f.sensorsManagerMock).getInventarySensor(any[JsObject],any[JsObject],any[BSONObjectID],any[Result])(any[(TypeSensor,TypeMesure,List[Sensor],List[(BSONObjectID,Int)])=>Result])
     }
 
     "send 200 on OK with 1 result" in new WithApplication {
@@ -740,8 +740,8 @@ class ModuleManagerSpec extends Specification with Mockito {
       val listSensors=JsArray(Seq(BSONObjectIDFormat.writes(bson4)))
 
       f.moduleDaoMock.fold(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->Json.obj("$ne"->bson))),any[JsObject],org.mockito.Matchers.eq(module.capteurs))(any[(List[BSONObjectID],Module)=>List[BSONObjectID]])(any[ExecutionContext]) returns future{List[BSONObjectID](bson4)}
-      f.sensorsManagerMock.getInventarySensor(any[JsObject],any[JsObject],any[BSONObjectID],any[Result])(any[(TypeSensor,TypeMesure,List[Sensor])=>Result]) answers { (params, _) => params match {
-        case Array(_,_,_,_, p: ((TypeSensor,TypeMesure,List[Sensor])=>Result))=>future{p.apply(typeSensor,typeMesure,sensors)}
+      f.sensorsManagerMock.getInventarySensor(any[JsObject],any[JsObject],any[BSONObjectID],any[Result])(any[(TypeSensor,TypeMesure,List[Sensor],List[(BSONObjectID,Int)])=>Result]) answers { (params, _) => params match {
+        case Array(_,_,_,_, p: ((TypeSensor,TypeMesure,List[Sensor],List[(BSONObjectID,Int)])=>Result))=>future{p.apply(typeSensor,typeMesure,sensors,List((bson,0)))}
       }}
 
       val r = f.controller.formSensors(bson.stringify).apply(FakeRequest(GET, "/inventary/modules/form/sensors/"+bson.stringify).withSession("user" -> """{"login":"test"}""","module"->Module.toStrings(module)))
@@ -755,7 +755,7 @@ class ModuleManagerSpec extends Specification with Mockito {
       content must contain("<td></td>")
 
       there was one(f.moduleDaoMock).fold(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->Json.obj("$ne"->bson))),any[JsObject],org.mockito.Matchers.eq(module.capteurs))(any[(List[BSONObjectID],Module)=>List[BSONObjectID]])(any[ExecutionContext])
-      there was one(f.sensorsManagerMock).getInventarySensor(any[JsObject],any[JsObject],any[BSONObjectID],any[Result])(any[(TypeSensor,TypeMesure,List[Sensor])=>Result])
+      there was one(f.sensorsManagerMock).getInventarySensor(any[JsObject],any[JsObject],any[BSONObjectID],any[Result])(any[(TypeSensor,TypeMesure,List[Sensor],List[(BSONObjectID,Int)])=>Result])
     }
 
     "send 200 on OK with 2 results" in new WithApplication {
@@ -767,8 +767,8 @@ class ModuleManagerSpec extends Specification with Mockito {
       val listSensors=JsArray(Seq(BSONObjectIDFormat.writes(bson4)))
 
       f.moduleDaoMock.fold(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->Json.obj("$ne"->bson))),any[JsObject],org.mockito.Matchers.eq(module.capteurs))(any[(List[BSONObjectID],Module)=>List[BSONObjectID]])(any[ExecutionContext]) returns future{List[BSONObjectID](bson4)}
-      f.sensorsManagerMock.getInventarySensor(any[JsObject],any[JsObject],any[BSONObjectID],any[Result])(any[(TypeSensor,TypeMesure,List[Sensor])=>Result]) answers { (params, _) => params match {
-        case Array(_,_,_,_, p: ((TypeSensor,TypeMesure,List[Sensor])=>Result))=>future{p.apply(typeSensor,typeMesure,sensors)}
+      f.sensorsManagerMock.getInventarySensor(any[JsObject],any[JsObject],any[BSONObjectID],any[Result])(any[(TypeSensor,TypeMesure,List[Sensor],List[(BSONObjectID,Int)])=>Result]) answers { (params, _) => params match {
+        case Array(_,_,_,_, p: ((TypeSensor,TypeMesure,List[Sensor],List[(BSONObjectID,Int)])=>Result))=>future{p.apply(typeSensor,typeMesure,sensors,List((bson,1)))}
       }}
 
       val r = f.controller.formSensors(bson.stringify).apply(FakeRequest(GET, "/inventary/modules/form/sensors/"+bson.stringify).withSession("user" -> """{"login":"test"}""","module"->Module.toStrings(module)))
@@ -784,7 +784,7 @@ class ModuleManagerSpec extends Specification with Mockito {
       content must contain("<td>Hors service</td>")
 
       there was one(f.moduleDaoMock).fold(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->Json.obj("$ne"->bson))),any[JsObject],org.mockito.Matchers.eq(module.capteurs))(any[(List[BSONObjectID],Module)=>List[BSONObjectID]])(any[ExecutionContext])
-      there was one(f.sensorsManagerMock).getInventarySensor(any[JsObject],any[JsObject],any[BSONObjectID],any[Result])(any[(TypeSensor,TypeMesure,List[Sensor])=>Result])
+      there was one(f.sensorsManagerMock).getInventarySensor(any[JsObject],any[JsObject],any[BSONObjectID],any[Result])(any[(TypeSensor,TypeMesure,List[Sensor],List[(BSONObjectID,Int)])=>Result])
     }
 
     "send bad request with list of sensors if form submit without data" in new WithApplication{
@@ -809,8 +809,8 @@ class ModuleManagerSpec extends Specification with Mockito {
         case Array(p: (Form[SelectInfo]=>Future[Result]),_)=>p.apply(f.controller.selectElement)
       }}
 
-      f.sensorsManagerMock.getInventarySensor(any[JsObject],any[JsObject],any[BSONObjectID],any[Result])(any[(TypeSensor,TypeMesure,List[Sensor])=>Result]) answers { (params, _) => params match {
-        case Array(_,_,_,_, p: ((TypeSensor,TypeMesure,List[Sensor])=>Result))=>future{p.apply(typeSensor,typeMesure,sensors)}
+      f.sensorsManagerMock.getInventarySensor(any[JsObject],any[JsObject],any[BSONObjectID],any[Result])(any[(TypeSensor,TypeMesure,List[Sensor],List[(BSONObjectID,Int)])=>Result]) answers { (params, _) => params match {
+        case Array(_,_,_,_, p: ((TypeSensor,TypeMesure,List[Sensor],List[(BSONObjectID,Int)])=>Result))=>future{p.apply(typeSensor,typeMesure,sensors,List((bson,0)))}
       }}
 
       val r=controller.addSensors(bson.stringify).apply(req)
@@ -820,7 +820,7 @@ class ModuleManagerSpec extends Specification with Mockito {
       there was one(f.typeSensorManagerMock).doIfTypeSensorFound(org.mockito.Matchers.eq(bson))(any[Unit => Future[Result]])(any[Unit => Future[Result]])
       there was one(controller.selectElement).bindFromRequest()(org.mockito.Matchers.eq(req))
       there was one(controller.selectElement).fold(any[Form[SelectInfo]=>Future[Result]],any[SelectInfo=>Result])
-      there was one(f.sensorsManagerMock).getInventarySensor(any[JsObject],any[JsObject],any[BSONObjectID],any[Result])(any[(TypeSensor,TypeMesure,List[Sensor])=>Result])
+      there was one(f.sensorsManagerMock).getInventarySensor(any[JsObject],any[JsObject],any[BSONObjectID],any[Result])(any[(TypeSensor,TypeMesure,List[Sensor],List[(BSONObjectID,Int)])=>Result])
     }
 
     "send redirect if sensors type not found" in new WithApplication{

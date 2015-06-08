@@ -105,6 +105,7 @@ class TypeCardsManagerSpec extends Specification with Mockito {
       f.typeCardsDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns future{List[TypeCards]()}
       f.typeCardsDaoMock.findListType(any[BSONDocument]) returns future{Stream[BSONDocument]()}
       f.cardDaoMock.countCards() returns future{Stream[BSONDocument]()}
+      f.cardDaoMock.countUsedCards(org.mockito.Matchers.eq(List())) returns future{List()}
 
       val r = f.controller.inventary().apply(FakeRequest(GET, "/inventary/cards").withSession("user" -> """{"login":"test"}"""))
       status(r) must equalTo(OK)
@@ -116,14 +117,17 @@ class TypeCardsManagerSpec extends Specification with Mockito {
       there was one(f.typeCardsDaoMock).findAll(any[JsObject], any[JsObject])(any[ExecutionContext])
       there was one(f.typeCardsDaoMock).findListType(any[BSONDocument])
       there was one(f.cardDaoMock).countCards()
+      there was one(f.cardDaoMock).countUsedCards(org.mockito.Matchers.eq(List()))
     }
 
     "send 200 on OK with 1 result" in new WithApplication {
       val f=fixture
+      val typeCards=List[TypeCards](TypeCards(bson,"mod","type"))
 
-      f.typeCardsDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns future{List[TypeCards](TypeCards(bson,"mod","type"))}
+      f.typeCardsDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns future{typeCards}
       f.typeCardsDaoMock.findListType(any[BSONDocument]) returns future{Stream[BSONDocument]()}
       f.cardDaoMock.countCards() returns future{Stream[BSONDocument](BSONDocument("_id"->bson,"count"->5))}
+      f.cardDaoMock.countUsedCards(org.mockito.Matchers.eq(typeCards)) returns future{List((bson,3))}
 
       val r = f.controller.inventary().apply(FakeRequest(GET, "/inventary/cards").withSession("user" -> """{"login":"test"}"""))
       status(r) must equalTo(OK)
@@ -133,22 +137,25 @@ class TypeCardsManagerSpec extends Specification with Mockito {
       content must not contain("<h3 style=\"text-align:center\">Aucun résultat trouvé</h3>")
       content must contain("type")
       content must contain("mod")
-      content must matchRegex("<span class=\"bold\">\\s*Stock\\s*</span>\\s*:\\s*5")
+      content must matchRegex("<span class=\"bold\">\\s*Stock\\s*</span>\\s*:\\s*2 / 5")
 
       there was one(f.typeCardsDaoMock).findAll(any[JsObject], any[JsObject])(any[ExecutionContext])
       there was one(f.typeCardsDaoMock).findListType(any[BSONDocument])
       there was one(f.cardDaoMock).countCards()
+      there was one(f.cardDaoMock).countUsedCards(org.mockito.Matchers.eq(typeCards))
     }
 
     "send 200 on OK with 2 results" in new WithApplication {
       val f=fixture
-
-      f.typeCardsDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns future{List[TypeCards](
+      val typeCards=List[TypeCards](
         TypeCards(bson,"mod","type"),
         TypeCards(bson2,"mod2","type2")
-      )}
+      )
+
+      f.typeCardsDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns future{typeCards}
       f.typeCardsDaoMock.findListType(any[BSONDocument]) returns future{Stream[BSONDocument]()}
       f.cardDaoMock.countCards() returns future{Stream[BSONDocument](BSONDocument("_id"->bson,"count"->5))}
+      f.cardDaoMock.countUsedCards(org.mockito.Matchers.eq(typeCards)) returns future{List((bson,3),(bson2,0))}
 
       val r = f.controller.inventary().apply(FakeRequest(GET, "/inventary/cards").withSession("user" -> """{"login":"test"}"""))
 
@@ -159,15 +166,16 @@ class TypeCardsManagerSpec extends Specification with Mockito {
       content must not contain("<h3 style=\"text-align:center\">Aucun résultat trouvé</h3>")
       content must contain("type")
       content must contain("mod")
-      content must matchRegex("<span class=\"bold\">\\s*Stock\\s*</span>\\s*:\\s*5")
+      content must matchRegex("<span class=\"bold\">\\s*Stock\\s*</span>\\s*:\\s*2 / 5")
 
       content must contain("type2")
       content must contain("mod2")
-      content must matchRegex("<span class=\"bold\">\\s*Stock\\s*</span>\\s*:\\s*0")
+      content must matchRegex("<span class=\"bold\">\\s*Stock\\s*</span>\\s*:\\s*0 / 0")
 
       there was one(f.typeCardsDaoMock).findAll(any[JsObject], any[JsObject])(any[ExecutionContext])
       there was one(f.typeCardsDaoMock).findListType(any[BSONDocument])
       there was one(f.cardDaoMock).countCards()
+      there was one(f.cardDaoMock).countUsedCards(org.mockito.Matchers.eq(typeCards))
     }
   }
 
@@ -175,12 +183,13 @@ class TypeCardsManagerSpec extends Specification with Mockito {
 
     "Call function for print result" in new WithApplication {
       val f=fixture
-      val func=mock[(List[TypeCards],List[BSONDocument],List[BSONDocument])=>Result]
+      val func=mock[(List[TypeCards],List[BSONDocument],List[BSONDocument],List[(BSONObjectID,Int)])=>Result]
 
       f.typeCardsDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns future{List[TypeCards]()}
       f.typeCardsDaoMock.findListType(any[BSONDocument]) returns future{Stream[BSONDocument]()}
       f.cardDaoMock.countCards() returns future{Stream[BSONDocument]()}
-      func.apply(any[List[TypeCards]],any[List[BSONDocument]],any[List[BSONDocument]]) returns Results.Ok("call function")
+      f.cardDaoMock.countUsedCards(org.mockito.Matchers.eq(List())) returns future{List()}
+      func.apply(any[List[TypeCards]],any[List[BSONDocument]],any[List[BSONDocument]],any[List[(BSONObjectID,Int)]]) returns Results.Ok("call function")
 
       val req=FakeRequest(GET, "/inventary/cards").withSession("user" -> """{"login":"test"}""")
       val action = Action.async{f.controller.getInventaryTypeCards(Json.obj(),"")(func)}
@@ -191,14 +200,14 @@ class TypeCardsManagerSpec extends Specification with Mockito {
       there was one(f.typeCardsDaoMock).findAll(any[JsObject], any[JsObject])(any[ExecutionContext])
       there was one(f.typeCardsDaoMock).findListType(any[BSONDocument])
       there was one(f.cardDaoMock).countCards()
-      there was one(func).apply(any[List[TypeCards]],any[List[BSONDocument]],any[List[BSONDocument]])
+      there was one(func).apply(any[List[TypeCards]],any[List[BSONDocument]],any[List[BSONDocument]],any[List[(BSONObjectID,Int)]])
     }
 
     "send 500 internal error if mongoDB error when find all card type" in new WithApplication{
       val f=fixture
       val futureMock=mock[Future[List[TypeCards]]]
       val throwable=mock[Throwable]
-      val func=mock[(List[TypeCards],List[BSONDocument],List[BSONDocument])=>Result]
+      val func=mock[(List[TypeCards],List[BSONDocument],List[BSONDocument],List[(BSONObjectID,Int)])=>Result]
 
       f.typeCardsDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns futureMock
       futureMock.flatMap(any[List[TypeCards]=>Future[List[TypeCards]]])(any[ExecutionContext]) returns futureMock
@@ -215,14 +224,14 @@ class TypeCardsManagerSpec extends Specification with Mockito {
       there was one(futureMock).flatMap(any[List[TypeCards]=>Future[List[TypeCards]]])(any[ExecutionContext])
       there was one(futureMock).recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext])
       there was one(f.typeCardsDaoMock).findListType(any[BSONDocument])
-      there was no(func).apply(any[List[TypeCards]],any[List[BSONDocument]],any[List[BSONDocument]])
+      there was no(func).apply(any[List[TypeCards]],any[List[BSONDocument]],any[List[BSONDocument]],any[List[(BSONObjectID,Int)]])
     }
 
     "send 500 internal error if mongoDB error when find all card type name" in new WithApplication{
       val f=fixture
       val futureMock=mock[Future[Stream[BSONDocument]]]
       val throwable=mock[Throwable]
-      val func=mock[(List[TypeCards],List[BSONDocument],List[BSONDocument])=>Result]
+      val func=mock[(List[TypeCards],List[BSONDocument],List[BSONDocument],List[(BSONObjectID,Int)])=>Result]
 
       f.typeCardsDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns future{List[TypeCards]()}
       f.typeCardsDaoMock.findListType(any[BSONDocument]) returns futureMock
@@ -239,19 +248,19 @@ class TypeCardsManagerSpec extends Specification with Mockito {
       there was one(futureMock).flatMap(any[Stream[BSONDocument]=>Future[Stream[BSONDocument]]])(any[ExecutionContext])
       there was one(futureMock).recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext])
       there was one(f.typeCardsDaoMock).findListType(any[BSONDocument])
-      there was no(func).apply(any[List[TypeCards]],any[List[BSONDocument]],any[List[BSONDocument]])
+      there was no(func).apply(any[List[TypeCards]],any[List[BSONDocument]],any[List[BSONDocument]],any[List[(BSONObjectID,Int)]])
     }
 
     "send 500 internal error if mongoDB error when find number of cards" in new WithApplication {
       val f=fixture
-      val func=mock[(List[TypeCards],List[BSONDocument],List[BSONDocument])=>Result]
+      val func=mock[(List[TypeCards],List[BSONDocument],List[BSONDocument],List[(BSONObjectID,Int)])=>Result]
       val futureMock=mock[Future[Stream[BSONDocument]]]
       val throwable=mock[Throwable]
 
       f.typeCardsDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns future{List[TypeCards]()}
       f.typeCardsDaoMock.findListType(any[BSONDocument]) returns future{Stream[BSONDocument]()}
       f.cardDaoMock.countCards() returns futureMock
-      futureMock.map(any[Stream[BSONDocument]=>Stream[BSONDocument]])(any[ExecutionContext]) returns futureMock
+      futureMock.flatMap(any[Stream[BSONDocument]=>Future[Stream[BSONDocument]]])(any[ExecutionContext]) returns futureMock
       futureMock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers {value=>future{value.asInstanceOf[PartialFunction[Throwable,Result]](throwable)}}
 
       val req=FakeRequest(GET, "/inventary/cards").withSession("user" -> """{"login":"test"}""")
@@ -262,9 +271,9 @@ class TypeCardsManagerSpec extends Specification with Mockito {
       there was one(f.typeCardsDaoMock).findAll(any[JsObject], any[JsObject])(any[ExecutionContext])
       there was one(f.typeCardsDaoMock).findListType(any[BSONDocument])
       there was one(f.cardDaoMock).countCards()
-      there was one(futureMock).map(any[Stream[BSONDocument]=>Stream[BSONDocument]])(any[ExecutionContext])
+      there was one(futureMock).flatMap(any[Stream[BSONDocument]=>Future[Stream[BSONDocument]]])(any[ExecutionContext])
       there was one(futureMock).recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext])
-      there was no(func).apply(any[List[TypeCards]],any[List[BSONDocument]],any[List[BSONDocument]])
+      there was no(func).apply(any[List[TypeCards]],any[List[BSONDocument]],any[List[BSONDocument]],any[List[(BSONObjectID,Int)]])
     }
   }
 

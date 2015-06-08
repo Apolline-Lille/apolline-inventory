@@ -1,4 +1,4 @@
-@(form:Form[SelectInfo],types:TypeSensor,mesure:TypeMesure,listSensor:List[Sensor],trie:String,sens:Int)(implicit request: Request[AnyContent])
+@(form:Form[SelectInfo],types:TypeSensor,mesure:TypeMesure,listSensor:List[Sensor],stockUsed:List[(reactivemongo.bson.BSONObjectID,Int)],trie:String,sens:Int)(implicit request: Request[AnyContent])
 
 @main(Messages("inventary.module.title")){
   @navigation("inventary")
@@ -15,7 +15,7 @@
             <div class="row"> <span class="bold">@Messages("inventary.typeSensor.fabricant")</span> : @{types.fabricant} </div>
             <div class="row"> <span class="bold">@Messages("inventary.typeSensor.nbSignaux")</span> : @{types.nbSignaux} (@{mesure.nom}) </div>
             <div class="row"> <span class="bold">@Messages("inventary.typeSensor.espece")</span> : @{types.espece.mkString(", ")} </div>
-            <div class="row"> <span class="bold">@Messages("inventary.typeSensor.stock")</span> : @{listSensor.size} </div>
+            <div class="row"> <span class="bold">@Messages("inventary.typeSensor.stock")</span> : @{listSensor.size} / @{listSensor.size + stockUsed.head._2} </div>
           </div>
         </div>
         @if(listSensor.size>0){

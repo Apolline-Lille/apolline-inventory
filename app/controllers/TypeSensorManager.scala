@@ -3,12 +3,14 @@ package controllers
 import com.wordnik.swagger.annotations._
 import models._
 import play.api.i18n.Messages
-import play.api.libs.json.{JsObject, Json}
+import play.api.libs.json.{JsArray, JsObject, Json}
 import play.api.mvc._
 import play.api.data._
 import play.api.data.Forms._
 import play.modules.reactivemongo.json.BSONFormats
+import play.modules.reactivemongo.json.BSONFormats.BSONObjectIDFormat
 import reactivemongo.bson.{BSONObjectID, BSONDocument}
+import reactivemongo.core.commands._
 
 import scala.concurrent._
 import scala.concurrent.duration.Duration
@@ -73,6 +75,8 @@ trait TypeSensorManagerLike extends Controller{
    */
   val sensorDao:SensorDao=SensorDaoObj
 
+  val moduleDao:ModuleDao=ModuleDaoObj
+
   /****************** Route methods ***********/
 
   /**
@@ -98,9 +102,9 @@ trait TypeSensorManagerLike extends Controller{
       //Verify if user is connect
       UserManager.doIfconnectAsync(request) {
         getInventaryTypeSensor(Json.obj("delete"->false),sort){
-          (typeSensor,typeMesure,stock,nomType)=>
-          //Display the HTML page
-          Ok(views.html.sensors.listTypeSensor(filtreSto,sort,filtreStock(filtreSto),typeSensor,typeMesure,stock,nomType))
+          (typeSensor,typeMesure,stock,stockUsed,nomType)=>
+              //Display the HTML page
+              Ok(views.html.sensors.listTypeSensor(filtreSto, sort, filtreStock(filtreSto), typeSensor, typeMesure, stock, stockUsed, nomType))
         }
       }
   }
@@ -289,7 +293,7 @@ trait TypeSensorManagerLike extends Controller{
 
       //Verify if the user is connect and if data received are valid
       submitForm(msg,routes.TypeSensorManager.typeUpdate(id)){
-        typeData => Json.obj("_id"->Json.obj("$ne"->BSONFormats.BSONObjectIDFormat.writes(BSONObjectID(id))),"modele" -> typeData.model, "fabricant" -> typeData.fabricant)
+        typeData => Json.obj("_id"->Json.obj("$ne"->BSONObjectID(id)),"modele" -> typeData.model, "fabricant" -> typeData.fabricant)
       }{(typeData,especes,mesure)=>{
         if(typeData.send.isEmpty || typeData.send.equals(Some("Ignorer"))) {
           //Update sensor type
@@ -339,7 +343,7 @@ trait TypeSensorManagerLike extends Controller{
       //Verify if user is connect
       UserManager.doIfconnectAsync(request) {
 
-        val idFormat=BSONFormats.BSONObjectIDFormat.writes(BSONObjectID(id))
+        val idFormat=BSONObjectID(id)
         //find the sensor
         sensorDao.findOne(Json.obj("delete"->false,"types"->idFormat)).flatMap(
           data => data match{
@@ -366,7 +370,7 @@ trait TypeSensorManagerLike extends Controller{
    * @param f Function for print the list of type sensors
    * @return
    */
-  def getInventaryTypeSensor(selector:JsObject,filtreType:String)(f:(List[TypeSensor],List[TypeMesure],List[BSONDocument],List[BSONDocument])=>Result)={
+  def getInventaryTypeSensor(selector:JsObject,filtreType:String)(f:(List[TypeSensor],List[TypeMesure],List[BSONDocument],List[(BSONObjectID,Int)],List[BSONDocument])=>Result)={
     val selectorAll=if(filtreType.isEmpty){selector}else{selector ++ Json.obj("nomType"->filtreType)}
 
     //Find sensors quantity for all type
@@ -380,11 +384,12 @@ trait TypeSensorManagerLike extends Controller{
     typeSensorDao.findAll(selectorAll).flatMap(typeSensor=>
       future_mesure.flatMap(typeMesure=>
         future_stock.flatMap(stock=>
-          future_nomType.map(nomType=>
-
-            //Print the list of sensors type
-            f(typeSensor,typeMesure,stock.toList,nomType.toList)
-
+          future_nomType.flatMap(nomType=>
+            sensorDao.countUsedSensors(typeSensor).map(
+              stockUsed=>
+                //Print the list of sensors type
+                f(typeSensor,typeMesure,stock.toList,stockUsed,nomType.toList)
+            ).recover({case e=>InternalServerError("error")})
           ).recover({case e=>InternalServerError("error")})
         ).recover({case e=>InternalServerError("error")})
       ).recover({case e=>InternalServerError("error")})
@@ -442,7 +447,7 @@ trait TypeSensorManagerLike extends Controller{
    */
   def doIfTypeSensorFound(id:BSONObjectID)(found:Unit=>Future[Result])(notFound:Unit=>Future[Result]):Future[Result]={
     //Find the sensor type
-    typeSensorDao.findOne(Json.obj("_id"->BSONFormats.BSONObjectIDFormat.writes(id),"delete"->false)).flatMap(
+    typeSensorDao.findOne(Json.obj("_id"->id,"delete"->false)).flatMap(
       typeSensorOpt => typeSensorOpt match{
 
           //If the sensor type not found execute function not found

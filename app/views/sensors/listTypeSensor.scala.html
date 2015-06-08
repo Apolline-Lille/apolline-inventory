@@ -1,4 +1,4 @@
-@(filtreSto:String,sort:String,funcFiltre:Int=>Boolean,listType:List[TypeSensor],listMesure:List[TypeMesure],stock:List[reactivemongo.bson.BSONDocument],filtre:List[reactivemongo.bson.BSONDocument])(implicit request: Request[AnyContent])
+@(filtreSto:String,sort:String,funcFiltre:Int=>Boolean,listType:List[TypeSensor],listMesure:List[TypeMesure],stock:List[reactivemongo.bson.BSONDocument],stockUsed:List[(reactivemongo.bson.BSONObjectID,Int)],filtre:List[reactivemongo.bson.BSONDocument])(implicit request: Request[AnyContent])
 @import reactivemongo.bson.BSONObjectID
 
 @main(Messages("inventary.typeSensor.title")){
@@ -19,37 +19,39 @@
                 }else{
                   0
                 }) { sto =>
-                  @if(funcFiltre(sto)) {
-                    <div class="col-sm-12">
-                      <h4><a href="@routes.TypeSensorManager.inventary(types.nomType)">@{
-                        types.nomType
-                      }</a> / <a href="@routes.SensorManager.inventary(types._id.stringify)">@{
-                        types.modele
-                      }</a>
-                        <span>
-                          <a href="@routes.TypeSensorManager.typeUpdatePage(types._id.stringify)" data-toggle-tooltip title="@Messages("global.tooltip.update")"><span class="glyphicon glyphicon-pencil"></span></a>
-                          @if(sto == 0) {
-                            <a data-toggle="modal" data-toggle-tooltip href="#modal-delete" title="@Messages("global.tooltip.delete")" data-title="@types.nomType / @types.modele" data-link="@routes.TypeSensorManager.delete(types._id.stringify)">
-                              <span class="glyphicon glyphicon-trash"></span>
-                            </a>
-                          }
-                        </span>
-                      </h4>
-                    </div>
-                    <div class="col-sm-11 col-sm-offset-1">
-                      <div class="row"> <span class="bold">@Messages("inventary.typeSensor.fabricant")</span> : @{
-                        types.fabricant
-                      } </div>
-                      <div class="row"> <span class="bold">@Messages("inventary.typeSensor.nbSignaux")</span> : @{
-                        types.nbSignaux
-                      } (@{
-                        listMesure.filter(m => m._id == types.mesure).head.nom
-                      }) </div>
-                      <div class="row"> <span class="bold">@Messages("inventary.typeSensor.espece")</span> : @{
-                        types.espece.mkString(", ")
-                      } </div>
-                      <div class="row"> <span class="bold">@Messages("inventary.typeSensor.stock")</span> : @sto</div>
-                    </div>
+                    @defining(sto - stockUsed.filter(p=>p._1.equals(types._id)).head._2){stoUnused=>
+                      @if(funcFiltre(stoUnused)) {
+                        <div class="col-sm-12">
+                          <h4><a href="@routes.TypeSensorManager.inventary(types.nomType)">@{
+                            types.nomType
+                          }</a> / <a href="@routes.SensorManager.inventary(types._id.stringify)">@{
+                            types.modele
+                          }</a>
+                            <span>
+                              <a href="@routes.TypeSensorManager.typeUpdatePage(types._id.stringify)" data-toggle-tooltip title="@Messages("global.tooltip.update")"><span class="glyphicon glyphicon-pencil"></span></a>
+                              @if(sto == 0) {
+                                <a data-toggle="modal" data-toggle-tooltip href="#modal-delete" title="@Messages("global.tooltip.delete")" data-title="@types.nomType / @types.modele" data-link="@routes.TypeSensorManager.delete(types._id.stringify)">
+                                  <span class="glyphicon glyphicon-trash"></span>
+                                </a>
+                              }
+                            </span>
+                          </h4>
+                        </div>
+                        <div class="col-sm-11 col-sm-offset-1">
+                          <div class="row"> <span class="bold">@Messages("inventary.typeSensor.fabricant")</span> : @{
+                            types.fabricant
+                          } </div>
+                          <div class="row"> <span class="bold">@Messages("inventary.typeSensor.nbSignaux")</span> : @{
+                            types.nbSignaux
+                          } (@{
+                            listMesure.filter(m => m._id == types.mesure).head.nom
+                          }) </div>
+                          <div class="row"> <span class="bold">@Messages("inventary.typeSensor.espece")</span> : @{
+                            types.espece.mkString(", ")
+                          } </div>
+                          <div class="row"> <span class="bold">@Messages("inventary.typeSensor.stock")</span> : @stoUnused / @sto</div>
+                        </div>
+                    }
                   }
                 }
               }

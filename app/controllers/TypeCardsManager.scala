@@ -75,9 +75,9 @@ trait TypeCardsManagerLike extends Controller {
       UserManager.doIfconnectAsync(request) {
         //Create selector for select card type
         getInventaryTypeCards(Json.obj("delete"->false),sort){
-          (listType,filtre,countCards)=>
+          (listType,filtre,countCards,cardsUsed)=>
             //Print the list of card type
-            Ok(views.html.cards.listTypeCards(filtreSto,sort,filtreStock(filtreSto),listType,countCards,filtre))
+            Ok(views.html.cards.listTypeCards(filtreSto,sort,filtreStock(filtreSto),listType,countCards,cardsUsed,filtre))
         }
       }
   }
@@ -299,7 +299,7 @@ trait TypeCardsManagerLike extends Controller {
    * @param f Function for print the list of type cards
    * @return
    */
-  def getInventaryTypeCards(selector: JsObject,filtreType:String)(f:(List[TypeCards],List[BSONDocument],List[BSONDocument])=>Result)={
+  def getInventaryTypeCards(selector: JsObject,filtreType:String)(f:(List[TypeCards],List[BSONDocument],List[BSONDocument],List[(BSONObjectID,Int)])=>Result)={
     val selectorAll=if(filtreType.isEmpty){selector}else{selector ++ Json.obj("types"->filtreType)}
 
     //Find all type cards name
@@ -310,11 +310,12 @@ trait TypeCardsManagerLike extends Controller {
     //Find all card type
     typeCardsDao.findAll(selectorAll).flatMap(listType=>
       futureListType.flatMap(filtre=>
-        futureCountCards.map(countCards=>
-
-          //Print the list of type cards
-          f(listType,filtre.toList,countCards.toList)
-
+        futureCountCards.flatMap(countCards=>
+          cardDao.countUsedCards(listType).map(
+            cardsUsed=>
+              //Print the list of type cards
+              f(listType,filtre.toList,countCards.toList,cardsUsed)
+          )
         ).recover({case _=>InternalServerError("error")})
       ).recover({case _=>InternalServerError("error")})
     ).recover({case _=>InternalServerError("error")})

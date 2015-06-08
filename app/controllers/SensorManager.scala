@@ -109,7 +109,7 @@ trait SensorManagerLike extends Controller{
       //Verify if user is connect
       UserManager.doIfconnectAsync(request) {
         getInventarySensor(Json.obj("delete"->false,"types"->BSONObjectID(id)),Json.obj(sort->sens),BSONObjectID(id),Redirect(routes.TypeSensorManager.inventary())){
-          (typeSensor,typeMesure,listSensor)=>Ok(views.html.sensors.listSensor(typeSensor,typeMesure,listSensor,sort,sens))
+          (typeSensor,typeMesure,listSensor,sensorUsed)=>Ok(views.html.sensors.listSensor(typeSensor,typeMesure,listSensor,sensorUsed,sort,sens))
         }
       }
   }
@@ -376,7 +376,7 @@ trait SensorManagerLike extends Controller{
    * @param f Function for print the list of cards
    * @return
    */
-  def getInventarySensor(selector:JsObject,sort:JsObject,id:BSONObjectID,r:Result)(f:(TypeSensor,TypeMesure,List[Sensor])=>Result)={
+  def getInventarySensor(selector:JsObject,sort:JsObject,id:BSONObjectID,r:Result)(f:(TypeSensor,TypeMesure,List[Sensor],List[(BSONObjectID,Int)])=>Result)={
     //Find sensors
     val future_sensors=sensorDao.findAll(selector,sort)
 
@@ -398,9 +398,12 @@ trait SensorManagerLike extends Controller{
 
               //If signal found, apply function for get list of sensors
               case Some(typeMesure) =>
-                future_sensors.map(listSensor=>
-                  //Print the list of sensors
-                  f(typeSensor,typeMesure,listSensor)
+                future_sensors.flatMap(listSensor=>
+                  sensorDao.countUsedSensors(List(typeSensor)).map(
+                    countSensorUsed=>
+                      //Print the list of sensors
+                      f(typeSensor,typeMesure,listSensor,countSensorUsed)
+                  )
                 ).recover({
                   //Send Internal Server Error if have mongoDB error
                   case e => InternalServerError("error")
