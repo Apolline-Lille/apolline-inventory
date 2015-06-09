@@ -16,7 +16,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
  * @param conditions List of campaign conditions
  * @param delete Flag to indicate if the campaign was delete
  */
-case class Campagne(_id:BSONObjectID=BSONObjectID.generate,nom:String,conditions:List[BSONObjectID],delete:Boolean=false)
+case class Campagne(_id:BSONObjectID=BSONObjectID.generate,nom:String,types:String,conditions:List[BSONObjectID],delete:Boolean=false)
 
 /**
  * Object used for campaign class

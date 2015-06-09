@@ -74,6 +74,28 @@ class CampaignManagerSpec extends Specification with Mockito {
           failure("Pas de retour de la fonction")
         )
     }
+
+    "redirect to login for resource /campaigns/campaign/:id/update" in new WithApplication {
+      route(FakeRequest(GET, "/campaigns/campaign/:id/update")).map(
+        r => {
+          status(r) must equalTo(SEE_OTHER)
+          header("Location", r) must equalTo(Some("/login"))
+        }
+      ).getOrElse(
+          failure("Pas de retour de la fonction")
+        )
+    }
+
+    "redirect to login for resource /campaigns/campaign/:id/update" in new WithApplication {
+      route(FakeRequest(POST, "/campaigns/campaign/:id/update")).map(
+        r => {
+          status(r) must equalTo(SEE_OTHER)
+          header("Location", r) must equalTo(Some("/login"))
+        }
+      ).getOrElse(
+          failure("Pas de retour de la fonction")
+        )
+    }
   }
 
   "When user is on resource /campaigns, CampagneManager" should{
@@ -93,7 +115,7 @@ class CampaignManagerSpec extends Specification with Mockito {
     "send 200 OK with 1 result" in new WithApplication{
       val f=fixture
       val campaign=List(
-        Campagne(bson,"camp1",List(),false)
+        Campagne(bson,"camp1","type",List(),false)
       )
 
       f.campaignDaoMock.findAll(org.mockito.Matchers.eq(Json.obj("delete"->false)),any[JsObject])(any[ExecutionContext]) returns future{campaign}
@@ -104,6 +126,7 @@ class CampaignManagerSpec extends Specification with Mockito {
       val content=contentAsString(r)
       content must not contain("<h3 style=\"text-align:center\">Aucun résultat trouvé</h3>")
       content must contain("camp1")
+      content must contain("<div class=\"row\"><span class=\"bold\">Type</span> : type</div>")
       content must contain("<div class=\"row\"><span class=\"bold\">Conditions</span> : 0</div>")
 
       there was one(f.campaignDaoMock).findAll(org.mockito.Matchers.eq(Json.obj("delete"->false)),any[JsObject])(any[ExecutionContext])
@@ -112,8 +135,8 @@ class CampaignManagerSpec extends Specification with Mockito {
     "send 200 OK with 2 result" in new WithApplication{
       val f=fixture
       val campaign=List(
-        Campagne(bson,"camp1",List(),false),
-        Campagne(bson2,"camp2",List(bson3,bson4),false)
+        Campagne(bson,"camp1","type1",List(),false),
+        Campagne(bson2,"camp2","type2",List(bson3,bson4),false)
       )
 
       f.campaignDaoMock.findAll(org.mockito.Matchers.eq(Json.obj("delete"->false)),any[JsObject])(any[ExecutionContext]) returns future{campaign}
@@ -124,8 +147,10 @@ class CampaignManagerSpec extends Specification with Mockito {
       val content=contentAsString(r)
       content must not contain("<h3 style=\"text-align:center\">Aucun résultat trouvé</h3>")
       content must contain("camp1")
+      content must contain("<div class=\"row\"><span class=\"bold\">Type</span> : type1</div>")
       content must contain("<div class=\"row\"><span class=\"bold\">Conditions</span> : 0</div>")
       content must contain("camp2")
+      content must contain("<div class=\"row\"><span class=\"bold\">Type</span> : type2</div>")
       content must contain("<div class=\"row\"><span class=\"bold\">Conditions</span> : 2</div>")
 
       there was one(f.campaignDaoMock).findAll(org.mockito.Matchers.eq(Json.obj("delete"->false)),any[JsObject])(any[ExecutionContext])
@@ -140,11 +165,12 @@ class CampaignManagerSpec extends Specification with Mockito {
 
       status(r) must equalTo(OK)
       contentAsString(r) must contain("<input type=\"text\" id=\"nom\" name=\"nom\" value=\"\" class=\"form-control\"/>")
+      contentAsString(r) must contain("<select id=\"types\" name=\"types\" class=\"form-control\">")
     }
 
     "send redirect after insert campaign" in new WithApplication{
       val f=fixture
-      val data=Json.parse("""{"nom":"campagne"}""")
+      val data=Json.parse("""{"nom":"campagne","types":"type"}""")
       val lastError=mock[LastError]
 
       f.campaignDaoMock.findAll(org.mockito.Matchers.eq(Json.obj("nom"->"campagne")),any[JsObject])(any[ExecutionContext]) returns future{List()}
@@ -161,9 +187,9 @@ class CampaignManagerSpec extends Specification with Mockito {
 
     "send redirect after reactivat campaign" in new WithApplication{
       val f=fixture
-      val data=Json.parse("""{"nom":"campagne","send":"Réactiver"}""")
+      val data=Json.parse("""{"nom":"campagne","types":"type","send":"Réactiver"}""")
       val lastError=mock[LastError]
-      val campaign=Campagne(bson,"campagne",List(),true)
+      val campaign=Campagne(bson,"campagne","type",List(),true)
 
       f.campaignDaoMock.findAll(org.mockito.Matchers.eq(Json.obj("nom"->"campagne")),any[JsObject])(any[ExecutionContext]) returns future{List(campaign)}
       f.campaignDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("nom"->"campagne")))(any[ExecutionContext]) returns future{Some(campaign)}
@@ -181,7 +207,7 @@ class CampaignManagerSpec extends Specification with Mockito {
 
     "send 500 internal error if mongoDB error when insert campaign" in new WithApplication{
       val f=fixture
-      val data=Json.parse("""{"nom":"campagne"}""")
+      val data=Json.parse("""{"nom":"campagne","types":"type"}""")
       val lastError=mock[Future[LastError]]
       val throwable=mock[Throwable]
 
@@ -204,7 +230,7 @@ class CampaignManagerSpec extends Specification with Mockito {
   "When user is on resource /campaigns/campaign/:id/update, CampagneManager" should{
     "send 200 OK with a prefilled form" in new WithApplication{
       val f=fixture
-      val camp=Campagne(bson,"campagne",List(),false)
+      val camp=Campagne(bson,"campagne","type",List(),false)
 
       f.campaignDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("_id"->bson,"delete"->false)))(any[ExecutionContext]) returns future{Some(camp)}
 
@@ -249,9 +275,9 @@ class CampaignManagerSpec extends Specification with Mockito {
 
     "send redirect after update campaign" in new WithApplication{
       val f=fixture
-      val data=Json.parse("""{"nom":"campagne"}""")
+      val data=Json.parse("""{"nom":"campagne","types":"type"}""")
       val lastError=mock[LastError]
-      val camp=Campagne(bson,"campagne",List(),false)
+      val camp=Campagne(bson,"campagne","type",List(),false)
 
       f.campaignDaoMock.findAll(org.mockito.Matchers.eq(Json.obj("nom"->"campagne","_id"->Json.obj("$ne"->bson))),any[JsObject])(any[ExecutionContext]) returns future{List()}
       f.campaignDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("_id"->bson,"delete"->false)))(any[ExecutionContext]) returns future{Some(camp)}
@@ -269,7 +295,7 @@ class CampaignManagerSpec extends Specification with Mockito {
 
     "send redirect if campaign not found before update campaign" in new WithApplication{
       val f=fixture
-      val data=Json.parse("""{"nom":"campagne"}""")
+      val data=Json.parse("""{"nom":"campagne","types":"type"}""")
       val lastError=mock[LastError]
 
       f.campaignDaoMock.findAll(org.mockito.Matchers.eq(Json.obj("nom"->"campagne","_id"->Json.obj("$ne"->bson))),any[JsObject])(any[ExecutionContext]) returns future{List()}
@@ -286,7 +312,7 @@ class CampaignManagerSpec extends Specification with Mockito {
 
     "send 500 internal error if mongoDB error when find campaign before update" in new WithApplication{
       val f=fixture
-      val data=Json.parse("""{"nom":"campagne"}""")
+      val data=Json.parse("""{"nom":"campagne","types":"type"}""")
       val campaignError=mock[Future[Option[Campagne]]]
       val throwable=mock[Throwable]
 
@@ -307,10 +333,10 @@ class CampaignManagerSpec extends Specification with Mockito {
 
     "send 500 internal error if mongoDB error when update campaign" in new WithApplication{
       val f=fixture
-      val data=Json.parse("""{"nom":"campagne"}""")
+      val data=Json.parse("""{"nom":"campagne","types":"type"}""")
       val lastError=mock[Future[LastError]]
       val throwable=mock[Throwable]
-      val camp=Campagne(bson,"campagne",List(),false)
+      val camp=Campagne(bson,"campagne","type",List(),false)
 
       f.campaignDaoMock.findAll(org.mockito.Matchers.eq(Json.obj("nom"->"campagne","_id"->Json.obj("$ne"->bson))),any[JsObject])(any[ExecutionContext]) returns future{List()}
       f.campaignDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("_id"->bson,"delete"->false)))(any[ExecutionContext]) returns future{Some(camp)}
@@ -347,7 +373,7 @@ class CampaignManagerSpec extends Specification with Mockito {
     "Execute function if campaign not exist and form is valid" in new WithApplication{
       val f=fixture
       val func=mock[CampaignForm=>Future[Result]]
-      val data=Json.parse("""{"nom":"campagne"}""")
+      val data=Json.parse("""{"nom":"campagne","types":"types"}""")
       val verif=mock[CampaignForm=>JsObject]
       val jsObj=Json.obj("nom" -> "campagne")
 
@@ -370,8 +396,8 @@ class CampaignManagerSpec extends Specification with Mockito {
     "Send error message if campaign exist and delete" in new WithApplication{
       val f=fixture
       val func=mock[CampaignForm=>Future[Result]]
-      val data=Json.parse("""{"nom":"campagne"}""")
-      val camp=Campagne(nom="campagne",conditions=List(),delete=true)
+      val data=Json.parse("""{"nom":"campagne","types":"types"}""")
+      val camp=Campagne(nom="campagne",types="types",conditions=List(),delete=true)
       val verif=mock[CampaignForm=>JsObject]
       val jsObj=Json.obj("nom" -> "campagne")
 
@@ -392,8 +418,8 @@ class CampaignManagerSpec extends Specification with Mockito {
     "Execute function if campaign exist and send value is \"Réactiver\" or \"Ignorer\"" in new WithApplication{
       val f=fixture
       val func=mock[CampaignForm=>Future[Result]]
-      val data=Json.parse("""{"nom":"campagne","send":"Ignorer"}""")
-      val camp=Campagne(nom="campagne",conditions=List(),delete=true)
+      val data=Json.parse("""{"nom":"campagne","types":"types","send":"Ignorer"}""")
+      val camp=Campagne(nom="campagne",types="types",conditions=List(),delete=true)
       val verif=mock[CampaignForm=>JsObject]
       val jsObj=Json.obj("nom" -> "campagne")
 
@@ -416,8 +442,8 @@ class CampaignManagerSpec extends Specification with Mockito {
     "send bad request if campaign exist and not delete" in new WithApplication{
       val f=fixture
       val func=mock[CampaignForm=>Future[Result]]
-      val data=Json.parse("""{"nom":"campagne"}""")
-      val camp=Campagne(nom="campagne",conditions=List())
+      val data=Json.parse("""{"nom":"campagne","types":"types"}""")
+      val camp=Campagne(nom="campagne",types="types",conditions=List())
       val verif=mock[CampaignForm=>JsObject]
       val jsObj=Json.obj("nom" -> "campagne")
 
@@ -456,7 +482,7 @@ class CampaignManagerSpec extends Specification with Mockito {
       val f = fixture
       val notFound=mock[Result]
       val found=mock[Result]
-      val camp=Campagne(bson,"campagne",List(),true)
+      val camp=Campagne(bson,"campagne","types",List(),true)
       val lastError=mock[LastError]
 
       f.campaignDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{Some(camp)}
@@ -495,7 +521,7 @@ class CampaignManagerSpec extends Specification with Mockito {
       val f = fixture
       val notFound=mock[Result]
       val found=mock[Result]
-      val camp=Campagne(bson,"campagne",List(),true)
+      val camp=Campagne(bson,"campagne","types",List(),true)
       val lastError=mock[Future[LastError]]
       val throwable=mock[Throwable]
 

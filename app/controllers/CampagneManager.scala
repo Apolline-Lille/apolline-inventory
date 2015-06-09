@@ -18,7 +18,7 @@ import play.api.libs.concurrent.Execution.Implicits.defaultContext
  * @param nom Name of the campaign
  * @param send Value of the button press
  */
-case class CampaignForm(nom:String,send:Option[String])
+case class CampaignForm(nom:String,types:String,send:Option[String])
 
 /**
  * This object is a controller for manage all campaign
@@ -35,6 +35,7 @@ trait CampagneManagerLike extends Controller{
   val form=Form[CampaignForm](
     mapping(
       "nom"->nonEmptyText,
+      "types"->nonEmptyText,
       "send"->optional(text)
     )(CampaignForm.apply)(CampaignForm.unapply)
   )
@@ -124,7 +125,7 @@ trait CampagneManagerLike extends Controller{
             //If campaign found
             case Some(campaign) => {
               //Prepare form data
-              val campForm=CampaignForm(campaign.nom,None)
+              val campForm=CampaignForm(campaign.nom,campaign.types,None)
               //Print the form
               Ok(views.html.campaign.formCampaign(form.fill(campForm),routes.CampagneManager.updateCampaign(id)))
             }
@@ -176,7 +177,7 @@ trait CampagneManagerLike extends Controller{
             }
 
             //If user press on a other insert the campaign
-            case _=>campaignDao.insert(Campagne(nom = campaignData.nom, conditions = List())).map(
+            case _=>campaignDao.insert(Campagne(nom = campaignData.nom,types=campaignData.types, conditions = List())).map(
               data => Redirect(routes.CampagneManager.listCampaign())
             ).recover({ case _ => InternalServerError("error") })
           }
