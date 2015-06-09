@@ -68,8 +68,8 @@ GET         /inventary/modules/form/sensors/:id               controllers.Module
 POST        /inventary/modules/form/sensors/:id               controllers.ModuleManager.addSensors(id)
 GET         /inventary/modules/form/validate                  controllers.ModuleManager.validate()
 POST        /inventary/modules/form/validate                  controllers.ModuleManager.insertModule()
-GET         /inventary/modules/form/:id                        controllers.ModuleManager.formGeneralUpdate(id)
-GET         /inventary/modules/:id/delete                      controllers.ModuleManager.deleteModule(id)
+GET         /inventary/modules/form/:id                       controllers.ModuleManager.formGeneralUpdate(id)
+GET         /inventary/modules/:id/delete                     controllers.ModuleManager.deleteModule(id)
 GET         /inventary/modules/:id                            controllers.ModuleManager.moreInformation(id)
 
 #Campaign page
@@ -78,10 +78,11 @@ GET         /campaigns/campaign                               controllers.Campag
 POST        /campaigns/campaign                               controllers.CampagneManager.insertCampaign()
 GET         /campaigns/campaign/:id/update                    controllers.CampagneManager.updateCampaignPage(id)
 POST        /campaigns/campaign/:id/update                    controllers.CampagneManager.updateCampaign(id)
+GET         /campaigns/campaign/:id                             controllers.ConditionsManager.listConditions(id)
 
 # Map static resources from the /public folder to the /assets URL path
 GET         /assets/*file                                     controllers.Assets.at(path="/public", file)
 
-GET         /api/*file                                  controllers.Assets.at(path="/public/api",file)
+GET         /api/*file                                        controllers.Assets.at(path="/public/api",file)
 
-GET         /*path                                    controllers.Dashboard.notFound(path)
+GET         /*path                                            controllers.Dashboard.notFound(path)

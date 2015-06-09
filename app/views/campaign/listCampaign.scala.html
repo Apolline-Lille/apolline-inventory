@@ -11,7 +11,7 @@
           @for(camp<-campaigns){
             <div class="col-sm-12">
               <h4>
-                @camp.nom
+                <a href="@routes.ConditionsManager.listConditions(camp._id.stringify)">@camp.nom</a>
                 <span>
                   <a href="@routes.CampagneManager.updateCampaignPage(camp._id.stringify)" data-toggle-tooltip title="@Messages("global.tooltip.update")"><span class="glyphicon glyphicon-pencil"></span></a>
                   @*if(sto == 0) {

@@ -99,7 +99,10 @@ campaign.list.title=Liste des campagnes
 campaign.list.addCampaign=Nouvelle campagne
 campaign.list.error.campaignExist=Cette campagne existe déjà
 campaign.list.conditions=Conditions
-campaign.list.nom=Nom de la campagne
+campaign.list.nom=Nom
+campaign.list.type=Type
+
+campaign.condition.addCondition=Nouvelle condition
 
 login.username=Login
 login.password=Password
