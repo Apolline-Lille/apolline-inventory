@@ -1289,6 +1289,44 @@ class ModuleManagerSpec extends Specification with Mockito {
     }
   }
 
+  "When method getInventaryModule is called, ModuleManager" should{
+    "apply view function and not consider the filtre" in new WithApplication{
+      val f=fixture
+      val view=mock[(List[Module],List[BSONDocument])=>Result]
+
+      f.moduleDaoMock.findAll(org.mockito.Matchers.eq(Json.obj("delete"->false)),any[JsObject])(any[ExecutionContext]) returns future{List[Module]()}
+      f.moduleDaoMock.findListType() returns future{Stream[BSONDocument]()}
+      view.apply(org.mockito.Matchers.eq(List[Module]()),org.mockito.Matchers.eq(List[BSONDocument]())) returns Results.Ok("apply func")
+
+      val r=f.controller.getInventaryModule("")(view)
+
+      status(r) must equalTo(OK)
+      contentAsString(r) must equalTo("apply func")
+
+      there was one(f.moduleDaoMock).findAll(org.mockito.Matchers.eq(Json.obj("delete"->false)),any[JsObject])(any[ExecutionContext])
+      there was one(f.moduleDaoMock).findListType()
+      view.apply(org.mockito.Matchers.eq(List[Module]()),org.mockito.Matchers.eq(List[BSONDocument]())) returns Results.Ok("apply func")
+    }
+
+    "apply view function and consider the filtre" in new WithApplication{
+      val f=fixture
+      val view=mock[(List[Module],List[BSONDocument])=>Result]
+
+      f.moduleDaoMock.findAll(org.mockito.Matchers.eq(Json.obj("delete"->false,"types"->"filtre")),any[JsObject])(any[ExecutionContext]) returns future{List[Module]()}
+      f.moduleDaoMock.findListType() returns future{Stream[BSONDocument]()}
+      view.apply(org.mockito.Matchers.eq(List[Module]()),org.mockito.Matchers.eq(List[BSONDocument]())) returns Results.Ok("apply func")
+
+      val r=f.controller.getInventaryModule("filtre")(view)
+
+      status(r) must equalTo(OK)
+      contentAsString(r) must equalTo("apply func")
+
+      there was one(f.moduleDaoMock).findAll(org.mockito.Matchers.eq(Json.obj("delete"->false,"types"->"filtre")),any[JsObject])(any[ExecutionContext])
+      there was one(f.moduleDaoMock).findListType()
+      view.apply(org.mockito.Matchers.eq(List[Module]()),org.mockito.Matchers.eq(List[BSONDocument]())) returns Results.Ok("apply func")
+    }
+  }
+
   "When method submitForm is called, ModuleManager" should{
     "send redirect if module information error" in new WithApplication{
       val f=fixture

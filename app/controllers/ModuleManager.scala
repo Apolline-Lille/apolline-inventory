@@ -11,7 +11,7 @@ import play.api.i18n.Messages
 import play.api.libs.json.{JsObject, JsValue, JsArray, Json}
 import play.api.mvc._
 import play.modules.reactivemongo.json.BSONFormats.BSONObjectIDFormat
-import reactivemongo.bson.BSONObjectID
+import reactivemongo.bson.{BSONDocument, BSONObjectID}
 import scala.collection.immutable.HashSet
 import scala.concurrent._
 
@@ -127,16 +127,12 @@ trait ModuleManagerLike extends Controller {
     implicit request =>
       //Verify if user is connect
       UserManager.doIfconnectAsync(request) {
-        val selector=if(filtre.isEmpty) Json.obj("delete"->false) else { Json.obj("delete"->false,"types"->filtre) }
-        moduleDao.findAll(selector).flatMap(
-          modules=> {
-            moduleDao.findListType().map(
-              listType=>
-                //Print the list of module
-                Ok(views.html.module.listModule(modules,listType.toList,filtre))
-            )
-          }
-        )
+        //Display inventary of module
+        getInventaryModule(filtre) {
+          (modules, listType) =>
+            //Print the list of module
+            Ok(views.html.module.listModule(modules, listType, filtre))
+        }
       }
   }
 
@@ -812,6 +808,31 @@ trait ModuleManagerLike extends Controller {
         //Redirect to validate page
         Redirect(routes.ModuleManager.validate()).withSession(request.session + ("module" -> Module.toStrings(newModule)))
       }
+  }
+
+  /**
+   * Find modules and their type for display the inventary
+   * @param filtre Module type for filter it
+   * @param view Function for print the inventary
+   * @return A result with the modules inventary
+   */
+  def getInventaryModule(filtre:String)(view:(List[Module],List[BSONDocument])=>Result)={
+    //Create the query
+    val selector=if(filtre.isEmpty) Json.obj("delete"->false) else { Json.obj("delete"->false,"types"->filtre) }
+
+    //Find modules
+    moduleDao.findAll(selector).flatMap(
+      modules=> {
+
+        //Find modules type
+        moduleDao.findListType().map(
+          listType=>
+
+            //Display the inventary
+            view(modules,listType.toList)
+        )
+      }
+    )
   }
 
   /**
