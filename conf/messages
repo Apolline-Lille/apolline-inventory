@@ -103,6 +103,15 @@ campaign.list.nom=Nom
 campaign.list.type=Type
 
 campaign.condition.addCondition=Nouvelle condition
+campaign.condition.debut=Date de début
+campaign.condition.fin=Date de fin
+campaign.condition.commentaire=Commentaire
+campaign.condition.onglet.info=Informations générales
+campaign.condition.onglet.module=Module
+campaign.condition.onglet.param=Paramétres
+campaign.condition.onglet.localisation=Localisation
+campaign.condition.onglet.validate=Validation
+campaign.condition.associat=Associer à la condition
 
 login.username=Login
 login.password=Password

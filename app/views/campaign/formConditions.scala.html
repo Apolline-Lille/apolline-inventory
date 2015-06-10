@@ -1,0 +1,29 @@
+@(form:Form[ConditionForm],state:Html)(implicit request: Request[AnyContent])
+
+@import models.template.InlineInput.inlineInput
+
+@main(Messages("campaign.list.title")){
+  @navigation("campaign")
+  <div class="container">
+    <section>
+      <article>
+        @state
+        @helper.form(action=routes.CampagneManager.listCampaign()){
+          @for(error<-form.globalErrors){
+            <div class="alert alert-danger" role="alert">@Html(error.message)</div>
+          }
+          <h5 style="color:red;float:right"><em>*</em> @Messages("global.fieldRequired")</h5>
+          <div class="col-sm-12">
+            @helper.inputText(form("debut"),'_label->Messages("campaign.condition.debut"),'required->true,'class->"form-control")
+            @helper.inputText(form("fin"),'_label->Messages("campaign.condition.fin"),'class->"form-control")
+            @helper.textarea(form("commentaire"),'_label->Messages("campaign.condition.commentaire"),'class->"form-control")
+          </div>
+          <div class="col-sm-12">
+            <div style="float:right"> <input value="@Messages("global.btn.reset")" class="btn btn-default"
+            type="reset"> <input value="@Messages("global.btn.submit")" class="btn btn-default" type="submit"></div>
+          </div>
+        }
+      </article>
+    </section>
+  </div>
+}
