@@ -291,6 +291,30 @@ trait CampagneManagerLike extends Controller{
       }
     ).recover({case _ => InternalServerError("error")})
   }
+
+  /**
+   * Verify if card type found and execute a function if campaign found or not
+   * @param id Campaign id
+   * @param found Function executed if campaign found
+   * @param notFound Function executed if campaign not found
+   * @return Return the result of executed function
+   */
+  def doIfCampaignFound(id:BSONObjectID)(found:Campagne=>Future[Result])(notFound:Unit=>Future[Result]):Future[Result]={
+    //Find the card type
+    campaignDao.findOne(Json.obj("_id"->id,"delete"->false)).flatMap(
+      campaignOpt => campaignOpt match{
+
+        //If the card type not found execute function not found
+        case None => notFound()
+
+        //If the card type found execute function found
+        case Some(camp) => found(camp)
+      }
+    ).recover({
+      //Send Internal Server Error if have mongoDB error
+      case _=> InternalServerError("error")
+    })
+  }
 }
 
 @Api(value = "/campaign", description = "Operations for campaign")

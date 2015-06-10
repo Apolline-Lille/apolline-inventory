@@ -540,4 +540,65 @@ class CampaignManagerSpec extends Specification with Mockito {
       there was one(lastError).recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext])
     }
   }
+
+  "When method doIfCampaignFound is called, CampagneManager" should{
+    "apply function found if campaign was found" in new WithApplication{
+      val f=fixture
+      val camp=mock[Campagne]
+      val found=mock[Campagne=>Future[Result]]
+      val notFound=mock[Unit=>Future[Result]]
+
+      f.campaignDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("_id"->bson,"delete"->false)))(any[ExecutionContext]) returns future{Some(camp)}
+      found.apply(org.mockito.Matchers.eq(camp)) returns future{Results.Ok("apply found")}
+
+      val r=f.controller.doIfCampaignFound(bson)(found)(notFound)
+
+      status(r) must equalTo(OK)
+      contentAsString(r) must equalTo("apply found")
+
+      there was one(f.campaignDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("_id"->bson,"delete"->false)))(any[ExecutionContext])
+      there was one(found).apply(org.mockito.Matchers.eq(camp))
+      there was no(notFound).apply(any[Unit])
+    }
+
+    "apply function not found if campaign was not found" in new WithApplication{
+      val f=fixture
+      val found=mock[Campagne=>Future[Result]]
+      val notFound=mock[Unit=>Future[Result]]
+
+      f.campaignDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("_id"->bson,"delete"->false)))(any[ExecutionContext]) returns future{None}
+      notFound.apply(any[Unit]) returns future{Results.Ok("apply not found")}
+
+      val r=f.controller.doIfCampaignFound(bson)(found)(notFound)
+
+      status(r) must equalTo(OK)
+      contentAsString(r) must equalTo("apply not found")
+
+      there was one(f.campaignDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("_id"->bson,"delete"->false)))(any[ExecutionContext])
+      there was no(found).apply(any[Campagne])
+      there was one(notFound).apply(any[Unit])
+    }
+
+    "send 500 internal error if mongoDB error when find campaign" in new WithApplication{
+      val f=fixture
+      val futureMock=mock[Future[Option[Campagne]]]
+      val throwable=mock[Throwable]
+      val found=mock[Campagne=>Future[Result]]
+      val notFound=mock[Unit=>Future[Result]]
+
+      f.campaignDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("_id"->bson,"delete"->false)))(any[ExecutionContext]) returns futureMock
+      futureMock.flatMap(any[Option[Campagne]=>Future[Option[Campagne]]])(any[ExecutionContext]) returns futureMock
+      futureMock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers {value=>future{value.asInstanceOf[PartialFunction[Throwable,Result]](throwable)}}
+
+      val r=f.controller.doIfCampaignFound(bson)(found)(notFound)
+
+      status(r) must equalTo(INTERNAL_SERVER_ERROR)
+
+      there was one(f.campaignDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("_id"->bson,"delete"->false)))(any[ExecutionContext])
+      there was no(found).apply(any[Campagne])
+      there was no(notFound).apply(any[Unit])
+      there was one(futureMock).flatMap(any[Option[Campagne]=>Future[Option[Campagne]]])(any[ExecutionContext])
+      there was one(futureMock).recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext])
+    }
+  }
 }
