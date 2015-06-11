@@ -2,7 +2,7 @@ import java.text.ParseException
 import java.util.Date
 
 import controllers._
-import models.{Module, Campagne, CampagneDao, ConditionDao}
+import models._
 import org.junit.runner.RunWith
 import org.specs2.matcher.{MatchResult, Expectable, Matcher}
 import org.specs2.mock.Mockito
@@ -14,6 +14,7 @@ import play.api.mvc.{Action, Results, Result}
 import play.api.test.Helpers._
 import play.api.test.{FakeRequest, WithApplication}
 import reactivemongo.bson.{BSONDocument, BSONObjectID}
+import reactivemongo.extensions.BSONFormats.BSONObjectIDFormat
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent._
@@ -41,10 +42,12 @@ class ConditionsManagerSpec extends Specification with Mockito {
 
   def fixture=new {
     val conditionDaoMock=mock[ConditionDao]
+    val moduleDaoMock=mock[ModuleDao]
     val campaignManagerMock=mock[CampagneManagerLike]
     val moduleManagerMock=mock[ModuleManagerLike]
     val controller=new ConditionsManagerTest{
       override val conditionsDao=conditionDaoMock
+      override val moduleDao=moduleDaoMock
       override val campaignManager=campaignManagerMock
       override val moduleManager=moduleManagerMock
     }
@@ -73,8 +76,30 @@ class ConditionsManagerSpec extends Specification with Mockito {
         )
     }
 
+    "redirect to login for resource /campaigns/campaign/:id/form for POST request" in new WithApplication {
+      route(FakeRequest(POST, "/campaigns/campaign/"+bson.stringify+"/form")).map(
+        r => {
+          status(r) must equalTo(SEE_OTHER)
+          header("Location", r) must equalTo(Some("/login"))
+        }
+      ).getOrElse(
+          failure("Pas de retour de la fonction")
+        )
+    }
+
     "redirect to login for resource /campaigns/campaign/:id/form/module" in new WithApplication {
       route(FakeRequest(GET, "/campaigns/campaign/"+bson.stringify+"/form/module")).map(
+        r => {
+          status(r) must equalTo(SEE_OTHER)
+          header("Location", r) must equalTo(Some("/login"))
+        }
+      ).getOrElse(
+          failure("Pas de retour de la fonction")
+        )
+    }
+
+    "redirect to login for resource /campaigns/campaign/:id/form/module for POST request" in new WithApplication {
+      route(FakeRequest(POST, "/campaigns/campaign/"+bson.stringify+"/form/module")).map(
         r => {
           status(r) must equalTo(SEE_OTHER)
           header("Location", r) must equalTo(Some("/login"))
@@ -377,6 +402,107 @@ class ConditionsManagerSpec extends Specification with Mockito {
       header("Location",r) must beSome("/campaigns")
 
       there was one(f.campaignManagerMock).doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]])
+    }
+
+    "send redirect if campaign not found when select module" in new WithApplication {
+      val f=fixture
+
+      f.campaignManagerMock.doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]]) answers {(params,_) => params match{
+        case Array(_,_,p:(Unit=>Future[Result])) => p.apply()
+      }}
+
+      val r=f.controller.addSelectedModule(bson.stringify).apply(FakeRequest(POST,"/campaigns/campaign/"+bson.stringify+"/form/module").withSession("user" -> """{"login":"test"}"""))
+
+      status(r) must equalTo(SEE_OTHER)
+      header("Location",r) must beSome("/campaigns")
+
+      there was one(f.campaignManagerMock).doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]])
+    }
+
+    "send bad request with the list of modules if have error in data received" in new WithApplication{
+      val f=fixture
+      val camp=Campagne(bson,"camp","type",List())
+      val modules=List(
+        Module(bson,"idMod","typesMod",date,List(bson),List(bson),Some("un com"))
+      )
+
+      f.campaignManagerMock.doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]]) answers {(params,_) => params match{
+        case Array(_,p:(Campagne=>Future[Result]),_) => p.apply(camp)
+      }}
+
+      f.moduleManagerMock.getInventaryModule(org.mockito.Matchers.eq(""))(any[(List[Module],List[BSONDocument])=>Result]) answers {(params,_)=>params match{
+        case Array(_,p:((List[Module],List[BSONDocument])=>Result)) => future{p.apply(modules,List())}
+      }}
+
+      val r=f.controller.addSelectedModule(bson.stringify).apply(FakeRequest(POST,"/campaigns/campaign/"+bson.stringify+"/form/module").withSession("user" -> """{"login":"test"}"""))
+
+      status(r) must equalTo(BAD_REQUEST)
+      val content = contentAsString(r)
+      content must contain("typesMod")
+      content must contain("idMod")
+      content must contain("<div class=\"row\"><span class=\"bold\">Commentaires</span> : un com</div>")
+      content must contain("<div class=\"row\"><span class=\"bold\">Date d&#x27;assemblage</span> : 22/04/2015</div>")
+      content must contain("<div class=\"row\"><span class=\"bold\">Cartes</span> : 1</div>")
+      content must contain("<div class=\"row\"><span class=\"bold\">Capteurs</span> : 1</div>")
+
+      there was one(f.campaignManagerMock).doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]])
+      there was one(f.moduleManagerMock).getInventaryModule(org.mockito.Matchers.eq(""))(any[(List[Module],List[BSONDocument])=>Result])
+    }
+
+    "send bad request with the list of modules if module not found" in new WithApplication{
+      val f=fixture
+      val camp=Campagne(bson,"camp","type",List())
+      val modules=List(
+        Module(bson,"idMod","typesMod",date,List(bson),List(bson),Some("un com"))
+      )
+      val data=Json.obj("id"->bson2.stringify)
+
+      f.campaignManagerMock.doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]]) answers {(params,_) => params match{
+        case Array(_,p:(Campagne=>Future[Result]),_) => p.apply(camp)
+      }}
+
+      f.moduleManagerMock.getInventaryModule(org.mockito.Matchers.eq(""))(any[(List[Module],List[BSONDocument])=>Result]) answers {(params,_)=>params match{
+        case Array(_,p:((List[Module],List[BSONDocument])=>Result)) => future{p.apply(modules,List())}
+      }}
+
+      f.moduleDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("_id"->bson2,"delete"->false)))(any[ExecutionContext]) returns future{None}
+
+      val req=FakeRequest(POST,"/campaigns/campaign/"+bson.stringify+"/form/module").withJsonBody(data).withSession("user" -> """{"login":"test"}""")
+      val r=f.controller.addSelectedModule(bson.stringify).apply(req)
+
+      status(r) must equalTo(BAD_REQUEST)
+      val content = contentAsString(r)
+      content must contain("typesMod")
+      content must contain("idMod")
+      content must contain("<div class=\"row\"><span class=\"bold\">Commentaires</span> : un com</div>")
+      content must contain("<div class=\"row\"><span class=\"bold\">Date d&#x27;assemblage</span> : 22/04/2015</div>")
+      content must contain("<div class=\"row\"><span class=\"bold\">Cartes</span> : 1</div>")
+      content must contain("<div class=\"row\"><span class=\"bold\">Capteurs</span> : 1</div>")
+
+      there was one(f.campaignManagerMock).doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]])
+      there was one(f.moduleManagerMock).getInventaryModule(org.mockito.Matchers.eq(""))(any[(List[Module],List[BSONDocument])=>Result])
+      there was one(f.moduleDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("_id"->bson2,"delete"->false)))(any[ExecutionContext])
+    }
+
+    "send bad request with the list of modules if module not found" in new WithApplication{
+      val f=fixture
+      val camp=Campagne(bson,"camp","type",List())
+      val module=Module(bson2,"idMod","typesMod",date,List(bson),List(bson),Some("un com"))
+      val data=Json.obj("id"->bson2.stringify)
+
+      f.campaignManagerMock.doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]]) answers {(params,_) => params match{
+        case Array(_,p:(Campagne=>Future[Result]),_) => p.apply(camp)
+      }}
+
+      f.moduleDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("_id"->bson2,"delete"->false)))(any[ExecutionContext]) returns future{Some(module)}
+
+      val req=FakeRequest(POST,"/campaigns/campaign/"+bson.stringify+"/form/module").withJsonBody(data).withSession("user" -> """{"login":"test"}""")
+      val r=f.controller.addSelectedModule(bson.stringify).apply(req)
+
+      status(r) must equalTo(SEE_OTHER)
+
+      there was one(f.campaignManagerMock).doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]])
+      there was one(f.moduleDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("_id"->bson2,"delete"->false)))(any[ExecutionContext])
     }
   }
 

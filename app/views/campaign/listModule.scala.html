@@ -25,7 +25,12 @@
               <div class="row"><span class="bold">@Messages("inventary.module.dateAssemblage")</span> : @SensorManager.format(mod.dateAssemblage)</div>
               <div class="row"><span class="bold">@Messages("inventary.module.onglet.cards")</span> : @mod.cartes.size</div>
               <div class="row"><span class="bold">@Messages("inventary.module.onglet.sensors")</span> : @mod.capteurs.size</div>
-              <div class="row"><a href="" class="btn btn-success">@Messages("campaign.condition.associat")</a></div>
+              <div class="row">
+                @helper.form(action=routes.ConditionsManager.addSelectedModule(id)) {
+                  <input type="hidden" name="id" value="@mod._id.stringify"/>
+                  <input type="submit" class="btn btn-success" value="@Messages("campaign.condition.associat")"/>
+                }
+              </div>
             </div>
           </div>
         }

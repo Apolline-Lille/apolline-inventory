@@ -20,6 +20,8 @@ import play.api.libs.concurrent.Execution.Implicits.defaultContext
 
 case class ConditionForm(debut:String,fin:Option[String],commentaire:Option[String])
 
+case class FormSelect(id:String)
+
 /**
  * This object is a controller for manage all condition
  */
@@ -32,6 +34,8 @@ trait ConditionsManagerLike extends Controller{
    */
   val conditionsDao:ConditionDao=ConditionDaoObj
 
+  val moduleDao:ModuleDao=ModuleDaoObj
+
   val moduleManager:ModuleManagerLike=ModuleManager
 
   val campaignManager:CampagneManagerLike=CampagneManager
@@ -42,6 +46,12 @@ trait ConditionsManagerLike extends Controller{
       "fin"->optional(text.verifying(pattern("\\d{2}/\\d{2}/\\d{4} \\d{2}:\\d{2}:\\d{2}".r))),
       "commentaire"->optional(text)
     )(ConditionForm.apply)(ConditionForm.unapply)
+  )
+
+  val formSelect=Form[FormSelect](
+    mapping(
+      "id"->nonEmptyText
+    )(FormSelect.apply)(FormSelect.unapply)
   )
 
   /****************** Route methods ***********/
@@ -168,7 +178,7 @@ trait ConditionsManagerLike extends Controller{
    *         Return Bad request with the form if data received are not valid
    */
   @ApiOperation(
-    nickname = "conditions/form/module",
+    nickname = "conditions/form",
     value = "Add condition information to the session",
     notes = "Add condition information to the session",
     httpMethod = "POST")
@@ -198,6 +208,61 @@ trait ConditionsManagerLike extends Controller{
                 future{BadRequest(views.html.campaign.formConditions(formWithErrors,id, printStateForm("infoCondition", campaign.types, id)))}
               },
               infoData =>verifyGeneralData(infoData,id,campaign)
+            )
+        }{
+          //If campaign not found
+          _ => future{Redirect(routes.CampagneManager.listCampaign())}
+        }
+      }
+  }
+
+  /**
+   * This method is call when the user is on the page /campaigns/campaign/:id/form/module. It associat module to a condition
+   * @return Return Redirect Action when the user is not log in or if associat module to a condition
+   *         Return Bad request with the form if data received are not valid or if module not found
+   */
+  @ApiOperation(
+    nickname = "conditions/form/module",
+    value = "Associat a module to a conditions",
+    notes = "Associat a module to a conditions",
+    httpMethod = "POST")
+  @ApiResponses(Array(
+    new ApiResponse(code=303,message="<ul><li>Move resource to the login page at /login if the user is not log</li><li>Move resource to the next form page</li></ul>"),
+    new ApiResponse(code=400,message="<ul><li>Data received are not valid</li><li>Module not found</li></ul>")
+  ))
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(name="id",value="Campaign id",required=true,dataType="String",paramType="path"),
+    new ApiImplicitParam(name="id",value="Module id",required=true,dataType="String",paramType="form")
+  ))
+  def addSelectedModule(id:String)=Action.async{
+    implicit request=>
+      //Verify if user is connect
+      UserManager.doIfconnectAsync(request) {
+        //Verify if campaign exist
+        campaignManager.doIfCampaignFound(BSONObjectID(id)) {
+
+          //If campaign found
+          campaign =>
+
+            formSelect.bindFromRequest.fold(
+              //If form have error, display the modules list
+              formWithErrors =>moduleManager.getInventaryModule("") {
+                (modules, listType) => BadRequest(views.html.campaign.listModule(modules, listType, "",id, printStateForm("module",campaign.types, id)))
+              },
+              data =>
+                //Find the module
+                moduleDao.findOne(Json.obj("_id"->BSONObjectID(data.id),"delete"->false)).flatMap(
+                  mod =>mod match{
+
+                    //If module is found redirect to the next page
+                    case Some(_)=>future{redirectToNextFormPage(id,campaign.types,findCondition + ("module"->Json.toJson(data.id)))}
+
+                    //If module is not found, display the modules list
+                    case None=>moduleManager.getInventaryModule("") {
+                      (modules, listType) => BadRequest(views.html.campaign.listModule(modules, listType, "",id, printStateForm("module",campaign.types, id)))
+                    }
+                  }
+                )
             )
         }{
           //If campaign not found
@@ -273,6 +338,20 @@ trait ConditionsManagerLike extends Controller{
       //Call error function
       case e=>error(form.fill(infoData).withError("debut",Messages("campaign.condition.error.beginNotValid")))
     }
+  }
+
+  /**
+   * Redirect to the next page after associat module to a condition
+   * @param id Campaign id
+   * @param types Campaign type
+   * @param condition List of data in the condition
+   * @param request Request received
+   * @return
+   */
+  def redirectToNextFormPage(id:String,types:String,condition:JsObject)(implicit request:Request[AnyContent]):Result=types match{
+    case "Terrain" =>Redirect(routes.ConditionsManager.listConditions(id)).withSession(request.session + ("condition" -> Json.stringify(condition)))
+    case "Calibration" =>Redirect(routes.ConditionsManager.listConditions(id)).withSession(request.session + ("condition" -> Json.stringify(condition)))
+    case _ =>Redirect(routes.ConditionsManager.listConditions(id)).withSession(request.session + ("condition" -> Json.stringify(condition)))
   }
 
   /**
