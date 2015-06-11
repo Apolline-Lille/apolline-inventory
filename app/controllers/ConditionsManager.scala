@@ -1,6 +1,7 @@
 package controllers
 
 import java.lang.annotation.Annotation
+import java.text.SimpleDateFormat
 import java.util.Date
 
 import com.wordnik.swagger.annotations._
@@ -108,7 +109,10 @@ trait ConditionsManagerLike extends Controller{
         campaignManager.doIfCampaignFound(BSONObjectID(id)){
 
           //If campaign found
-          campaign=>future{Ok(views.html.campaign.formConditions(form,printStateForm("infoCondition",campaign.types,id)))}
+          campaign=> {
+            val session=request.session + ("condition"->Json.stringify(Json.obj()))
+            future{Ok(views.html.campaign.formConditions(form.bind(Map("debut"->new SimpleDateFormat("dd/MM/yyyy HH:mm:ss").format(new Date))),id, printStateForm("infoCondition", campaign.types, id))).withSession(session)}
+          }
         }{
 
           //If campaign not found
@@ -156,6 +160,159 @@ trait ConditionsManagerLike extends Controller{
           _ => future{Redirect(routes.CampagneManager.listCampaign())}
         }
       }
+  }
+
+  /**
+   * This method is call when the user is on the page /campaigns/campaign/:id/form. It add condition information
+   * @return Return Redirect Action when the user is not log in or if condition information are valid
+   *         Return Bad request with the form if data received are not valid
+   */
+  @ApiOperation(
+    nickname = "conditions/form/module",
+    value = "Add condition information to the session",
+    notes = "Add condition information to the session",
+    httpMethod = "POST")
+  @ApiResponses(Array(
+    new ApiResponse(code=303,message="<ul><li>Move resource to the login page at /login if the user is not log</li><li>Move resource to the form for select module at /campaigns/campaign/:id/form/module</li></ul>"),
+    new ApiResponse(code=400,message="Data received are not valid")
+  ))
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(name="id",value="Campaign id",required=true,dataType="String",paramType="path"),
+    new ApiImplicitParam(name="debut",value="Date when begin the condition",required=true,dataType="String",paramType="form"),
+    new ApiImplicitParam(name="fin",value="Date when finish the condition",dataType="String",paramType="form"),
+    new ApiImplicitParam(name="commentaire",value="Comment about the condition",dataType="String",paramType="form")
+  ))
+  def addGeneralInformation(id:String)=Action.async{
+    implicit request=>
+      //Verify if user is connect
+      UserManager.doIfconnectAsync(request) {
+        //Verify if campaign exist
+        campaignManager.doIfCampaignFound(BSONObjectID(id)) {
+
+          //If campaign found
+          campaign =>
+            form.bindFromRequest.fold(
+              //If form contains errors
+              formWithErrors => {
+                //the form is redisplay with error descriptions
+                future{BadRequest(views.html.campaign.formConditions(formWithErrors,id, printStateForm("infoCondition", campaign.types, id)))}
+              },
+              infoData =>verifyGeneralData(infoData,id,campaign)
+            )
+        }{
+          //If campaign not found
+          _ => future{Redirect(routes.CampagneManager.listCampaign())}
+        }
+      }
+  }
+
+  /**
+   * This method find condition in session and parse the string into JsObject
+   * @param request
+   * @return
+   */
+  def findCondition(implicit request:Request[AnyContent]):JsObject=request.session.get("condition") match{
+    case None=>Json.obj()
+    case Some(str)=>Json.parse(str).asInstanceOf[JsObject]
+  }
+
+  /**
+   * This method transform string date to a date
+   * @param date String represent a date
+   * @return Return the date associat to the string
+   */
+  def getDate(date:String)={
+    val format=new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm:ss")
+    format.setLenient(false)
+    format.parse(date)
+  }
+
+  /**
+   * This method transform an optional string date to an optional date
+   * @param date optional string represent a date
+   * @return Return an optional date associat to the optional string
+   */
+  def getDateWithOpt(date:Option[String])=date match{
+    case None => None
+    case Some(d) => Some(getDate(d))
+  }
+
+  /**
+   * This method verify if date received are valid.
+   * For that, this method verify if begin and end date are correct and if the begin date is before the end date
+   * @param infoData Data received
+   * @param error Function call if date aren't valid
+   * @param valid Function call if date are valid
+   * @return
+   */
+  def verifyDateValid(infoData:ConditionForm)(error:(Form[ConditionForm]=>Future[Result]))(valid:(Date,Option[Date])=>Future[Result])= {
+    try{
+      //get the begin date
+      val debut=getDate(infoData.debut)
+      try {
+
+        //get the end date
+        val fin = getDateWithOpt(infoData.fin)
+
+        //Verify if the begin date is before the end date
+        if (verifyDate(debut, fin)) {
+
+          //Call valid function
+          valid(debut, fin)
+        }
+        else{
+
+          //Call error function
+          error(form.fill(infoData).withGlobalError(Messages("campaign.condition.error.beginAfterEnd")))
+        }
+      }catch{
+        //Call error function
+        case e=>error(form.fill(infoData).withError("fin",Messages("campaign.condition.error.endNotValid")))
+      }
+    }catch{
+      //Call error function
+      case e=>error(form.fill(infoData).withError("debut",Messages("campaign.condition.error.beginNotValid")))
+    }
+  }
+
+  /**
+   * Verify data received and put data in session if their are correct
+   * @param infoData Data received
+   * @param id Campaign id
+   * @param campaign The campaign
+   * @param request Request received
+   * @return
+   */
+  def verifyGeneralData(infoData:ConditionForm,id:String,campaign:Campagne)(implicit request:Request[AnyContent])={
+    //Verify if date received are valid
+    verifyDateValid(infoData){
+
+      //If date aren't valid return bad request with the form
+      formWithError=>future{BadRequest(views.html.campaign.formConditions(formWithError,id, printStateForm("infoCondition", campaign.types, id)))}
+    }{
+      //If date are valid
+      (debut,fin)=> {
+        //Put data in the session
+        val cond = findCondition + ("debut" -> Json.toJson(debut)) + ("fin" -> Json.toJson(fin)) + ("commentaire" -> Json.toJson(infoData.commentaire))
+
+        //Redirect to the module select
+        future{Redirect(routes.ConditionsManager.formModule(id)).withSession(request.session + ("condition" -> Json.stringify(cond)))}
+      }
+    }
+  }
+
+  /**
+   * Verify if the begin date is before the end date
+   * @param debut Begin date
+   * @param fin End date
+   * @return Return true if the begin is before the end date
+   */
+  def verifyDate(debut:Date,fin:Option[Date])=fin match{
+    //If not have end date
+    case None=>true
+
+    //If have end date
+    case Some(d)=>debut.before(d)
   }
 
   /**

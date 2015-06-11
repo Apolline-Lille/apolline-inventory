@@ -2,18 +2,19 @@ package models
 
 import java.util.Date
 
-import play.api.libs.json.{JsValue, Json, Format}
+import play.api.libs.json.{JsObject, JsValue, Json, Format}
 import play.modules.reactivemongo.ReactiveMongoPlugin
 import reactivemongo.bson.BSONObjectID
 import reactivemongo.extensions.json.dao.JsonDao
 import play.modules.reactivemongo.json.BSONFormats.BSONObjectIDFormat
 import play.api.Play.current
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.util.parsing.json.JSONObject
 
 abstract class Condition(_id:BSONObjectID,dateDebut:Date,dateFin:Option[Date],commentaire:Option[String],modules:BSONObjectID)
 case class Test(_id:BSONObjectID=BSONObjectID.generate,dateDebut:Date,dateFin:Option[Date],commentaire:Option[String],modules:BSONObjectID) extends Condition(_id,dateDebut,dateFin,commentaire,modules)
 case class Calibration(_id:BSONObjectID=BSONObjectID.generate,dateDebut:Date,dateFin:Option[Date],commentaire:Option[String],modules:BSONObjectID,params:List[BSONObjectID]) extends Condition(_id,dateDebut,dateFin,commentaire,modules)
-case class Terrain(_id:BSONObjectID=BSONObjectID.generate,dateDebut:Date,dateFin:Option[Date],commentaire:Option[String],modules:BSONObjectID,calibration:BSONObjectID,localisation:BSONObjectID) extends Condition(_id,dateDebut,dateFin,commentaire,modules)
+case class Terrain(_id:BSONObjectID=BSONObjectID.generate,dateDebut:Date,dateFin:Option[Date],commentaire:Option[String],modules:BSONObjectID,localisation:BSONObjectID) extends Condition(_id,dateDebut,dateFin,commentaire,modules)
 
 /**
  * Object used for condition class
