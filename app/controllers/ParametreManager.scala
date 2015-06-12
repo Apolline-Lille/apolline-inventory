@@ -1,5 +1,7 @@
 package controllers
 
+import java.lang.annotation.Annotation
+
 import com.wordnik.swagger.annotations._
 import models._
 import play.api.data.Form
@@ -37,8 +39,8 @@ trait ParametreManagerLike extends Controller{
   /****************** Route methods ***********/
 
   /**
-   * This method is call when the user is on the page /campaigns/parameter. It list calibration parameter
-   * @return Return Ok Action when the user is on the page /campaigns/parameter with the list of calibration parameter
+   * This method is call when the user is on the page /campaigns/parameters. It list calibration parameter
+   * @return Return Ok Action when the user is on the page /campaigns/parameters with the list of calibration parameter
    *         Return Redirect Action when the user is not log in
    *         Return Internal Server Error Action when have mongoDB error
    */
@@ -59,6 +61,19 @@ trait ParametreManagerLike extends Controller{
       }
   }
 
+  /**
+   * This method is call when the user is on the page /campaigns/parameters/parameter. It display a form for insert parameter
+   * @return Return Ok Action when the user is on the page /campaigns/parameters/parameter with the a form for insert parameter
+   *         Return Redirect Action when the user is not log in
+   */
+  @ApiOperation(
+    nickname = "parameter/insert",
+    value = "Get the html page for display a form for insert parameter",
+    notes = "Get the html page for display a form for insert parameter",
+    httpMethod = "GET")
+  @ApiResponses(Array(
+    new ApiResponse(code=303,message="Move resource to the login page at /login if the user is not log")
+  ))
   def addParameterPage()=Action{
     implicit request =>
       //Verify if user is connect
@@ -67,6 +82,24 @@ trait ParametreManagerLike extends Controller{
       }
   }
 
+  /**
+   * This method is call when the user is on the page /campaigns/parameters/parameter. It insert parameter into the database
+   * @return Return Redirect Action when the user is not log in or after insert parameter
+   *         Return Internal Server Error Action when have mongoDB error
+   */
+  @ApiOperation(
+    nickname = "parameter/insert",
+    value = "Insert parameter into the database",
+    notes = "Insert parameter into the database",
+    httpMethod = "POST")
+  @ApiResponses(Array(
+    new ApiResponse(code=303,message="<ul><li>Move resource to the login page at /login if the user is not log</li><li>Move resource to the parameter list at /campaigns/parameters if parameter was insert</li></ul>"),
+    new ApiResponse(code=500,message="Have a mongoDB error")
+  ))
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(name="key",value="Key of the parameter",required=true,dataType="String",paramType="form"),
+    new ApiImplicitParam(name="value",value="Value of the parameter",required=true,dataType="String",paramType="form")
+  ))
   def addParameter()=Action.async{
     implicit request =>
       //Verify if user is connect
