@@ -74,5 +74,42 @@ class ParametreManagerSpec extends Specification with Mockito {
       content must contain("<input type=\"text\" id=\"key\" name=\"key\" value=\"\" class=\"form-control\"/>")
       content must contain("<input type=\"text\" id=\"value\" name=\"value\" value=\"\" class=\"form-control\"/>")
     }
+
+    "send bad request if form is submit with empty field" in new WithApplication{
+      val f=fixture
+
+      val r=f.controller.addParameter().apply(FakeRequest(POST,"/campaigns/parameters/parameter").withSession("user"->"""{"login":"test"}"""))
+
+      status(r) must equalTo(BAD_REQUEST)
+      contentAsString(r) must contains("<span class=\"control-label errors\">This field is required</span>",2)
+    }
+
+    "send bad request if parameter exist" in new WithApplication{
+      val f=fixture
+      val data=Json.parse("""{"key":"cle","value":"valeur"}""")
+      val param=mock[Parametres]
+
+      f.parameterDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("cle"->"cle")))(any[ExecutionContext]) returns future{Some(param)}
+
+      val req=FakeRequest(POST,"/campaigns/parameters/parameter").withJsonBody(data).withSession("user"->"""{"login":"test"}""")
+      val r=f.controller.addParameter().apply(req)
+
+      there was one(f.parameterDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("cle"->"cle")))(any[ExecutionContext])
+    }
+
+    "send redirect after insert parameter" in new WithApplication{
+      val f=fixture
+      val data=Json.parse("""{"key":"cle","value":"valeur"}""")
+      val lastError=mock[LastError]
+
+      f.parameterDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("cle"->"cle")))(any[ExecutionContext]) returns future{None}
+      f.parameterDaoMock.insert(any[Parametres],any[GetLastError])(any[ExecutionContext]) returns future{lastError}
+
+      val req=FakeRequest(POST,"/campaigns/parameters/parameter").withJsonBody(data).withSession("user"->"""{"login":"test"}""")
+      val r=f.controller.addParameter().apply(req)
+
+      there was one(f.parameterDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("cle"->"cle")))(any[ExecutionContext])
+      there was one(f.parameterDaoMock).insert(any[Parametres],any[GetLastError])(any[ExecutionContext])
+    }
   }
 }

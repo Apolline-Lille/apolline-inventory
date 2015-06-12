@@ -118,6 +118,7 @@ campaign.param.title=Paramètres de calibrations
 campaign.param.addParam=Nouveau paramètre
 campaign.param.key=Clé
 campaign.param.value=Valeur
+campaign.param.error.paramExist=Ce paramètre existe déjà
 
 campaign.onglet.campaign=Liste des campagnes
 campaign.onglet.param=Paramètres de calibarations

@@ -63,7 +63,36 @@ trait ParametreManagerLike extends Controller{
     implicit request =>
       //Verify if user is connect
       UserManager.doIfconnect(request) {
-        Ok(views.html.param.formParam(form,routes.ParametreManager.addParameterPage()))
+        Ok(views.html.param.formParam(form,routes.ParametreManager.addParameter()))
+      }
+  }
+
+  def addParameter()=Action.async{
+    implicit request =>
+      //Verify if user is connect
+      UserManager.doIfconnectAsync(request){
+
+        //Verify data submit
+        form.bindFromRequest.fold(
+
+          //If data submit contains an error, display the form with prefilled data
+          formWithError=>future{BadRequest(views.html.param.formParam(formWithError,routes.ParametreManager.addParameter()))}
+          ,
+
+          //If data submit not contains error
+          data=>
+          //Find parameter
+          parameterDao.findOne(Json.obj("cle"->data.key)).flatMap(
+            paramOpt=>paramOpt match{
+              //If parameter not found, insert data and redirect to the list of parameter
+              case None=>parameterDao.insert(Parametres(cle=data.key,valeur=data.value)).map(
+                  _=>Redirect(routes.ParametreManager.listParameter())
+                )
+              //If parameter found, display the form with prefilled data
+              case _=>future{BadRequest(views.html.param.formParam(form.fill(data).withGlobalError(Messages("campaign.param.error.paramExist")),routes.ParametreManager.addParameterPage()))}
+            }
+          )
+        )
       }
   }
 }
