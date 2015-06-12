@@ -18,7 +18,7 @@ import scala.concurrent._
 
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
 
-case class ConditionForm(debut:String,fin:Option[String],commentaire:Option[String])
+case class ConditionForm(debut:Date,fin:Option[Date],commentaire:Option[String])
 
 case class FormSelect(id:String)
 
@@ -42,8 +42,8 @@ trait ConditionsManagerLike extends Controller{
 
   val form=Form[ConditionForm](
     mapping(
-      "debut"->nonEmptyText.verifying(pattern("\\d{2}/\\d{2}/\\d{4} \\d{2}:\\d{2}:\\d{2}".r)),
-      "fin"->optional(text.verifying(pattern("\\d{2}/\\d{2}/\\d{4} \\d{2}:\\d{2}:\\d{2}".r))),
+      "debut"->date("dd/MM/yyyy HH:mm:ss"),
+      "fin"->optional(date("dd/MM/yyyy HH:mm:ss")),
       "commentaire"->optional(text)
     )(ConditionForm.apply)(ConditionForm.unapply)
   )
@@ -282,27 +282,6 @@ trait ConditionsManagerLike extends Controller{
   }
 
   /**
-   * This method transform string date to a date
-   * @param date String represent a date
-   * @return Return the date associat to the string
-   */
-  def getDate(date:String)={
-    val format=new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm:ss")
-    format.setLenient(false)
-    format.parse(date)
-  }
-
-  /**
-   * This method transform an optional string date to an optional date
-   * @param date optional string represent a date
-   * @return Return an optional date associat to the optional string
-   */
-  def getDateWithOpt(date:Option[String])=date match{
-    case None => None
-    case Some(d) => Some(getDate(d))
-  }
-
-  /**
    * This method verify if date received are valid.
    * For that, this method verify if begin and end date are correct and if the begin date is before the end date
    * @param infoData Data received
@@ -311,32 +290,15 @@ trait ConditionsManagerLike extends Controller{
    * @return
    */
   def verifyDateValid(infoData:ConditionForm)(error:(Form[ConditionForm]=>Future[Result]))(valid:(Date,Option[Date])=>Future[Result])= {
-    try{
-      //get the begin date
-      val debut=getDate(infoData.debut)
-      try {
+    if (verifyDate(infoData.debut, infoData.fin)) {
 
-        //get the end date
-        val fin = getDateWithOpt(infoData.fin)
+      //Call valid function
+      valid(infoData.debut, infoData.fin)
+    }
+    else{
 
-        //Verify if the begin date is before the end date
-        if (verifyDate(debut, fin)) {
-
-          //Call valid function
-          valid(debut, fin)
-        }
-        else{
-
-          //Call error function
-          error(form.fill(infoData).withGlobalError(Messages("campaign.condition.error.beginAfterEnd")))
-        }
-      }catch{
-        //Call error function
-        case e=>error(form.fill(infoData).withError("fin",Messages("campaign.condition.error.endNotValid")))
-      }
-    }catch{
       //Call error function
-      case e=>error(form.fill(infoData).withError("debut",Messages("campaign.condition.error.beginNotValid")))
+      error(form.fill(infoData).withGlobalError(Messages("campaign.condition.error.beginAfterEnd")))
     }
   }
 
@@ -372,7 +334,7 @@ trait ConditionsManagerLike extends Controller{
       //If date are valid
       (debut,fin)=> {
         //Put data in the session
-        val cond = findCondition + ("debut" -> Json.toJson(debut)) + ("fin" -> Json.toJson(fin)) + ("commentaire" -> Json.toJson(infoData.commentaire))
+        val cond = findCondition + ("debut" -> Json.toJson(infoData.debut)) + ("fin" -> Json.toJson(infoData.fin)) + ("commentaire" -> Json.toJson(infoData.commentaire))
 
         //Redirect to the module select
         future{Redirect(routes.ConditionsManager.formModule(id)).withSession(request.session + ("condition" -> Json.stringify(cond)))}

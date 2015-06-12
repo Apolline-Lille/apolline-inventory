@@ -229,7 +229,11 @@ class ConditionsManagerSpec extends Specification with Mockito {
       status(r) must equalTo(SEE_OTHER)
       header("Location",r) must beSome("/campaigns/campaign/"+bson.stringify+"/form/module")
       val s=session(r)
-      s.get("condition") must beSome("""{"debut":1429653600000,"fin":1429740000000,"commentaire":"un com"}""")
+      s.get("condition") must not beNone
+      val cond=Json.parse(s.get("condition").getOrElse("{}"))
+      new Date(cond.\("debut").as[Long]) must equalTo(date)
+      new Date(cond.\("fin").as[Long]) must equalTo(date2)
+      cond.\("commentaire").as[String] must equalTo("un com")
 
       there was one(f.campaignManagerMock).doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]])
     }
@@ -251,7 +255,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
       content must matchRegex("<input type=\"text\" id=\"debut\" name=\"debut\" value=\"52/04/2015 00:00:00\" class=\"form-control\" placeholder=\"dd/mm/YYYY hh:mm:ss\"/>")
       content must contain("<input type=\"text\" id=\"fin\" name=\"fin\" value=\"\" class=\"form-control\" placeholder=\"dd/mm/YYYY hh:mm:ss\"/>")
       content must contain("<textarea id=\"commentaire\" name=\"commentaire\" class=\"form-control\"></textarea>")
-      content must contain("<span class=\"control-label errors\">La date de début n&#x27;est pas valide</span>")
+      content must contain("<span class=\"control-label errors\">Valid date required</span>")
 
       there was one(f.campaignManagerMock).doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]])
     }
@@ -273,7 +277,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
       content must matchRegex("<input type=\"text\" id=\"debut\" name=\"debut\" value=\"22/04/2015 00:00:00\" class=\"form-control\" placeholder=\"dd/mm/YYYY hh:mm:ss\"/>")
       content must contain("<input type=\"text\" id=\"fin\" name=\"fin\" value=\"52/04/2015 00:00:00\" class=\"form-control\" placeholder=\"dd/mm/YYYY hh:mm:ss\"/>")
       content must contain("<textarea id=\"commentaire\" name=\"commentaire\" class=\"form-control\"></textarea>")
-      content must contain("<span class=\"control-label errors\">La date de fin n&#x27;est pas valide</span>")
+      content must contain("<span class=\"control-label errors\">Valid date required</span>")
 
       there was one(f.campaignManagerMock).doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]])
     }
@@ -567,34 +571,6 @@ class ConditionsManagerSpec extends Specification with Mockito {
     }
   }
 
-  "When method getDate is called, ConditionsManager" should{
-    "return date if string represent good date" in{
-      val f=fixture
-
-      f.controller.getDate("22/04/2015 00:00:00") must equalTo(date)
-    }
-
-    "throw an exception if date is not valid" in{
-      val f=fixture
-
-      f.controller.getDate("62/04/2015") must throwA[ParseException]
-    }
-  }
-
-  "When method getDateWithOpt is called, ConditionsManager" should{
-    "return None if the option is equal to None" in{
-      val f=fixture
-
-      f.controller.getDateWithOpt(None) must equalTo(None)
-    }
-
-    "return Some with date if the option is equal to Some with a String date" in {
-      val f=fixture
-
-      f.controller.getDateWithOpt(Some("22/04/2015 00:00:00")) must equalTo(Some(date))
-    }
-  }
-
   "When method findCondition is called, ConditionsManager" should{
     "return an empty JsObject if session not contain key 'condition'" in new WithApplication{
       val f=fixture
@@ -618,7 +594,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
   "When method verifyDateValid is called, ConditionsManager" should{
     "apply valid function if begin date and end date are valid" in {
       val f=fixture
-      val condition=ConditionForm("22/04/2015 00:00:00",Some("23/04/2015 00:00:00"),None)
+      val condition=ConditionForm(date,Some(date2),None)
       val error=mock[Form[ConditionForm]=>Future[Result]]
       val valid=mock[(Date,Option[Date])=>Future[Result]]
 
@@ -633,7 +609,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
 
     "apply valid function if begin date is valid and end date is empty" in {
       val f=fixture
-      val condition=ConditionForm("22/04/2015 00:00:00",None,None)
+      val condition=ConditionForm(date,None,None)
       val error=mock[Form[ConditionForm]=>Future[Result]]
       val valid=mock[(Date,Option[Date])=>Future[Result]]
 
@@ -646,39 +622,9 @@ class ConditionsManagerSpec extends Specification with Mockito {
       there was one(valid).apply(org.mockito.Matchers.eq(date),org.mockito.Matchers.eq(None))
     }
 
-    "apply error function if begin date is not valid" in {
-      val f=fixture
-      val condition=ConditionForm("52/04/2015 00:00:00",None,None)
-      val error=mock[Form[ConditionForm]=>Future[Result]]
-      val valid=mock[(Date,Option[Date])=>Future[Result]]
-
-      error.apply(any[Form[ConditionForm]]) returns future{Results.Ok("execute func error")}
-
-      val r=f.controller.verifyDateValid(condition)(error)(valid)
-      status(r) must equalTo(OK)
-      contentAsString(r) must equalTo("execute func error")
-
-      there was one(error).apply(any[Form[ConditionForm]])
-    }
-
-    "apply error function if end date is not valid" in {
-      val f=fixture
-      val condition=ConditionForm("22/04/2015 00:00:00",Some("52/04/2015 00:00:00"),None)
-      val error=mock[Form[ConditionForm]=>Future[Result]]
-      val valid=mock[(Date,Option[Date])=>Future[Result]]
-
-      error.apply(any[Form[ConditionForm]]) returns future{Results.Ok("execute func error")}
-
-      val r=f.controller.verifyDateValid(condition)(error)(valid)
-      status(r) must equalTo(OK)
-      contentAsString(r) must equalTo("execute func error")
-
-      there was one(error).apply(any[Form[ConditionForm]])
-    }
-
     "apply error function if end date is before begin date" in {
       val f=fixture
-      val condition=ConditionForm("23/04/2015 00:00:00",Some("22/04/2015 00:00:00"),None)
+      val condition=ConditionForm(date2,Some(date),None)
       val error=mock[Form[ConditionForm]=>Future[Result]]
       val valid=mock[(Date,Option[Date])=>Future[Result]]
 
@@ -696,7 +642,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
     "send Redirect if data are valid" in new WithApplication{
       val f=fixture
       val camp=Campagne(bson,"camp","type",List())
-      val condition=ConditionForm("22/04/2015 00:00:00",None,None)
+      val condition=ConditionForm(date,None,None)
 
       val req=FakeRequest(GET,"url").withSession("user" -> """{"login":"test"}""")
       val action=Action.async{implicit request=>f.controller.verifyGeneralData(condition,bson.stringify,camp)}
@@ -706,43 +652,9 @@ class ConditionsManagerSpec extends Specification with Mockito {
       header("Location",r) must beSome("/campaigns/campaign/"+bson.stringify+"/form/module")
     }
 
-    "send bad request with the form if begin date is not valid" in new WithApplication{
-      val f=fixture
-      val camp=Campagne(bson,"camp","type",List())
-      val condition=ConditionForm("52/04/2015 00:00:00",None,None)
-
-      val req=FakeRequest(GET,"url").withSession("user" -> """{"login":"test"}""")
-      val action=Action.async{implicit request=>f.controller.verifyGeneralData(condition,bson.stringify,camp)}
-      val r=call(action,req)
-
-      status(r) must equalTo(BAD_REQUEST)
-      val content=contentAsString(r)
-      content must matchRegex("<input type=\"text\" id=\"debut\" name=\"debut\" value=\"52/04/2015 00:00:00\" class=\"form-control\" placeholder=\"dd/mm/YYYY hh:mm:ss\"/>")
-      content must contain("<input type=\"text\" id=\"fin\" name=\"fin\" value=\"\" class=\"form-control\" placeholder=\"dd/mm/YYYY hh:mm:ss\"/>")
-      content must contain("<textarea id=\"commentaire\" name=\"commentaire\" class=\"form-control\"></textarea>")
-      content must contain("<span class=\"control-label errors\">La date de début n&#x27;est pas valide</span>")
-    }
-
-    "send bad request with the form if end date is not valid" in new WithApplication{
-      val f=fixture
-      val condition=ConditionForm("22/04/2015 00:00:00",Some("52/04/2015 00:00:00"),None)
-      val camp=Campagne(bson,"camp","type",List())
-
-      val req=FakeRequest(GET,"url").withSession("user" -> """{"login":"test"}""")
-      val action=Action.async{implicit request=>f.controller.verifyGeneralData(condition,bson.stringify,camp)}
-      val r=call(action,req)
-
-      status(r) must equalTo(BAD_REQUEST)
-      val content=contentAsString(r)
-      content must matchRegex("<input type=\"text\" id=\"debut\" name=\"debut\" value=\"22/04/2015 00:00:00\" class=\"form-control\" placeholder=\"dd/mm/YYYY hh:mm:ss\"/>")
-      content must contain("<input type=\"text\" id=\"fin\" name=\"fin\" value=\"52/04/2015 00:00:00\" class=\"form-control\" placeholder=\"dd/mm/YYYY hh:mm:ss\"/>")
-      content must contain("<textarea id=\"commentaire\" name=\"commentaire\" class=\"form-control\"></textarea>")
-      content must contain("<span class=\"control-label errors\">La date de fin n&#x27;est pas valide</span>")
-    }
-
     "send bad request with the form if end date is before begin date" in new WithApplication{
       val f=fixture
-      val condition=ConditionForm("23/04/2015 00:00:00",Some("22/04/2015 00:00:00"),None)
+      val condition=ConditionForm(date2,Some(date),None)
       val camp=Campagne(bson,"camp","type",List())
 
       val req=FakeRequest(GET,"url").withSession("user" -> """{"login":"test"}""")
