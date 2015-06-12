@@ -40,8 +40,8 @@ class ParametreManagerSpec extends Specification with Mockito {
   }
 
   "When user is not connected, ParametreManager" should {
-    "redirect to login for resource /campaigns/parameter" in new WithApplication {
-      route(FakeRequest(GET, "/campaigns/parameter")).map(
+    "redirect to login for resource /campaigns/parameters" in new WithApplication {
+      route(FakeRequest(GET, "/campaigns/parameters")).map(
         r => {
           status(r) must equalTo(SEE_OTHER)
           header("Location", r) must equalTo(Some("/login"))
@@ -49,6 +49,30 @@ class ParametreManagerSpec extends Specification with Mockito {
       ).getOrElse(
           failure("Pas de retour de la fonction")
         )
+    }
+
+    "redirect to login for resource /campaigns/parameters/parameter" in new WithApplication {
+      route(FakeRequest(GET, "/campaigns/parameters/parameter")).map(
+        r => {
+          status(r) must equalTo(SEE_OTHER)
+          header("Location", r) must equalTo(Some("/login"))
+        }
+      ).getOrElse(
+          failure("Pas de retour de la fonction")
+        )
+    }
+  }
+
+  "When user is on resource /campaigns/parameters/parameter" should{
+    "send 200 Ok page with an empty form" in new WithApplication{
+      val f=fixture
+
+      val r=f.controller.addParameterPage().apply(FakeRequest(GET,"/campaigns/parameters/parameter").withSession("user"->"""{"login":"test"}"""))
+
+      status(r) must equalTo(OK)
+      val content=contentAsString(r)
+      content must contain("<input type=\"text\" id=\"key\" name=\"key\" value=\"\" class=\"form-control\"/>")
+      content must contain("<input type=\"text\" id=\"value\" name=\"value\" value=\"\" class=\"form-control\"/>")
     }
   }
 }

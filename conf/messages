@@ -116,6 +116,8 @@ campaign.condition.error.beginAfterEnd=La date de début doit être inférieur �
 
 campaign.param.title=Paramètres de calibrations
 campaign.param.addParam=Nouveau paramètre
+campaign.param.key=Clé
+campaign.param.value=Valeur
 
 campaign.onglet.campaign=Liste des campagnes
 campaign.onglet.param=Paramètres de calibarations

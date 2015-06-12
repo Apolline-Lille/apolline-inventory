@@ -13,6 +13,8 @@ import scala.concurrent._
 
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
 
+case class ParameterForm(key:String,value:String)
+
 /**
  * This object is a controller for manage all parameter
  */
@@ -24,6 +26,13 @@ trait ParametreManagerLike extends Controller{
    * DAO for parameters
    */
   val parameterDao:ParametresDao=ParametresDaoObj
+
+  val form=Form[ParameterForm](
+    mapping(
+      "key"->nonEmptyText,
+      "value"->nonEmptyText
+    )(ParameterForm.apply)(ParameterForm.unapply)
+  )
 
   /****************** Route methods ***********/
 
@@ -47,6 +56,14 @@ trait ParametreManagerLike extends Controller{
       //Verify if user is connect
       UserManager.doIfconnectAsync(request) {
         future{Ok(views.html.param.listParam())}
+      }
+  }
+
+  def addParameterPage()=Action{
+    implicit request =>
+      //Verify if user is connect
+      UserManager.doIfconnect(request) {
+        Ok(views.html.param.formParam(form,routes.ParametreManager.addParameterPage()))
       }
   }
 }
