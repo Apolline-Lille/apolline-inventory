@@ -63,6 +63,59 @@ class ParametreManagerSpec extends Specification with Mockito {
     }
   }
 
+  "When user is on resource /campaigns/parameters" should{
+    "send 200 Ok page with the message 'Aucun résultat trouvé'" in new WithApplication{
+      val f=fixture
+
+      f.parameterDaoMock.findAll(any[JsObject],any[JsObject])(any[ExecutionContext]) returns future{List()}
+
+      val req=FakeRequest(GET,"/campaigns/parameters").withSession("user"->"""{"login":"test"}""")
+      val r=f.controller.listParameter().apply(req)
+
+      status(r) must equalTo(OK)
+      val content=contentAsString(r)
+      content must contain("<h3 style=\"text-align:center\">Aucun résultat trouvé</h3>")
+
+      there was one(f.parameterDaoMock).findAll(any[JsObject],any[JsObject])(any[ExecutionContext])
+    }
+
+    "send 200 Ok page with 1 result" in new WithApplication{
+      val f=fixture
+      val param=Parametres(cle="key",valeur="value")
+
+      f.parameterDaoMock.findAll(any[JsObject],any[JsObject])(any[ExecutionContext]) returns future{List(param)}
+
+      val req=FakeRequest(GET,"/campaigns/parameters").withSession("user"->"""{"login":"test"}""")
+      val r=f.controller.listParameter().apply(req)
+
+      status(r) must equalTo(OK)
+      val content=contentAsString(r)
+      content must contain("<td>key</td>")
+      content must contain("<td>value</td>")
+
+      there was one(f.parameterDaoMock).findAll(any[JsObject],any[JsObject])(any[ExecutionContext])
+    }
+
+    "send 200 Ok page with 2 result" in new WithApplication{
+      val f=fixture
+      val params=List(Parametres(cle="key",valeur="value"),Parametres(cle="key2",valeur="value2"))
+
+      f.parameterDaoMock.findAll(any[JsObject],any[JsObject])(any[ExecutionContext]) returns future{params}
+
+      val req=FakeRequest(GET,"/campaigns/parameters").withSession("user"->"""{"login":"test"}""")
+      val r=f.controller.listParameter().apply(req)
+
+      status(r) must equalTo(OK)
+      val content=contentAsString(r)
+      content must contain("<td>key</td>")
+      content must contain("<td>value</td>")
+      content must contain("<td>key2</td>")
+      content must contain("<td>value2</td>")
+
+      there was one(f.parameterDaoMock).findAll(any[JsObject],any[JsObject])(any[ExecutionContext])
+    }
+  }
+
   "When user is on resource /campaigns/parameters/parameter" should{
     "send 200 Ok page with an empty form" in new WithApplication{
       val f=fixture

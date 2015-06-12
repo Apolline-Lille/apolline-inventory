@@ -1,4 +1,4 @@
-@()(implicit request: Request[AnyContent])
+@(params:List[Parametres])(implicit request: Request[AnyContent])
 
 @main(Messages("campaign.param.title")){
   @navigation("campaign")
@@ -6,7 +6,35 @@
     @navCampaign("param")
     <section>
       <article class="col-sm-9">
-
+        @if(params.size>0){
+          <div class="row table-responsive">
+            <table class="table table-hover table-bordered">
+              <thead>
+                <tr>
+                  <th>@Messages("campaign.param.key")</th>
+                  <th>@Messages("campaign.param.value")</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+              @for(param<-params){
+                <tr>
+                  <td>@param.cle</td>
+                  <td>@param.valeur</td>
+                  <td>
+                    <a href="" data-toggle-tooltip title="@Messages("global.tooltip.update")"><span class="glyphicon glyphicon-pencil"></span></a>
+                    <a data-toggle="modal" href="#modal-delete" data-toggle-tooltip title="@Messages("global.tooltip.delete")" data-title="" data-link="">
+                      <span class="glyphicon glyphicon-trash"></span>
+                    </a>
+                  </td>
+                </tr>
+              }
+              </tbody>
+            </table>
+          </div>
+        }else{
+          <h3 style="text-align:center">@Messages("global.error.noResult")</h3>
+        }
       </article>
       <nav class="col-sm-3">
         <a href="@routes.ParametreManager.addParameterPage()" class="btn btn-success">

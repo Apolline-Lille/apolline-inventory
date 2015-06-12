@@ -57,7 +57,9 @@ trait ParametreManagerLike extends Controller{
     implicit request =>
       //Verify if user is connect
       UserManager.doIfconnectAsync(request) {
-        future{Ok(views.html.param.listParam())}
+        parameterDao.findAll().map(
+          params=>Ok(views.html.param.listParam(params))
+        )
       }
   }
 
