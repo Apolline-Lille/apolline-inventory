@@ -113,8 +113,12 @@ campaign.condition.onglet.localisation=Localisation
 campaign.condition.onglet.validate=Validation
 campaign.condition.associat=Associer à la condition
 campaign.condition.error.beginAfterEnd=La date de début doit être inférieur à la date de fin
-campaign.condition.error.beginNotValid=La date de début n''est pas valide
-campaign.condition.error.endNotValid=La date de fin n''est pas valide
+
+campaign.param.title=Paramètres de calibrations
+campaign.param.addParam=Nouveau paramètre
+
+campaign.onglet.campaign=Liste des campagnes
+campaign.onglet.param=Paramètres de calibarations
 
 login.username=Login
 login.password=Password

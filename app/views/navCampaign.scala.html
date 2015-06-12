@@ -1,0 +1,10 @@
+@(current:String)
+
+<nav>
+  <ul class="nav nav-tabs">
+    <li role="presentation" @if(current.equals("campaign")){class="active"}><a href="@routes.CampagneManager.listCampaign()">@Messages("campaign.onglet.campaign")</a></li>
+    <li role="presentation" @if(current.equals("param")){class="active"}>
+      <a href="@routes.ParametreManager.listParameter()" @if(current.equals("param")){class="pointer"}>@Messages("campaign.onglet.param")</a>
+    </li>
+  </ul>
+</nav>
