@@ -139,31 +139,52 @@ trait ParametreManagerLike extends Controller{
   ))
   def addParameter()=Action.async{
     implicit request =>
-      //Verify if user is connect
-      UserManager.doIfconnectAsync(request){
+      //Verify data received
+      submitForm(routes.ParametreManager.addParameter()){
+        //Create query for find parameter
+        param=>Json.obj("cle"->param.key)
+      }{
+        //Insert parameter into the database
+        param=>parameterDao.insert(Parametres(cle=param.key,valeur=param.value)).map(
+          _=>Redirect(routes.ParametreManager.listParameter())
+        )
+      }
+  }
 
-        //Verify data submit
-        form.bindFromRequest.fold(
+  /**
+   * Verify if the user is connect and if data received are valid then apply function dedicated
+   * @param route Route use for submit the form
+   * @param verif Function use for get card selector
+   * @param f Function dedicated
+   * @param request
+   * @return Return Bad request Action if the form is not valid
+   *         Return Redirect if dedicated function is a success
+   *         Return Internal server error if have mongoDB error
+   */
+  def submitForm(route:Call)(verif:ParameterForm=>JsObject)(f:ParameterForm=>Future[Result])(implicit request:Request[AnyContent]):Future[Result]={
+    //Verify if user is connect
+    UserManager.doIfconnectAsync(request){
 
-          //If data submit contains an error, display the form with prefilled data
-          formWithError=>future{BadRequest(views.html.param.formParam(formWithError,routes.ParametreManager.addParameter()))}
-          ,
+      //Verify data submit
+      form.bindFromRequest.fold(
 
-          //If data submit not contains error
-          data=>
+        //If data submit contains an error, display the form with prefilled data
+        formWithError=>future{BadRequest(views.html.param.formParam(formWithError,route))}
+        ,
+
+        //If data submit not contains error
+        data=>
           //Find parameter
-          parameterDao.findOne(Json.obj("cle"->data.key)).flatMap(
+          parameterDao.findOne(verif(data)).flatMap(
             paramOpt=>paramOpt match{
               //If parameter not found, insert data and redirect to the list of parameter
-              case None=>parameterDao.insert(Parametres(cle=data.key,valeur=data.value)).map(
-                  _=>Redirect(routes.ParametreManager.listParameter())
-                )
+              case None=>f(data)
               //If parameter found, display the form with prefilled data
               case _=>future{BadRequest(views.html.param.formParam(form.fill(data).withGlobalError(Messages("campaign.param.error.paramExist")),routes.ParametreManager.addParameterPage()))}
             }
           )
-        )
-      }
+      )
+    }
   }
 }
 

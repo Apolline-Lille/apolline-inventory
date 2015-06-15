@@ -150,28 +150,6 @@ class ParametreManagerSpec extends Specification with Mockito {
       content must contain("<input type=\"text\" id=\"value\" name=\"value\" value=\"\" class=\"form-control\"/>")
     }
 
-    "send bad request if form is submit with empty field" in new WithApplication{
-      val f=fixture
-
-      val r=f.controller.addParameter().apply(FakeRequest(POST,"/campaigns/parameters/parameter").withSession("user"->"""{"login":"test"}"""))
-
-      status(r) must equalTo(BAD_REQUEST)
-      contentAsString(r) must contains("<span class=\"control-label errors\">This field is required</span>",2)
-    }
-
-    "send bad request if parameter exist" in new WithApplication{
-      val f=fixture
-      val data=Json.parse("""{"key":"cle","value":"valeur"}""")
-      val param=mock[Parametres]
-
-      f.parameterDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("cle"->"cle")))(any[ExecutionContext]) returns future{Some(param)}
-
-      val req=FakeRequest(POST,"/campaigns/parameters/parameter").withJsonBody(data).withSession("user"->"""{"login":"test"}""")
-      val r=f.controller.addParameter().apply(req)
-
-      there was one(f.parameterDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("cle"->"cle")))(any[ExecutionContext])
-    }
-
     "send redirect after insert parameter" in new WithApplication{
       val f=fixture
       val data=Json.parse("""{"key":"cle","value":"valeur"}""")
@@ -188,7 +166,7 @@ class ParametreManagerSpec extends Specification with Mockito {
     }
   }
 
-  "When user is on resource /campaigns/parameters/parameter" should{
+  "When user is on resource /campaigns/parameters/parameter/:id" should{
     "send 200 Ok page with a prefilled form" in new WithApplication{
       val f=fixture
       val param=Parametres(cle="cle",valeur="valeur")
@@ -216,6 +194,71 @@ class ParametreManagerSpec extends Specification with Mockito {
       header("Location",r) must beSome("/campaigns/parameters")
 
       there was one(f.parameterDaoMock).findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext])
+    }
+  }
+
+  "When method submitForm is called, ParametreManager" should{
+    "send bad request if form is submit with empty field" in new WithApplication{
+      val f=fixture
+      val route=routes.ParametreManager.listParameter()
+      val verif=mock[ParameterForm=>JsObject]
+      val func=mock[ParameterForm=>Future[Result]]
+
+      val req=FakeRequest(POST,"/campaigns/parameters/parameter").withSession("user"->"""{"login":"test"}""")
+      val action=Action.async{implicit request=>f.controller.submitForm(route)(verif)(func)}
+      val r=call(action,req)
+
+      status(r) must equalTo(BAD_REQUEST)
+      contentAsString(r) must contains("<span class=\"control-label errors\">This field is required</span>",2)
+
+      there was no(verif).apply(any[ParameterForm])
+      there was no(func).apply(any[ParameterForm])
+    }
+
+    "send bad request if parameter exist" in new WithApplication{
+      val f=fixture
+      val data=Json.parse("""{"key":"cle","value":"valeur"}""")
+      val param=mock[Parametres]
+      val route=routes.ParametreManager.listParameter()
+      val verif=mock[ParameterForm=>JsObject]
+      val func=mock[ParameterForm=>Future[Result]]
+
+      verif.apply(any[ParameterForm]) returns Json.obj("cle"->"cle")
+      f.parameterDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("cle"->"cle")))(any[ExecutionContext]) returns future{Some(param)}
+
+      val req=FakeRequest(POST,"/campaigns/parameters/parameter").withJsonBody(data).withSession("user"->"""{"login":"test"}""")
+      val action=Action.async{implicit request=>f.controller.submitForm(route)(verif)(func)}
+      val r=call(action,req)
+
+      status(r) must equalTo(BAD_REQUEST)
+      contentAsString(r) must contain("<div class=\"alert alert-danger\" role=\"alert\">Ce paramètre existe déjà</div>")
+
+      there was one(f.parameterDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("cle"->"cle")))(any[ExecutionContext])
+      there was one(verif).apply(any[ParameterForm])
+      there was no(func).apply(any[ParameterForm])
+    }
+
+    "execute dedicated function" in new WithApplication{
+      val f=fixture
+      val data=Json.parse("""{"key":"cle","value":"valeur"}""")
+      val route=routes.ParametreManager.listParameter()
+      val verif=mock[ParameterForm=>JsObject]
+      val func=mock[ParameterForm=>Future[Result]]
+
+      verif.apply(any[ParameterForm]) returns Json.obj("cle"->"cle")
+      f.parameterDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("cle"->"cle")))(any[ExecutionContext]) returns future{None}
+      func.apply(any[ParameterForm]) returns future{Results.Ok("exec func")}
+
+      val req=FakeRequest(POST,"/campaigns/parameters/parameter").withJsonBody(data).withSession("user"->"""{"login":"test"}""")
+      val action=Action.async{implicit request=>f.controller.submitForm(route)(verif)(func)}
+      val r=call(action,req)
+
+      status(r) must equalTo(OK)
+      contentAsString(r) must equalTo("exec func")
+
+      there was one(f.parameterDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("cle"->"cle")))(any[ExecutionContext])
+      there was one(verif).apply(any[ParameterForm])
+      there was one(func).apply(any[ParameterForm])
     }
   }
 }
