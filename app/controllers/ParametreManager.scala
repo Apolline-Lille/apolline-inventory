@@ -85,6 +85,41 @@ trait ParametreManagerLike extends Controller{
   }
 
   /**
+   * This method is call when the user is on the page /campaigns/parameters/parameter/:id. It display a form for update parameter
+   * @return Return Ok Action when the user is on the page /campaigns/parameters/parameter/:id with the a form for update parameter
+   *         Return Redirect Action when the user is not log in or when the parameter not found
+   */
+  @ApiOperation(
+    nickname = "parameter/update",
+    value = "Get the html page with a prefilled form for update parameter",
+    notes = "Get the html page with a prefilled form for update parameter",
+    httpMethod = "GET")
+  @ApiResponses(Array(
+    new ApiResponse(code=303,message="<ul><li>Move resource to the login page at /login if the user is not log</li><li>Move resource to the parameters list at /campaigns/parameters if parameter not found</li></ul>")
+  ))
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(name="id",value="Parameter id",required = true,paramType = "String",dataType="path")
+  ))
+  def updateParameterPage(id:String)=Action.async{
+    implicit request=>
+      //Verify if user is connect
+      UserManager.doIfconnectAsync(request) {
+
+        //Find the parameter
+        parameterDao.findById(BSONObjectID(id)).map(
+          data => data match{
+
+            //If parameter not found redirect to the parameters list
+            case None => Redirect(routes.ParametreManager.listParameter())
+
+            //If parameter found display form with prefilled data
+            case Some(param)=> Ok(views.html.param.formParam(form.fill(ParameterForm(param.cle,param.valeur)),routes.ParametreManager.addParameter()))
+          }
+        )
+      }
+  }
+
+  /**
    * This method is call when the user is on the page /campaigns/parameters/parameter. It insert parameter into the database
    * @return Return Redirect Action when the user is not log in or after insert parameter
    *         Return Internal Server Error Action when have mongoDB error

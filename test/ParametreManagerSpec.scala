@@ -61,6 +61,28 @@ class ParametreManagerSpec extends Specification with Mockito {
           failure("Pas de retour de la fonction")
         )
     }
+
+    "redirect to login for resource /campaigns/parameters/parameter" in new WithApplication {
+      route(FakeRequest(POST, "/campaigns/parameters/parameter")).map(
+        r => {
+          status(r) must equalTo(SEE_OTHER)
+          header("Location", r) must equalTo(Some("/login"))
+        }
+      ).getOrElse(
+          failure("Pas de retour de la fonction")
+        )
+    }
+
+    "redirect to login for resource /campaigns/parameters/parameter/:id" in new WithApplication {
+      route(FakeRequest(GET, "/campaigns/parameters/parameter/"+bson.stringify)).map(
+        r => {
+          status(r) must equalTo(SEE_OTHER)
+          header("Location", r) must equalTo(Some("/login"))
+        }
+      ).getOrElse(
+          failure("Pas de retour de la fonction")
+        )
+    }
   }
 
   "When user is on resource /campaigns/parameters" should{
@@ -163,6 +185,37 @@ class ParametreManagerSpec extends Specification with Mockito {
 
       there was one(f.parameterDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("cle"->"cle")))(any[ExecutionContext])
       there was one(f.parameterDaoMock).insert(any[Parametres],any[GetLastError])(any[ExecutionContext])
+    }
+  }
+
+  "When user is on resource /campaigns/parameters/parameter" should{
+    "send 200 Ok page with a prefilled form" in new WithApplication{
+      val f=fixture
+      val param=Parametres(cle="cle",valeur="valeur")
+
+      f.parameterDaoMock.findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext]) returns future{Some(param)}
+
+      val r=f.controller.updateParameterPage(bson.stringify).apply(FakeRequest(GET,"/campaigns/parameters/parameter/"+bson.stringify).withSession("user"->"""{"login":"test"}"""))
+
+      status(r) must equalTo(OK)
+      val content=contentAsString(r)
+      content must contain("<input type=\"text\" id=\"key\" name=\"key\" value=\"cle\" class=\"form-control\"/>")
+      content must contain("<input type=\"text\" id=\"value\" name=\"value\" value=\"valeur\" class=\"form-control\"/>")
+
+      there was one(f.parameterDaoMock).findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext])
+    }
+
+    "send redirect if parameter not found" in new WithApplication{
+      val f=fixture
+
+      f.parameterDaoMock.findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext]) returns future{None}
+
+      val r=f.controller.updateParameterPage(bson.stringify).apply(FakeRequest(GET,"/campaigns/parameters/parameter/"+bson.stringify).withSession("user"->"""{"login":"test"}"""))
+
+      status(r) must equalTo(SEE_OTHER)
+      header("Location",r) must beSome("/campaigns/parameters")
+
+      there was one(f.parameterDaoMock).findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext])
     }
   }
 }
