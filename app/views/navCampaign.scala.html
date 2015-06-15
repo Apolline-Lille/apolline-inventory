@@ -6,5 +6,8 @@
     <li role="presentation" @if(current.equals("param")){class="active"}>
       <a href="@routes.ParametreManager.listParameter()" @if(current.equals("param")){class="pointer"}>@Messages("campaign.onglet.param")</a>
     </li>
+    <li role="presentation" @if(current.equals("localisation")){class="active"}>
+      <a href="@routes.LocalisationManager.listLocalisation()" @if(current.equals("param")){class="pointer"}>@Messages("campaign.onglet.localisation")</a>
+    </li>
   </ul>
 </nav>

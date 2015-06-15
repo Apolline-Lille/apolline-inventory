@@ -83,12 +83,15 @@ GET         /campaigns/campaign/:id/form                      controllers.Condit
 POST        /campaigns/campaign/:id/form                      controllers.ConditionsManager.addGeneralInformation(id)
 GET         /campaigns/campaign/:id/form/module               controllers.ConditionsManager.formModule(id,filtre ?= "")
 POST        /campaigns/campaign/:id/form/module               controllers.ConditionsManager.addSelectedModule(id)
+
 GET         /campaigns/parameters                             controllers.ParametreManager.listParameter()
 GET         /campaigns/parameters/parameter                   controllers.ParametreManager.addParameterPage()
 POST        /campaigns/parameters/parameter                   controllers.ParametreManager.addParameter()
 GET         /campaigns/parameters/parameter/:id               controllers.ParametreManager.updateParameterPage(id)
 POST        /campaigns/parameters/parameter/:id               controllers.ParametreManager.updateParameter(id)
-GET         /campaigns/parameters/parameter/:id/delete          controllers.ParametreManager.deleteParameter(id)
+GET         /campaigns/parameters/parameter/:id/delete        controllers.ParametreManager.deleteParameter(id)
+
+GET         /campaigns/localisations                            controllers.LocalisationManager.listLocalisation()
 
 # Map static resources from the /public folder to the /assets URL path
 GET         /assets/*file                                     controllers.Assets.at(path="/public", file)
