@@ -113,7 +113,7 @@ trait ParametreManagerLike extends Controller{
             case None => Redirect(routes.ParametreManager.listParameter())
 
             //If parameter found display form with prefilled data
-            case Some(param)=> Ok(views.html.param.formParam(form.fill(ParameterForm(param.cle,param.valeur)),routes.ParametreManager.addParameter()))
+            case Some(param)=> Ok(views.html.param.formParam(form.fill(ParameterForm(param.cle,param.valeur)),routes.ParametreManager.updateParameter(id)))
           }
         )
       }
@@ -146,6 +146,39 @@ trait ParametreManagerLike extends Controller{
       }{
         //Insert parameter into the database
         param=>parameterDao.insert(Parametres(cle=param.key,valeur=param.value)).map(
+          _=>Redirect(routes.ParametreManager.listParameter())
+        )
+      }
+  }
+
+  /**
+   * This method is call when the user is on the page /campaigns/parameters/parameter/:id. It update parameter into the database
+   * @return Return Redirect Action when the user is not log in or after update parameter
+   *         Return Internal Server Error Action when have mongoDB error
+   */
+  @ApiOperation(
+    nickname = "parameter/update",
+    value = "Update parameter into the database",
+    notes = "Update parameter into the database",
+    httpMethod = "POST")
+  @ApiResponses(Array(
+    new ApiResponse(code=303,message="<ul><li>Move resource to the login page at /login if the user is not log</li><li>Move resource to the parameter list at /campaigns/parameters if parameter was update</li></ul>"),
+    new ApiResponse(code=500,message="Have a mongoDB error")
+  ))
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(name="id",value="Parameter id",required=true,dataType="String",paramType="path"),
+    new ApiImplicitParam(name="key",value="Key of the parameter",required=true,dataType="String",paramType="form"),
+    new ApiImplicitParam(name="value",value="Value of the parameter",required=true,dataType="String",paramType="form")
+  ))
+  def updateParameter(id:String)=Action.async{
+    implicit request =>
+      //Verify data received
+      submitForm(routes.ParametreManager.updateParameter(id)){
+        //Create query for find parameter
+        param=>Json.obj("cle"->param.key,"_id"->Json.obj("$ne"->BSONObjectID(id)))
+      }{
+        //Parameter parameter into the database
+        param=>parameterDao.updateById(BSONObjectID(id),Parametres(BSONObjectID(id),param.key,param.value)).map(
           _=>Redirect(routes.ParametreManager.listParameter())
         )
       }

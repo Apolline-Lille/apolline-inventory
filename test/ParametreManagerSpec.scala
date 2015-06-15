@@ -195,6 +195,22 @@ class ParametreManagerSpec extends Specification with Mockito {
 
       there was one(f.parameterDaoMock).findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext])
     }
+
+    "send redirect after update parameter" in new WithApplication{
+      val f=fixture
+      val data=Json.parse("""{"key":"cle","value":"valeur"}""")
+      val lastError=mock[LastError]
+      val param=Parametres(bson,"cle","valeur")
+
+      f.parameterDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("cle"->"cle","_id"->Json.obj("$ne"->bson))))(any[ExecutionContext]) returns future{None}
+      f.parameterDaoMock.updateById(org.mockito.Matchers.eq(bson),org.mockito.Matchers.eq(param),any[GetLastError])(any[Writes[Parametres]],any[ExecutionContext]) returns future{lastError}
+
+      val req=FakeRequest(POST,"/campaigns/parameters/parameter/"+bson.stringify).withJsonBody(data).withSession("user"->"""{"login":"test"}""")
+      val r=f.controller.updateParameter(bson.stringify).apply(req)
+
+      there was one(f.parameterDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("cle"->"cle","_id"->Json.obj("$ne"->bson))))(any[ExecutionContext])
+      there was one(f.parameterDaoMock).updateById(org.mockito.Matchers.eq(bson),org.mockito.Matchers.eq(param),any[GetLastError])(any[Writes[Parametres]],any[ExecutionContext])
+    }
   }
 
   "When method submitForm is called, ParametreManager" should{
