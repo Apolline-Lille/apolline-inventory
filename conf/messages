@@ -119,6 +119,7 @@ campaign.param.addParam=Nouveau paramètre
 campaign.param.key=Clé
 campaign.param.value=Valeur
 campaign.param.error.paramExist=Ce paramètre existe déjà
+campaign.param.confirmDelete=Êtes-vous sûr de vouloir supprimer ce paramètre ?
 
 campaign.onglet.campaign=Liste des campagnes
 campaign.onglet.param=Paramètres de calibarations

@@ -1,6 +1,7 @@
 @(params:List[Parametres])(implicit request: Request[AnyContent])
 
 @main(Messages("campaign.param.title")){
+  <script src="@routes.Assets.at("/public","javascripts/modal-delete.js")" type="text/javascript" defer></script>
   @navigation("campaign")
   <div class="container">
     @navCampaign("param")
@@ -23,7 +24,7 @@
                   <td>@param.valeur</td>
                   <td>
                     <a href="@routes.ParametreManager.updateParameterPage(param._id.stringify)" data-toggle-tooltip title="@Messages("global.tooltip.update")"><span class="glyphicon glyphicon-pencil"></span></a>
-                    <a data-toggle="modal" href="#modal-delete" data-toggle-tooltip title="@Messages("global.tooltip.delete")" data-title="" data-link="">
+                    <a data-toggle="modal" href="#modal-delete" data-toggle-tooltip title="@Messages("global.tooltip.delete")" data-title="@param.cle" data-link="@routes.ParametreManager.deleteParameter(param._id.stringify)">
                       <span class="glyphicon glyphicon-trash"></span>
                     </a>
                   </td>
@@ -44,4 +45,8 @@
       </nav>
     </section>
   </div>
+  @modal("modal-delete"){<span id="title-delete"></span>}{@Messages("campaign.param.confirmDelete")} {
+    <a id="accept-delete" href="#" class="btn btn-default">@Messages("global.yes")</a>
+    <button type="button" class="btn btn-default" data-dismiss="modal">@Messages("global.no")</button>
+  }
 }

@@ -213,6 +213,22 @@ class ParametreManagerSpec extends Specification with Mockito {
     }
   }
 
+  "When user is on resource /campaigns/parameters/parameter/:id/delete, ParametreManager" should{
+    "send redirect after delete the parameter" in new WithApplication{
+      val f=fixture
+      val lastError=mock[LastError]
+
+      f.parameterDaoMock.removeById(org.mockito.Matchers.eq(bson),any[GetLastError])(any[ExecutionContext]) returns future{lastError}
+
+      val r=f.controller.deleteParameter(bson.stringify).apply(FakeRequest(GET,"/campaigns/parameters/parameter/"+bson.stringify+"/delete").withSession("user"->"""{"login":"test"}"""))
+
+      status(r) must equalTo(SEE_OTHER)
+      header("Location",r) must beSome("/campaigns/parameters")
+
+      there was one(f.parameterDaoMock).removeById(org.mockito.Matchers.eq(bson),any[GetLastError])(any[ExecutionContext])
+    }
+  }
+
   "When method submitForm is called, ParametreManager" should{
     "send bad request if form is submit with empty field" in new WithApplication{
       val f=fixture

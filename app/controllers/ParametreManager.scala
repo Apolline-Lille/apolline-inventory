@@ -185,6 +185,35 @@ trait ParametreManagerLike extends Controller{
   }
 
   /**
+   * This method is call when the user delete a parameter
+   * @param id Parameter id
+   * @return Return Redirect Action when the user is not log in or card is delete
+   *         Return Internal Server Error Action when have mongoDB error
+   */
+  @ApiOperation(
+    nickname = "parameter/delete",
+    value = "Delete a parameter",
+    notes = "Delete a parameter",
+    httpMethod = "GET")
+  @ApiResponses(Array(
+    new ApiResponse(code=303,message="<ul><li>Move resource to the login page at /login if the user is not log</li><li>Move resource to the parameters list page at /campaigns/parameters/parameter/:id/delete when parameter is delete"),
+    new ApiResponse(code=500,message="Have a mongoDB error")
+  ))
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(value = "Parameter id",required=true,name="id", dataType = "String", paramType = "path")
+  ))
+  def deleteParameter(id:String)=Action.async{
+    implicit request =>
+      //Verify if user is connect
+      UserManager.doIfconnectAsync(request){
+        //Delete the parameter
+        parameterDao.removeById(BSONObjectID(id)).map(
+          data=>Redirect(routes.ParametreManager.listParameter())
+        )
+      }
+  }
+
+  /**
    * Verify if the user is connect and if data received are valid then apply function dedicated
    * @param route Route use for submit the form
    * @param verif Function use for get card selector
