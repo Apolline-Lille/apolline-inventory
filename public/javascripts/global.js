@@ -1,5 +1,4 @@
 function addField(id,classe) {
-    console.log(classe,id)
     $("#" + id).append($($("." + classe + ":first")[0]).clone().append(""));
 }
 

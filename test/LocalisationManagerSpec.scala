@@ -50,5 +50,32 @@ class LocalisationManagerSpec extends Specification with Mockito {
           failure("Pas de retour de la fonction")
         )
     }
+
+    "redirect to login for resource /campaigns/localisations/localisation" in new WithApplication {
+      route(FakeRequest(GET, "/campaigns/localisations/localisation")).map(
+        r => {
+          status(r) must equalTo(SEE_OTHER)
+          header("Location", r) must equalTo(Some("/login"))
+        }
+      ).getOrElse(
+          failure("Pas de retour de la fonction")
+        )
+    }
+  }
+
+  "When user is on resource /campaigns/localisations/localisation, LocalisationManager" should{
+    "send 200 Ok page with an empty form" in new WithApplication{
+      val f=fixture
+
+      val r=f.controller.addLocalisationPage().apply(FakeRequest(GET,"/campaigns/localisations/localisation").withSession("user" -> """{"login":"test"}"""))
+
+      status(r) must equalTo(OK)
+      val content=contentAsString(r)
+      content must contain("<input type=\"text\" id=\"nom\" name=\"nom\" value=\"\" class=\"form-control\"/>")
+      content must contain("<input type=\"text\" id=\"lat\" name=\"lat\" value=\"\" class=\"form-control\"/>")
+      content must contain("<input type=\"text\" id=\"lon\" name=\"lon\" value=\"\" class=\"form-control\"/>")
+      content must contain("<input name=\"photo[]\" id=\"photo\" type=\"file\" accept=\"image/*\"/>")
+      content must contain("<textarea id=\"commentaire\" name=\"commentaire\" class=\"form-control\"></textarea>")
+    }
   }
 }

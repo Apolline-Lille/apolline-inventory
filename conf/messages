@@ -123,6 +123,11 @@ campaign.param.confirmDelete=Êtes-vous sûr de vouloir supprimer ce paramètre 
 
 campaign.localisation.title=Localisation
 campaign.localisation.addLocalisation=Nouvelle localisation
+campaign.localisation.nom=Nom
+campaign.localisation.lat=Latitude
+campaign.localisation.lon=Longitude
+campaign.localisation.photo=Photo
+campaign.localisation.commentaire=Commentaire
 
 campaign.onglet.campaign=Liste des campagnes
 campaign.onglet.param=Paramètres de calibarations

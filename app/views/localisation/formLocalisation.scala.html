@@ -1,0 +1,47 @@
+@(form:Form[LocalisationForm],
+  fileError:String,
+  route:Call
+)(implicit request: Request[AnyContent])
+
+@import models.template.InlineInput.inlineInput
+
+@main(Messages("campaign.localisation.title")){
+  @navigation("campaign")
+  <div class="container">
+    @navCampaign("localisation")
+    <section>
+      <article>
+        @helper.form(action=route,'enctype -> "multipart/form-data"){
+          @for(error<-form.globalErrors){
+            <div class="alert alert-danger" role="alert">@Html(error.message)</div>
+          }
+          <h5 style="color:red;float:right"><em>*</em> @Messages("global.fieldRequired")</h5>
+          <div class="col-sm-12">
+            @helper.inputText(form("nom"),'_label->Messages("campaign.localisation.nom"),'required->true,'class->"form-control")
+            @helper.inputText(form("lat"),'_label->Messages("campaign.localisation.lat"),'class->"form-control")
+            @helper.inputText(form("lon"),'_label->Messages("campaign.localisation.lon"),'class->"form-control")
+            <div class=" col-sm-12 @if(fileError.nonEmpty) {has-error}">
+              <label for="photo" class="control-label col-sm-3">
+                @Messages("campaign.localisation.photo")
+                <button type="button" class="btn btn-default" onclick="addField('block_photo','line_photo')"><span class="glyphicon glyphicon-plus" style="color:green"></span></button>
+              </label>
+              <div class="input col-sm-8 col-sm-offset-1">
+                <div id="block_photo">
+                  <div class="line_photo">
+                    <input name="photo[]" id="photo" type="file" accept="image/*"/>
+                  </div>
+                </div>
+                <span class="control-label errors">@fileError</span>
+              </div>
+            </div>
+            @helper.textarea(form("commentaire"),'_label->Messages("campaign.localisation.commentaire"),'class->"form-control")
+          </div>
+          <div class="col-sm-12">
+            <div style="float:right"> <input value="@Messages("global.btn.reset")" class="btn btn-default"
+            type="reset"> <input value="@Messages("global.btn.submit")" class="btn btn-default" type="submit"></div>
+          </div>
+        }
+      </article>
+    </section>
+  </div>
+}
