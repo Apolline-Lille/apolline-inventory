@@ -83,6 +83,28 @@ class ParametreManagerSpec extends Specification with Mockito {
           failure("Pas de retour de la fonction")
         )
     }
+
+    "redirect to login for resource /campaigns/parameters/parameter/:id" in new WithApplication {
+      route(FakeRequest(POST, "/campaigns/parameters/parameter/"+bson.stringify)).map(
+        r => {
+          status(r) must equalTo(SEE_OTHER)
+          header("Location", r) must equalTo(Some("/login"))
+        }
+      ).getOrElse(
+          failure("Pas de retour de la fonction")
+        )
+    }
+
+    "redirect to login for resource /campaigns/parameters/parameter/:id/delete" in new WithApplication {
+      route(FakeRequest(GET, "/campaigns/parameters/parameter/"+bson.stringify+"/delete")).map(
+        r => {
+          status(r) must equalTo(SEE_OTHER)
+          header("Location", r) must equalTo(Some("/login"))
+        }
+      ).getOrElse(
+          failure("Pas de retour de la fonction")
+        )
+    }
   }
 
   "When user is on resource /campaigns/parameters" should{
