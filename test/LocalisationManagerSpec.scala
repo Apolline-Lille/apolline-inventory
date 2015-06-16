@@ -1,20 +1,27 @@
+import java.io.File
+import java.util.UUID
+
 import controllers._
 import models._
 import org.junit.runner.RunWith
+import org.mockito.ArgumentCaptor
 import org.specs2.matcher.{MatchResult, Expectable, Matcher}
 import org.specs2.mock.Mockito
 import org.specs2.mutable.Specification
 import org.specs2.runner.JUnitRunner
+import play.api.libs.Files.TemporaryFile
 import play.api.libs.json.{JsObject, Writes, Json}
-import play.api.mvc.{Results, Action, Result}
+import play.api.mvc.BodyParsers.parse
+import play.api.mvc.{MultipartFormData, Results, Action, Result}
 import play.api.test.Helpers._
-import play.api.test.{FakeRequest, WithApplication}
+import play.api.test.{FakeHeaders, FakeRequest, WithApplication}
 import reactivemongo.bson.BSONObjectID
 import reactivemongo.extensions.BSONFormats.BSONObjectIDFormat
 import reactivemongo.core.commands.{LastError, GetLastError}
 
 import scala.concurrent._
 import scala.concurrent.duration.Duration
+import scala.tools.nsc.dependencies.Files
 
 @RunWith(classOf[JUnitRunner])
 class LocalisationManagerSpec extends Specification with Mockito {
@@ -34,8 +41,10 @@ class LocalisationManagerSpec extends Specification with Mockito {
 
   def fixture = new {
     val localisationDaoMock=mock[LocalisationDao]
+    val appMock=mock[play.api.Application]
     val controller=new LocalisationManagerTest{
       override val localisationDao:LocalisationDao=localisationDaoMock
+      override val app=appMock
     }
   }
 
@@ -61,6 +70,18 @@ class LocalisationManagerSpec extends Specification with Mockito {
           failure("Pas de retour de la fonction")
         )
     }
+
+    "redirect to login for resource /campaigns/localisations/localisation" in new WithApplication {
+      val f=fixture
+      val formData=MultipartFormData[TemporaryFile](dataParts = Map(), files = Seq(), badParts = Seq(), missingFileParts = Seq())
+      f.controller.addLocalisation()(FakeRequest(POST, "/campaigns/localisations/localisation").withMultipartFormDataBody(formData)).map(
+        data => {
+          val r=future{data}
+          status(r) must equalTo(SEE_OTHER)
+          header("Location", r) must equalTo(Some("/login"))
+        }
+      )
+    }
   }
 
   "When user is on resource /campaigns/localisations/localisation, LocalisationManager" should{
@@ -76,6 +97,138 @@ class LocalisationManagerSpec extends Specification with Mockito {
       content must contain("<input type=\"text\" id=\"lon\" name=\"lon\" value=\"\" class=\"form-control\"/>")
       content must contain("<input name=\"photo[]\" id=\"photo\" type=\"file\" accept=\"image/*\"/>")
       content must contain("<textarea id=\"commentaire\" name=\"commentaire\" class=\"form-control\"></textarea>")
+    }
+
+    "send redirect to localisation list after insert data received" in new WithApplication{
+      val f=fixture
+      val file=mock[MultipartFormData.FilePart[TemporaryFile]]
+      val tempFile=mock[TemporaryFile]
+      val captor = ArgumentCaptor.forClass(classOf[File])
+      val param=Map("nom"->Seq("unNom"),"lat"->Seq("2.3"),"lon"->Seq("3.5"),"commentaire"->Seq("un com"))
+      val formData=MultipartFormData[TemporaryFile](dataParts = param, files = Seq(file), badParts = Seq(), missingFileParts = Seq())
+      val lastError=mock[LastError]
+
+      f.localisationDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("nom"->"unNom")))(any[ExecutionContext]) returns future{None}
+      file.filename returns "file.jpg"
+      f.appMock.path returns (new File("/route"))
+      file.ref returns tempFile
+      org.mockito.Mockito.doNothing.when(tempFile).moveTo(any[File],any[Boolean])
+      f.localisationDaoMock.insert(any[Localisation],any[GetLastError])(any[ExecutionContext]) returns future{lastError}
+
+      val req=FakeRequest(POST,"/campaigns/localisations/localisation",FakeHeaders(),formData).withSession("user" -> """{"login":"test"}""")
+      val r=f.controller.addLocalisation()(req)
+
+      Await.result(r,Duration.Inf)
+
+      there was one(tempFile).moveTo(captor.capture,any[Boolean])
+      val arg=captor.getValue
+      arg.getAbsolutePath must matchRegex("/route/public/images/campaign/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.jpg")
+
+      status(r) must equalTo(SEE_OTHER)
+      header("Location",r) must beSome("/campaigns/localisations")
+
+      there was one(f.localisationDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("nom"->"unNom")))(any[ExecutionContext])
+      there was one(file).filename
+      there was one(f.appMock).path
+      there was 2.times(file).ref
+      there was one(f.localisationDaoMock).insert(any[Localisation],any[GetLastError])(any[ExecutionContext])
+    }
+  }
+
+  "When method insertImage is called, LocalisationManager" should{
+    "return an empty list if not have file" in new WithApplication{
+      val f=fixture
+
+      val r=f.controller.insertImage(List())
+
+      r must equalTo(List())
+    }
+
+    "return list with new name file" in new WithApplication{
+      val f=fixture
+      val file=mock[MultipartFormData.FilePart[TemporaryFile]]
+      val tempFile=mock[TemporaryFile]
+      val captor = ArgumentCaptor.forClass(classOf[File])
+
+      file.filename returns "file.jpg"
+      f.appMock.path returns (new File("/route"))
+      file.ref returns tempFile
+      org.mockito.Mockito.doNothing.when(tempFile).moveTo(any[File],any[Boolean])
+
+      val r=f.controller.insertImage(List(file))
+
+      there was one(tempFile).moveTo(captor.capture,any[Boolean])
+      val arg=captor.getValue
+
+      arg.getAbsolutePath must matchRegex("/route/public/images/campaign/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.jpg")
+      r must equalTo(List(arg.getAbsolutePath.split("/").last))
+
+      there was one(file).filename
+      there was one(f.appMock).path
+      there was 2.times(file).ref
+    }
+  }
+
+  "When method submitForm is called, LocalisationManager" should{
+    "send bad request with an empty form if it was submit with empty field" in new WithApplication{
+      val f=fixture
+      val route=routes.LocalisationManager.listLocalisation()
+      val verif=mock[LocalisationForm=>JsObject]
+      val func=mock[(LocalisationForm,List[String])=>Future[Result]]
+      val formData=MultipartFormData[TemporaryFile](dataParts = Map(), files = Seq(), badParts = Seq(), missingFileParts = Seq())
+
+      val req=FakeRequest(POST,"/campaigns/localisations/localisation",FakeHeaders(),formData).withSession("user" -> """{"login":"test"}""")
+      val r=f.controller.submitForm(route)(verif)(func)(req)
+
+      status(r) must equalTo(BAD_REQUEST)
+      contentAsString(r) must contain("<span class=\"control-label errors\">This field is required</span>")
+
+      there was no(verif).apply(any[LocalisationForm])
+      there was no(func).apply(any[LocalisationForm],any[List[String]])
+    }
+
+    "send bad request if localisation found" in new WithApplication{
+      val f=fixture
+      val route=routes.LocalisationManager.listLocalisation()
+      val verif=mock[LocalisationForm=>JsObject]
+      val func=mock[(LocalisationForm,List[String])=>Future[Result]]
+      val formData=MultipartFormData[TemporaryFile](dataParts = Map("nom"->Seq("unNom")), files = Seq(), badParts = Seq(), missingFileParts = Seq())
+      val localisation=mock[Localisation]
+
+      verif.apply(any[LocalisationForm]) returns Json.obj("nom"->"unNom")
+      f.localisationDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("nom"->"unNom")))(any[ExecutionContext]) returns future{Some(localisation)}
+
+      val req=FakeRequest(POST,"/campaigns/localisations/localisation",FakeHeaders(),formData).withSession("user" -> """{"login":"test"}""")
+      val r=f.controller.submitForm(route)(verif)(func)(req)
+
+      status(r) must equalTo(BAD_REQUEST)
+      contentAsString(r) must contain("<div class=\"alert alert-danger\" role=\"alert\">Cette localisation existe déjà</div>")
+
+      there was one(f.localisationDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("nom"->"unNom")))(any[ExecutionContext])
+      there was one(verif).apply(any[LocalisationForm])
+      there was no(func).apply(any[LocalisationForm],any[List[String]])
+    }
+
+    "execute dedicated function if localisation not found" in new WithApplication{
+      val f=fixture
+      val route=routes.LocalisationManager.listLocalisation()
+      val verif=mock[LocalisationForm=>JsObject]
+      val func=mock[(LocalisationForm,List[String])=>Future[Result]]
+      val formData=MultipartFormData[TemporaryFile](dataParts = Map("nom"->Seq("unNom")), files = Seq(), badParts = Seq(), missingFileParts = Seq())
+
+      func.apply(any[LocalisationForm],any[List[String]]) returns future{Results.Ok("exec func")}
+      verif.apply(any[LocalisationForm]) returns Json.obj("nom"->"unNom")
+      f.localisationDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("nom"->"unNom")))(any[ExecutionContext]) returns future{None}
+
+      val req=FakeRequest(POST,"/campaigns/localisations/localisation",FakeHeaders(),formData).withSession("user" -> """{"login":"test"}""")
+      val r=f.controller.submitForm(route)(verif)(func)(req)
+
+      status(r) must equalTo(OK)
+      contentAsString(r) must equalTo("exec func")
+
+      there was one(f.localisationDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("nom"->"unNom")))(any[ExecutionContext])
+      there was one(verif).apply(any[LocalisationForm])
+      there was one(func).apply(any[LocalisationForm],any[List[String]])
     }
   }
 }

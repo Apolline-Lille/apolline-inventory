@@ -128,6 +128,7 @@ campaign.localisation.lat=Latitude
 campaign.localisation.lon=Longitude
 campaign.localisation.photo=Photo
 campaign.localisation.commentaire=Commentaire
+campaign.localisation.error.localisationExist=Cette localisation existe déjà
 
 campaign.onglet.campaign=Liste des campagnes
 campaign.onglet.param=Paramètres de calibarations
