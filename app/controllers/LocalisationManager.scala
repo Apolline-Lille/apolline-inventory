@@ -67,7 +67,10 @@ trait LocalisationManagerLike extends Controller{
     implicit request =>
       //Verify if user is connect
       UserManager.doIfconnectAsync(request) {
-        future{Ok(views.html.localisation.listLocalisation())}
+        //Find list of localisation
+        localisationDao.findAll().map(
+          localisations=>Ok(views.html.localisation.listLocalisation(localisations))
+        )
       }
   }
 

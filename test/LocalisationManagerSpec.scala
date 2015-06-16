@@ -84,6 +84,71 @@ class LocalisationManagerSpec extends Specification with Mockito {
     }
   }
 
+  "When user is on resource /campaigns/localisations, LocalisationManager" should{
+    "send 200 Ok page with the message 'Aucun résultat trouvé' if not localisation found" in new WithApplication{
+      val f=fixture
+
+      f.localisationDaoMock.findAll(any[JsObject],any[JsObject])(any[ExecutionContext]) returns future{List()}
+
+      val r=f.controller.listLocalisation().apply(FakeRequest(GET,"/campaigns/localisations").withSession("user" -> """{"login":"test"}"""))
+
+      status(r) must equalTo(OK)
+      contentType(r) must beSome.which(_ == "text/html")
+      contentAsString(r) must contain("<h3 style=\"text-align:center\">Aucun résultat trouvé</h3>")
+
+      there was one(f.localisationDaoMock).findAll(any[JsObject],any[JsObject])(any[ExecutionContext])
+    }
+
+    "send 200 Ok page with 1 result" in new WithApplication{
+      val f=fixture
+      val localisation=Localisation(nom="unNom",lat=Some(1.2f),lon=Some(3.4f),commentaire=Some("un com"),photo=List())
+
+      f.localisationDaoMock.findAll(any[JsObject],any[JsObject])(any[ExecutionContext]) returns future{List(localisation)}
+
+      val r=f.controller.listLocalisation().apply(FakeRequest(GET,"/campaigns/localisations").withSession("user" -> """{"login":"test"}"""))
+
+      status(r) must equalTo(OK)
+      contentType(r) must beSome.which(_ == "text/html")
+      val content=contentAsString(r)
+      content must contain("unNom")
+      content must contain("<div class=\"row\"><span class=\"bold\">Commentaire</span> : un com</div>")
+      content must contain("<div class=\"row\"><span class=\"bold\">Latitude</span> : 1.2</div>")
+      content must contain("<div class=\"row\"><span class=\"bold\">Longitude</span> : 3.4</div>")
+      content must contain("<div class=\"row\"><span class=\"bold\">Photo</span> : 0</div>")
+
+      there was one(f.localisationDaoMock).findAll(any[JsObject],any[JsObject])(any[ExecutionContext])
+    }
+
+    "send 200 Ok page with 2 result" in new WithApplication{
+      val f=fixture
+      val localisations=
+      List(
+        Localisation(nom="unNom",lat=Some(1.2f),lon=Some(3.4f),commentaire=Some("un com"),photo=List()),
+        Localisation(nom="unNom2",lat=Some(5.6f),lon=Some(7.8f),commentaire=Some("un com2"),photo=List("une image","deux image"))
+      )
+
+      f.localisationDaoMock.findAll(any[JsObject],any[JsObject])(any[ExecutionContext]) returns future{localisations}
+
+      val r=f.controller.listLocalisation().apply(FakeRequest(GET,"/campaigns/localisations").withSession("user" -> """{"login":"test"}"""))
+
+      status(r) must equalTo(OK)
+      contentType(r) must beSome.which(_ == "text/html")
+      val content=contentAsString(r)
+      content must contain("unNom")
+      content must contain("<div class=\"row\"><span class=\"bold\">Commentaire</span> : un com</div>")
+      content must contain("<div class=\"row\"><span class=\"bold\">Latitude</span> : 1.2</div>")
+      content must contain("<div class=\"row\"><span class=\"bold\">Longitude</span> : 3.4</div>")
+      content must contain("<div class=\"row\"><span class=\"bold\">Photo</span> : 0</div>")
+      content must contain("unNom2")
+      content must contain("<div class=\"row\"><span class=\"bold\">Commentaire</span> : un com2</div>")
+      content must contain("<div class=\"row\"><span class=\"bold\">Latitude</span> : 5.6</div>")
+      content must contain("<div class=\"row\"><span class=\"bold\">Longitude</span> : 7.8</div>")
+      content must contain("<div class=\"row\"><span class=\"bold\">Photo</span> : 2</div>")
+
+      there was one(f.localisationDaoMock).findAll(any[JsObject],any[JsObject])(any[ExecutionContext])
+    }
+  }
+
   "When user is on resource /campaigns/localisations/localisation, LocalisationManager" should{
     "send 200 Ok page with an empty form" in new WithApplication{
       val f=fixture
