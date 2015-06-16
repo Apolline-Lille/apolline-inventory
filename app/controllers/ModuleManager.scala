@@ -21,7 +21,7 @@ import play.api.libs.concurrent.Execution.Implicits.defaultContext
  * This class is used when user select cards or sensors for associat it to a module
  * @param elements List of select elements
  */
-case class SelectInfo(elements:List[String])
+case class SelectInfo(elements:List[String],send:String)
 
 /**
  * This class is used when user submit a form with general information for a module
@@ -90,7 +90,8 @@ trait ModuleManagerLike extends Controller {
 
   val selectElement=Form[SelectInfo](
     mapping(
-      "elements"->list(text)
+      "elements"->list(text),
+      "send"->nonEmptyText
     )(SelectInfo.apply)(SelectInfo.unapply)
   )
 
@@ -487,7 +488,12 @@ trait ModuleManagerLike extends Controller {
                 //Associat cards to module
                 addCardsToModule(data)
               }else{
-                future{Redirect(routes.ModuleManager.formTypeCards())}
+                if(data.send.equals(Messages("inventary.module.nextState"))){
+                  future{Redirect(routes.ModuleManager.formTypeSensors())}
+                }
+                else {
+                  future{Redirect(routes.ModuleManager.formTypeCards())}
+                }
               })
         }{_=>
           future{Redirect(routes.ModuleManager.formTypeCards())}
@@ -539,7 +545,12 @@ trait ModuleManagerLike extends Controller {
                 //Associat cards to module
                 addSensorsToModule(data)
               }else{
-                future{Redirect(routes.ModuleManager.formTypeSensors())}
+                if(data.send.equals(Messages("inventary.module.nextState"))){
+                  future{Redirect(routes.ModuleManager.validate())}
+                }
+                else {
+                  future{Redirect(routes.ModuleManager.formTypeSensors())}
+                }
               })
         }{_=>
           future{Redirect(routes.ModuleManager.formTypeSensors())}
@@ -983,8 +994,13 @@ trait ModuleManagerLike extends Controller {
         //Create new module instance with selected cards add
         val newMod = mod.copy(cartes = mod.cartes ++ availableId)
 
-        //Redirect to list of cards type
-        Redirect(routes.ModuleManager.formTypeCards()).withSession(request.session + ("module" -> Module.toStrings(newMod)))
+        if(data.send.equals(Messages("inventary.module.nextState"))){
+          Redirect(routes.ModuleManager.formTypeSensors()).withSession(request.session + ("module" -> Module.toStrings(newMod)))
+        }
+        else {
+          //Redirect to list of cards type
+          Redirect(routes.ModuleManager.formTypeCards()).withSession(request.session + ("module" -> Module.toStrings(newMod)))
+        }
       }
     ).recover({case _ => InternalServerError("error")})
   }
@@ -1009,8 +1025,13 @@ trait ModuleManagerLike extends Controller {
         //Create new module instance with selected sensors add
         val newMod = mod.copy(capteurs = mod.capteurs ++ availableId)
 
-        //Redirect to list of sensors type
-        Redirect(routes.ModuleManager.formTypeSensors()).withSession(request.session + ("module" -> Module.toStrings(newMod)))
+        if(data.send.equals(Messages("inventary.module.nextState"))){
+          Redirect(routes.ModuleManager.validate()).withSession(request.session + ("module" -> Module.toStrings(newMod)))
+        }
+        else {
+          //Redirect to list of sensors type
+          Redirect(routes.ModuleManager.formTypeSensors()).withSession(request.session + ("module" -> Module.toStrings(newMod)))
+        }
       }
     ).recover({case _ => InternalServerError("error")})
   }
