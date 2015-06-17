@@ -114,13 +114,6 @@ campaign.condition.onglet.validate=Validation
 campaign.condition.associat=Associer à la condition
 campaign.condition.error.beginAfterEnd=La date de début doit être inférieur à la date de fin
 
-campaign.param.title=Paramètres de calibrations
-campaign.param.addParam=Nouveau paramètre
-campaign.param.key=Clé
-campaign.param.value=Valeur
-campaign.param.error.paramExist=Ce paramètre existe déjà
-campaign.param.confirmDelete=Êtes-vous sûr de vouloir supprimer ce paramètre ?
-
 campaign.localisation.title=Localisation
 campaign.localisation.addLocalisation=Nouvelle localisation
 campaign.localisation.nom=Nom
@@ -131,7 +124,6 @@ campaign.localisation.commentaire=Commentaire
 campaign.localisation.error.localisationExist=Cette localisation existe déjà
 
 campaign.onglet.campaign=Liste des campagnes
-campaign.onglet.param=Paramètres de calibarations
 campaign.onglet.localisation=Localisation
 
 login.username=Login

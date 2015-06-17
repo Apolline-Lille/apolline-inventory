@@ -2,9 +2,6 @@
 <ol class="breadcrumb">
   <li @if(activ.equals("infoCondition")){class="active"}><a href="@routes.ConditionsManager.formGeneral(id)">@Messages("campaign.condition.onglet.info")</a></li>
   <li @if(activ.equals("module")){class="active"}><a href="@routes.ConditionsManager.formModule(id)">@Messages("campaign.condition.onglet.module")</a></li>
-  @if(types.equals("Calibration")){
-    <li @if(activ.equals("param")){class="active"}><a href="@routes.ConditionsManager.formParam(id)">@Messages("campaign.condition.onglet.param")</a></li>
-  }
   @if(types.equals("Terrain")){
     <li @if(activ.equals("localisation")){class="active"}><a href="@routes.ConditionsManager.formLocalisation(id)">@Messages("campaign.condition.onglet.localisation")</a></li>
   }
