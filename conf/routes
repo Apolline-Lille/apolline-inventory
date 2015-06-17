@@ -85,11 +85,6 @@ GET         /campaigns/campaign/:id/form/module               controllers.Condit
 POST        /campaigns/campaign/:id/form/module               controllers.ConditionsManager.addSelectedModule(id)
 GET         /campaigns/campaign/:id/form/localisation            controllers.ConditionsManager.formLocalisation(id)
 
-GET         /campaigns/localisations                          controllers.LocalisationManager.listLocalisation()
-GET         /campaigns/localisations/localisation             controllers.LocalisationManager.addLocalisationPage()
-POST        /campaigns/localisations/localisation             controllers.LocalisationManager.addLocalisation()
-GET         /campaigns/localisations/localisation/:id         controllers.LocalisationManager.moreInformation(id)
-
 # Map static resources from the /public folder to the /assets URL path
 GET         /assets/*file                                     controllers.Assets.at(path="/public", file)
 

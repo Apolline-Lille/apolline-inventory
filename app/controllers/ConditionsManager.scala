@@ -206,9 +206,7 @@ trait ConditionsManagerLike extends Controller{
             campaign.types match {
 
               //If campaign type is equal to 'Terrain', find localisation
-              case "Terrain" =>localisationDao.findAll().map (
-                localisations => Ok(views.html.campaign.listLocalisation(localisations, printStateForm ("localisation", campaign.types, id) ) )
-              )
+              case "Terrain" =>future{Ok("todo")}
 
               //else redirect to conditions list
               case _ =>future{Redirect(routes.ConditionsManager.listConditions(id))}
