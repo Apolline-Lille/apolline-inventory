@@ -565,6 +565,27 @@ class ConditionsManagerSpec extends Specification with Mockito {
 
       there was one(f.campaignManagerMock).doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]])
     }
+
+    "send 200 Ok page with an empty form" in new WithApplication{
+      val f=fixture
+      val camp=Campagne(nom="camp",types="Terrain",conditions=List())
+
+      f.campaignManagerMock.doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]]) answers {(params,_) => params match{
+        case Array(_,p:(Campagne=>Future[Result]),_) => p.apply(camp)
+      }}
+
+      val r=f.controller.formLocalisation(bson.stringify).apply(FakeRequest(GET,"/campaigns/campaign/"+bson.stringify+"/form/localisation").withSession("user" -> """{"login":"test"}"""))
+
+      status(r) must equalTo(OK)
+      val content=contentAsString(r)
+      content must contain("<input type=\"text\" id=\"nom\" name=\"nom\" value=\"\" class=\"form-control\"/>")
+      content must contain("<input type=\"text\" id=\"lat\" name=\"lat\" value=\"\" class=\"form-control\"/>")
+      content must contain("<input type=\"text\" id=\"lon\" name=\"lon\" value=\"\" class=\"form-control\"/>")
+      content must contain("<input name=\"photo[]\" id=\"photo\" type=\"file\" accept=\"image/*\"/>")
+      content must contain("<textarea id=\"commentaire\" name=\"commentaire\" class=\"form-control\"></textarea>")
+
+      there was one(f.campaignManagerMock).doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]])
+    }
   }
 
   "When method printStateForm is called, ConditionsManager" should{
@@ -606,19 +627,19 @@ class ConditionsManagerSpec extends Specification with Mockito {
   }
 
   "When method verifyDate is called, ConditionsManager" should{
-    "return true if end date is empty" in {
+    "return true if end date is empty" in new WithApplication{
       val f=fixture
 
       f.controller.verifyDate(date,None) must beTrue
     }
 
-    "return true if end date is after begin date" in {
+    "return true if end date is after begin date" in new WithApplication{
       val f=fixture
 
       f.controller.verifyDate(date,Some(date2)) must beTrue
     }
 
-    "return false if end date is before begin date" in {
+    "return false if end date is before begin date" in new WithApplication{
       val f=fixture
 
       f.controller.verifyDate(date2,Some(date)) must beFalse
@@ -646,7 +667,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
   }
 
   "When method verifyDateValid is called, ConditionsManager" should{
-    "apply valid function if begin date and end date are valid" in {
+    "apply valid function if begin date and end date are valid" in new WithApplication{
       val f=fixture
       val condition=ConditionForm(date,Some(date2),None)
       val error=mock[Form[ConditionForm]=>Future[Result]]
@@ -661,7 +682,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
       there was one(valid).apply(org.mockito.Matchers.eq(date),org.mockito.Matchers.eq(Some(date2)))
     }
 
-    "apply valid function if begin date is valid and end date is empty" in {
+    "apply valid function if begin date is valid and end date is empty" in new WithApplication{
       val f=fixture
       val condition=ConditionForm(date,None,None)
       val error=mock[Form[ConditionForm]=>Future[Result]]
@@ -676,7 +697,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
       there was one(valid).apply(org.mockito.Matchers.eq(date),org.mockito.Matchers.eq(None))
     }
 
-    "apply error function if end date is before begin date" in {
+    "apply error function if end date is before begin date" in new WithApplication{
       val f=fixture
       val condition=ConditionForm(date2,Some(date),None)
       val error=mock[Form[ConditionForm]=>Future[Result]]

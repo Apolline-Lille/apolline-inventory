@@ -113,18 +113,11 @@ campaign.condition.onglet.localisation=Localisation
 campaign.condition.onglet.validate=Validation
 campaign.condition.associat=Associer à la condition
 campaign.condition.error.beginAfterEnd=La date de début doit être inférieur à la date de fin
-
-campaign.localisation.title=Localisation
-campaign.localisation.addLocalisation=Nouvelle localisation
-campaign.localisation.nom=Nom
-campaign.localisation.lat=Latitude
-campaign.localisation.lon=Longitude
-campaign.localisation.photo=Photo
-campaign.localisation.commentaire=Commentaire
-campaign.localisation.error.localisationExist=Cette localisation existe déjà
-
-campaign.onglet.campaign=Liste des campagnes
-campaign.onglet.localisation=Localisation
+campaign.condition.localisation.nom=Nom
+campaign.condition.localisation.lat=Latitude
+campaign.condition.localisation.lon=Longitude
+campaign.condition.localisation.photo=Photo
+campaign.condition.localisation.commentaire=Commentaire
 
 login.username=Login
 login.password=Password

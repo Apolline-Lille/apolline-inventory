@@ -6,6 +6,7 @@ import java.util.Date
 
 import com.wordnik.swagger.annotations._
 import models._
+import play.api.Play
 import play.api.data.Form
 import play.api.data.Forms._
 import play.api.data.validation.Constraints._
@@ -15,12 +16,16 @@ import play.api.mvc._
 import reactivemongo.bson.BSONObjectID
 import reactivemongo.extensions.BSONFormats.BSONObjectIDFormat
 import scala.concurrent._
+import play.api.data.format.Formats._
 
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
+import play.api.Play.current
 
 case class ConditionForm(debut:Date,fin:Option[Date],commentaire:Option[String])
 
 case class FormSelect(id:String)
+
+case class LocalisationForm(nom:String,lat:Option[Float],lon:Option[Float],commentaire:Option[String])
 
 /**
  * This object is a controller for manage all condition
@@ -42,6 +47,8 @@ trait ConditionsManagerLike extends Controller{
 
   val campaignManager:CampagneManagerLike=CampagneManager
 
+  val app=Play.application
+
   val form=Form[ConditionForm](
     mapping(
       "debut"->date("dd/MM/yyyy HH:mm:ss"),
@@ -54,6 +61,15 @@ trait ConditionsManagerLike extends Controller{
     mapping(
       "id"->nonEmptyText
     )(FormSelect.apply)(FormSelect.unapply)
+  )
+
+  val localisationForm=Form[LocalisationForm](
+    mapping(
+      "nom"->nonEmptyText,
+      "lat"->optional(of(floatFormat)),
+      "lon"->optional(of(floatFormat)),
+      "commentaire"->optional(text)
+    )(LocalisationForm.apply)(LocalisationForm.unapply)
   )
 
   /****************** Route methods ***********/
@@ -206,7 +222,7 @@ trait ConditionsManagerLike extends Controller{
             campaign.types match {
 
               //If campaign type is equal to 'Terrain', find localisation
-              case "Terrain" =>future{Ok("todo")}
+              case "Terrain" =>future{Ok(views.html.campaign.formLocalisation(localisationForm,"",id,printStateForm("localisation",campaign.types, id)))}
 
               //else redirect to conditions list
               case _ =>future{Redirect(routes.ConditionsManager.listConditions(id))}
