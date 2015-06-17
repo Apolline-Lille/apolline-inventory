@@ -36,6 +36,10 @@ trait ConditionsManagerLike extends Controller{
 
   val moduleDao:ModuleDao=ModuleDaoObj
 
+  val parameterDao:ParametresDao=ParametresDaoObj
+
+  val localisationDao:LocalisationDao=LocalisationDaoObj
+
   val moduleManager:ModuleManagerLike=ModuleManager
 
   val campaignManager:CampagneManagerLike=CampagneManager
@@ -164,6 +168,98 @@ trait ConditionsManagerLike extends Controller{
             //Display module inventary
             moduleManager.getInventaryModule(filtre) {
               (modules, listType) => Ok(views.html.campaign.listModule(modules, listType, filtre,id, printStateForm("module",campaign.types, id)))
+            }
+        }{
+          //If campaign not found
+          _ => future{Redirect(routes.CampagneManager.listCampaign())}
+        }
+      }
+  }
+
+  /**
+   * This method is call when the user is on the page /campaigns/campaign/:id/form/parameter. It display the parameter list for associat to a condition
+   * @return Return Ok Action when the user is on the page /campaigns/campaign/:id/form/parameter with the parameter list for associat to a condition
+   *         Return Redirect Action when the user is not log in or if campaign not found or if campaign is not correct
+   *         Return Internal Server Error Action when have mongoDB error
+   */
+  @ApiOperation(
+    nickname = "conditions/form/parameter",
+    value = "Get the html page with the parameter list for associat to a condition",
+    notes = "Get the html page with the parameter list for associat to a condition",
+    httpMethod = "GET")
+  @ApiResponses(Array(
+    new ApiResponse(code=303,message="<ul><li>Move resource to the login page at /login if the user is not log</li><li>Move resource to the conditions list if campaign not found</li><li>Move resource to the conditions list if campaigns type is not equal to 'Calibration'</li></ul>"),
+    new ApiResponse(code=500,message="Have a mongoDB error")
+  ))
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(name="id",value="Campaign id",required=true,dataType="String",paramType="path")
+  ))
+  def formParam(id:String)=Action.async{
+    implicit request=>
+      //Verify if user is connect
+      UserManager.doIfconnectAsync(request) {
+
+        //Verify if campaign exist
+        campaignManager.doIfCampaignFound(BSONObjectID(id)){
+
+          //If campaign found
+          campaign=>
+
+            campaign.types match {
+
+              //If campaign type is equal to 'Calibration', find parameter
+              case "Calibration" =>parameterDao.findAll ().map (
+                  parameters => Ok (views.html.campaign.listParam (parameters, printStateForm ("param", campaign.types, id) ) )
+                )
+
+              //else redirect to conditions list
+              case _ =>future{Redirect(routes.ConditionsManager.listConditions(id))}
+            }
+        }{
+          //If campaign not found
+          _ => future{Redirect(routes.CampagneManager.listCampaign())}
+        }
+      }
+  }
+
+  /**
+   * This method is call when the user is on the page /campaigns/campaign/:id/form/localisation. It display the localisation list for associat to a condition
+   * @return Return Ok Action when the user is on the page /campaigns/campaign/:id/form/localisation with the localisation list for associat to a condition
+   *         Return Redirect Action when the user is not log in or if campaign not found or if campaign is not correct
+   *         Return Internal Server Error Action when have mongoDB error
+   */
+  @ApiOperation(
+    nickname = "conditions/form/localisation",
+    value = "Get the html page with the localisation list for associat to a condition",
+    notes = "Get the html page with the localisation list for associat to a condition",
+    httpMethod = "GET")
+  @ApiResponses(Array(
+    new ApiResponse(code=303,message="<ul><li>Move resource to the login page at /login if the user is not log</li><li>Move resource to the conditions list if campaign not found</li><li>Move resource to the conditions list if campaigns type is not equal to 'Terrain'</li></ul>"),
+    new ApiResponse(code=500,message="Have a mongoDB error")
+  ))
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(name="id",value="Campaign id",required=true,dataType="String",paramType="path")
+  ))
+  def formLocalisation(id:String)=Action.async{
+    implicit request=>
+      //Verify if user is connect
+      UserManager.doIfconnectAsync(request) {
+
+        //Verify if campaign exist
+        campaignManager.doIfCampaignFound(BSONObjectID(id)){
+
+          //If campaign found
+          campaign=>
+
+            campaign.types match {
+
+              //If campaign type is equal to 'Terrain', find localisation
+              case "Terrain" =>localisationDao.findAll().map (
+                localisations => Ok(views.html.campaign.listLocalisation(localisations, printStateForm ("localisation", campaign.types, id) ) )
+              )
+
+              //else redirect to conditions list
+              case _ =>future{Redirect(routes.ConditionsManager.listConditions(id))}
             }
         }{
           //If campaign not found
@@ -311,8 +407,8 @@ trait ConditionsManagerLike extends Controller{
    * @return
    */
   def redirectToNextFormPage(id:String,types:String,condition:JsObject)(implicit request:Request[AnyContent]):Result=types match{
-    case "Terrain" =>Redirect(routes.ConditionsManager.listConditions(id)).withSession(request.session + ("condition" -> Json.stringify(condition)))
-    case "Calibration" =>Redirect(routes.ConditionsManager.listConditions(id)).withSession(request.session + ("condition" -> Json.stringify(condition)))
+    case "Terrain" =>Redirect(routes.ConditionsManager.formLocalisation(id)).withSession(request.session + ("condition" -> Json.stringify(condition)))
+    case "Calibration" =>Redirect(routes.ConditionsManager.formParam(id)).withSession(request.session + ("condition" -> Json.stringify(condition)))
     case _ =>Redirect(routes.ConditionsManager.listConditions(id)).withSession(request.session + ("condition" -> Json.stringify(condition)))
   }
 

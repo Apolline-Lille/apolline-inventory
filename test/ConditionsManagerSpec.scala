@@ -9,7 +9,7 @@ import org.specs2.mock.Mockito
 import org.specs2.mutable.Specification
 import org.specs2.runner.JUnitRunner
 import play.api.data.Form
-import play.api.libs.json.Json
+import play.api.libs.json.{JsObject, Json}
 import play.api.mvc.{Action, Results, Result}
 import play.api.test.Helpers._
 import play.api.test.{FakeRequest, WithApplication}
@@ -43,11 +43,15 @@ class ConditionsManagerSpec extends Specification with Mockito {
   def fixture=new {
     val conditionDaoMock=mock[ConditionDao]
     val moduleDaoMock=mock[ModuleDao]
+    val paramDaoMock=mock[ParametresDao]
+    val localisationDaoMock=mock[LocalisationDao]
     val campaignManagerMock=mock[CampagneManagerLike]
     val moduleManagerMock=mock[ModuleManagerLike]
     val controller=new ConditionsManagerTest{
       override val conditionsDao=conditionDaoMock
       override val moduleDao=moduleDaoMock
+      override val parameterDao=paramDaoMock
+      override val localisationDao=localisationDaoMock
       override val campaignManager=campaignManagerMock
       override val moduleManager=moduleManagerMock
     }
@@ -100,6 +104,28 @@ class ConditionsManagerSpec extends Specification with Mockito {
 
     "redirect to login for resource /campaigns/campaign/:id/form/module for POST request" in new WithApplication {
       route(FakeRequest(POST, "/campaigns/campaign/"+bson.stringify+"/form/module")).map(
+        r => {
+          status(r) must equalTo(SEE_OTHER)
+          header("Location", r) must equalTo(Some("/login"))
+        }
+      ).getOrElse(
+          failure("Pas de retour de la fonction")
+        )
+    }
+
+    "redirect to login for resource /campaigns/campaign/:id/form/parameter" in new WithApplication {
+      route(FakeRequest(GET, "/campaigns/campaign/"+bson.stringify+"/form/parameter")).map(
+        r => {
+          status(r) must equalTo(SEE_OTHER)
+          header("Location", r) must equalTo(Some("/login"))
+        }
+      ).getOrElse(
+          failure("Pas de retour de la fonction")
+        )
+    }
+
+    "redirect to login for resource /campaigns/campaign/:id/form/localisation" in new WithApplication {
+      route(FakeRequest(GET, "/campaigns/campaign/"+bson.stringify+"/form/localisation")).map(
         r => {
           status(r) must equalTo(SEE_OTHER)
           header("Location", r) must equalTo(Some("/login"))
@@ -507,6 +533,219 @@ class ConditionsManagerSpec extends Specification with Mockito {
 
       there was one(f.campaignManagerMock).doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]])
       there was one(f.moduleDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("_id"->bson2,"delete"->false)))(any[ExecutionContext])
+    }
+  }
+
+  "When user is on resource /campaigns/campaign/:id/form/parameter, ConditionsManager" should{
+    "send redirect if campaign not found" in new WithApplication{
+      val f=fixture
+
+      f.campaignManagerMock.doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]]) answers {(params,_) => params match{
+        case Array(_,_,p:(Unit=>Future[Result])) => p.apply()
+      }}
+
+      val r=f.controller.formParam(bson.stringify).apply(FakeRequest(GET,"/campaigns/campaign/"+bson.stringify+"/form/parameter").withSession("user" -> """{"login":"test"}"""))
+
+      status(r) must equalTo(SEE_OTHER)
+      header("Location",r) must beSome("/campaigns")
+
+      there was one(f.campaignManagerMock).doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]])
+    }
+
+    "send redirect if campaign type is not equal to 'Calibration'" in new WithApplication{
+      val f=fixture
+      val camp=Campagne(nom="camp",types="Test",conditions=List())
+
+      f.campaignManagerMock.doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]]) answers {(params,_) => params match{
+        case Array(_,p:(Campagne=>Future[Result]),_) => p.apply(camp)
+      }}
+
+      val r=f.controller.formParam(bson.stringify).apply(FakeRequest(GET,"/campaigns/campaign/"+bson.stringify+"/form/parameter").withSession("user" -> """{"login":"test"}"""))
+
+      status(r) must equalTo(SEE_OTHER)
+      header("Location",r) must beSome("/campaigns/campaign/"+bson.stringify)
+
+      there was one(f.campaignManagerMock).doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]])
+    }
+
+    "send 200 Ok page with 'Aucun résultat trouvé' if not parameter found" in new WithApplication{
+      val f=fixture
+      val camp=Campagne(nom="camp",types="Calibration",conditions=List())
+
+      f.campaignManagerMock.doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]]) answers {(params,_) => params match{
+        case Array(_,p:(Campagne=>Future[Result]),_) => p.apply(camp)
+      }}
+
+      f.paramDaoMock.findAll(any[JsObject],any[JsObject])(any[ExecutionContext]) returns future{List()}
+
+      val r=f.controller.formParam(bson.stringify).apply(FakeRequest(GET,"/campaigns/campaign/"+bson.stringify+"/form/parameter").withSession("user" -> """{"login":"test"}"""))
+
+      status(r) must equalTo(OK)
+      contentAsString(r) must contain("<h3 style=\"text-align:center\">Aucun résultat trouvé</h3>")
+
+      there was one(f.campaignManagerMock).doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]])
+      there was one(f.paramDaoMock).findAll(any[JsObject],any[JsObject])(any[ExecutionContext])
+    }
+
+    "send 200 Ok page with 1 result" in new WithApplication{
+      val f=fixture
+      val camp=Campagne(nom="camp",types="Calibration",conditions=List())
+      val param=Parametres(cle="key",valeur="value")
+
+      f.campaignManagerMock.doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]]) answers {(params,_) => params match{
+        case Array(_,p:(Campagne=>Future[Result]),_) => p.apply(camp)
+      }}
+
+      f.paramDaoMock.findAll(any[JsObject],any[JsObject])(any[ExecutionContext]) returns future{List(param)}
+
+      val r=f.controller.formParam(bson.stringify).apply(FakeRequest(GET,"/campaigns/campaign/"+bson.stringify+"/form/parameter").withSession("user" -> """{"login":"test"}"""))
+
+      status(r) must equalTo(OK)
+      val content=contentAsString(r)
+      content must contain("<td>key</td>")
+      content must contain("<td>value</td>")
+
+      there was one(f.campaignManagerMock).doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]])
+      there was one(f.paramDaoMock).findAll(any[JsObject],any[JsObject])(any[ExecutionContext])
+    }
+
+    "send 200 Ok page with 2 result" in new WithApplication{
+      val f=fixture
+      val camp=Campagne(nom="camp",types="Calibration",conditions=List())
+      val param=List(
+        Parametres(cle="key",valeur="value"),
+        Parametres(cle="key2",valeur="value2")
+      )
+
+      f.campaignManagerMock.doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]]) answers {(params,_) => params match{
+        case Array(_,p:(Campagne=>Future[Result]),_) => p.apply(camp)
+      }}
+
+      f.paramDaoMock.findAll(any[JsObject],any[JsObject])(any[ExecutionContext]) returns future{param}
+
+      val r=f.controller.formParam(bson.stringify).apply(FakeRequest(GET,"/campaigns/campaign/"+bson.stringify+"/form/parameter").withSession("user" -> """{"login":"test"}"""))
+
+      status(r) must equalTo(OK)
+      val content=contentAsString(r)
+      content must contain("<td>key</td>")
+      content must contain("<td>value</td>")
+      content must contain("<td>key2</td>")
+      content must contain("<td>value2</td>")
+
+      there was one(f.campaignManagerMock).doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]])
+      there was one(f.paramDaoMock).findAll(any[JsObject],any[JsObject])(any[ExecutionContext])
+    }
+  }
+
+  "When user is on resource /campaigns/campaign/:id/form/localisation, ConditionsManager" should{
+    "send redirect if campaign not found" in new WithApplication{
+      val f=fixture
+
+      f.campaignManagerMock.doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]]) answers {(params,_) => params match{
+        case Array(_,_,p:(Unit=>Future[Result])) => p.apply()
+      }}
+
+      val r=f.controller.formLocalisation(bson.stringify).apply(FakeRequest(GET,"/campaigns/campaign/"+bson.stringify+"/form/localisation").withSession("user" -> """{"login":"test"}"""))
+
+      status(r) must equalTo(SEE_OTHER)
+      header("Location",r) must beSome("/campaigns")
+
+      there was one(f.campaignManagerMock).doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]])
+    }
+
+    "send redirect if campaign type is not equal to 'Terrain'" in new WithApplication{
+      val f=fixture
+      val camp=Campagne(nom="camp",types="Test",conditions=List())
+
+      f.campaignManagerMock.doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]]) answers {(params,_) => params match{
+        case Array(_,p:(Campagne=>Future[Result]),_) => p.apply(camp)
+      }}
+
+      val r=f.controller.formLocalisation(bson.stringify).apply(FakeRequest(GET,"/campaigns/campaign/"+bson.stringify+"/form/localisation").withSession("user" -> """{"login":"test"}"""))
+
+      status(r) must equalTo(SEE_OTHER)
+      header("Location",r) must beSome("/campaigns/campaign/"+bson.stringify)
+
+      there was one(f.campaignManagerMock).doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]])
+    }
+
+    "send 200 Ok page with 'Aucun résultat trouvé' if not localisation found" in new WithApplication{
+      val f=fixture
+      val camp=Campagne(nom="camp",types="Terrain",conditions=List())
+
+      f.campaignManagerMock.doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]]) answers {(params,_) => params match{
+        case Array(_,p:(Campagne=>Future[Result]),_) => p.apply(camp)
+      }}
+
+      f.localisationDaoMock.findAll(any[JsObject],any[JsObject])(any[ExecutionContext]) returns future{List()}
+
+      val r=f.controller.formLocalisation(bson.stringify).apply(FakeRequest(GET,"/campaigns/campaign/"+bson.stringify+"/form/localisation").withSession("user" -> """{"login":"test"}"""))
+
+      status(r) must equalTo(OK)
+      contentAsString(r) must contain("<h3 style=\"text-align:center\">Aucun résultat trouvé</h3>")
+
+      there was one(f.campaignManagerMock).doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]])
+      there was one(f.localisationDaoMock).findAll(any[JsObject],any[JsObject])(any[ExecutionContext])
+    }
+
+    "send 200 Ok page with 1 result" in new WithApplication{
+      val f=fixture
+      val camp=Campagne(nom="camp",types="Terrain",conditions=List())
+      val localisation=Localisation(nom="unNom",lat=Some(1.2f),lon=Some(3.4f),commentaire=Some("un com"),photo=List())
+
+      f.campaignManagerMock.doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]]) answers {(params,_) => params match{
+        case Array(_,p:(Campagne=>Future[Result]),_) => p.apply(camp)
+      }}
+
+      f.localisationDaoMock.findAll(any[JsObject],any[JsObject])(any[ExecutionContext]) returns future{List(localisation)}
+
+      val r=f.controller.formLocalisation(bson.stringify).apply(FakeRequest(GET,"/campaigns/campaign/"+bson.stringify+"/form/localisation").withSession("user" -> """{"login":"test"}"""))
+
+      status(r) must equalTo(OK)
+      contentType(r) must beSome.which(_ == "text/html")
+      val content=contentAsString(r)
+      content must contain("unNom")
+      content must contain("<div class=\"row\"><span class=\"bold\">Commentaire</span> : un com</div>")
+      content must contain("<div class=\"row\"><span class=\"bold\">Latitude</span> : 1.2</div>")
+      content must contain("<div class=\"row\"><span class=\"bold\">Longitude</span> : 3.4</div>")
+      content must contain("<div class=\"row\"><span class=\"bold\">Photo</span> : 0</div>")
+
+      there was one(f.campaignManagerMock).doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]])
+      there was one(f.localisationDaoMock).findAll(any[JsObject],any[JsObject])(any[ExecutionContext])
+    }
+
+    "send 200 Ok page with 2 result" in new WithApplication{
+      val f=fixture
+      val camp=Campagne(nom="camp",types="Terrain",conditions=List())
+      val localisation=List(
+        Localisation(nom="unNom",lat=Some(1.2f),lon=Some(3.4f),commentaire=Some("un com"),photo=List()),
+        Localisation(nom="unNom2",lat=Some(5.6f),lon=Some(7.8f),commentaire=Some("un com2"),photo=List("img.jpg","img2.jpg"))
+      )
+
+      f.campaignManagerMock.doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]]) answers {(params,_) => params match{
+        case Array(_,p:(Campagne=>Future[Result]),_) => p.apply(camp)
+      }}
+
+      f.localisationDaoMock.findAll(any[JsObject],any[JsObject])(any[ExecutionContext]) returns future{localisation}
+
+      val r=f.controller.formLocalisation(bson.stringify).apply(FakeRequest(GET,"/campaigns/campaign/"+bson.stringify+"/form/localisation").withSession("user" -> """{"login":"test"}"""))
+
+      status(r) must equalTo(OK)
+      contentType(r) must beSome.which(_ == "text/html")
+      val content=contentAsString(r)
+      content must contain("unNom")
+      content must contain("<div class=\"row\"><span class=\"bold\">Commentaire</span> : un com</div>")
+      content must contain("<div class=\"row\"><span class=\"bold\">Latitude</span> : 1.2</div>")
+      content must contain("<div class=\"row\"><span class=\"bold\">Longitude</span> : 3.4</div>")
+      content must contain("<div class=\"row\"><span class=\"bold\">Photo</span> : 0</div>")
+      content must contain("unNom2")
+      content must contain("<div class=\"row\"><span class=\"bold\">Commentaire</span> : un com2</div>")
+      content must contain("<div class=\"row\"><span class=\"bold\">Latitude</span> : 5.6</div>")
+      content must contain("<div class=\"row\"><span class=\"bold\">Longitude</span> : 7.8</div>")
+      content must contain("<div class=\"row\"><span class=\"bold\">Photo</span> : 2</div>")
+
+      there was one(f.campaignManagerMock).doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]])
+      there was one(f.localisationDaoMock).findAll(any[JsObject],any[JsObject])(any[ExecutionContext])
     }
   }
 
