@@ -75,6 +75,41 @@ trait LocalisationManagerLike extends Controller{
   }
 
   /**
+   * This method is call when the user is on the page /campaigns/localisations/localisation/:id. It display localisation information
+   * @return Return Ok Action when the user is on the page /campaigns/localisations/localisation/:id with localisation information
+   *         Return Redirect Action when the user is not log in or if localisation not found
+   *         Return Internal Server Error Action when have mongoDB error
+   */
+  @ApiOperation(
+    nickname = "localisation/:id",
+    value = "Get the html page for localisation information",
+    notes = "Get the html page for localisation information",
+    httpMethod = "GET")
+  @ApiResponses(Array(
+    new ApiResponse(code=303,message="<ul><li>Move resource to the login page at /login if the user is not log</li><li>Move resource to the list of localisation at /campaigns/localisations if localisation not found</li></ul>"),
+    new ApiResponse(code=500,message="Have a mongoDB error")
+  ))
+  def moreInformation(id:String)=Action.async{
+    implicit request=>
+      //Verify if user is connect
+      UserManager.doIfconnectAsync(request) {
+
+        //Find localisation
+        localisationDao.findById(BSONObjectID(id)).map(
+
+          data=>data match{
+
+            //If localisation not found redirect to the list of localisation
+            case None=>Redirect(routes.LocalisationManager.listLocalisation())
+
+            //If localisation found, display all informations
+            case Some(localisation)=>Ok(views.html.localisation.moreInformation(localisation))
+          }
+        )
+      }
+  }
+
+  /**
    * This method is call when the user is on the page /campaigns/localisations/localisation. It display form for add new localisation
    * @return Return Ok Action when the user is on the page /campaigns/localisations/localisation with form for add new localisation
    *         Return Redirect Action when the user is not log in

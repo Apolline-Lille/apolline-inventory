@@ -60,6 +60,17 @@ class LocalisationManagerSpec extends Specification with Mockito {
         )
     }
 
+    "redirect to login for resource /campaigns/localisations/localisation/:id" in new WithApplication {
+      route(FakeRequest(GET, "/campaigns/localisations/localisation/:id")).map(
+        r => {
+          status(r) must equalTo(SEE_OTHER)
+          header("Location", r) must equalTo(Some("/login"))
+        }
+      ).getOrElse(
+          failure("Pas de retour de la fonction")
+        )
+    }
+
     "redirect to login for resource /campaigns/localisations/localisation" in new WithApplication {
       route(FakeRequest(GET, "/campaigns/localisations/localisation")).map(
         r => {
@@ -146,6 +157,42 @@ class LocalisationManagerSpec extends Specification with Mockito {
       content must contain("<div class=\"row\"><span class=\"bold\">Photo</span> : 2</div>")
 
       there was one(f.localisationDaoMock).findAll(any[JsObject],any[JsObject])(any[ExecutionContext])
+    }
+  }
+
+  "When user is on resource /campaigns/localisations/localisation/:id, LocalisationManager" should{
+    "send 200 Ok page with localisation information" in new WithApplication{
+      val f=fixture
+      val loc=Localisation(bson,"unNom",Some(1.2f),Some(3.4f),Some("un com"),List("img1.jpg","img2.jpg"))
+
+      f.localisationDaoMock.findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext]) returns future{Some(loc)}
+
+      val r=f.controller.moreInformation(bson.stringify).apply(FakeRequest(GET,"/campaigns/localisations/localisation/"+bson.stringify).withSession("user" -> """{"login":"test"}"""))
+
+      status(r) must equalTo(OK)
+      contentType(r) must beSome.which(_ == "text/html")
+      val content=contentAsString(r)
+      content must contain("unNom")
+      content must contain("<div class=\"row\"><span class=\"bold\">Commentaire</span> : un com</div>")
+      content must contain("<div class=\"row\"><span class=\"bold\">Latitude</span> : 1.2</div>")
+      content must contain("<div class=\"row\"><span class=\"bold\">Longitude</span> : 3.4</div>")
+      content must matchRegex("<span class=\"col-xs-4 col-md-3 col-lg-2\">\\s*<a href=\"/assets/images/campaign/img1\\.jpg\">\\s*<img src=\"/assets/images/campaign/img1\\.jpg\" class=\"img-responsive\">\\s*</a>\\s*</span>")
+      content must matchRegex("<span class=\"col-xs-4 col-md-3 col-lg-2\">\\s*<a href=\"/assets/images/campaign/img2\\.jpg\">\\s*<img src=\"/assets/images/campaign/img2\\.jpg\" class=\"img-responsive\">\\s*</a>\\s*</span>")
+
+      there was one(f.localisationDaoMock).findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext])
+    }
+
+    "send redirect if localisation not found" in new WithApplication{
+      val f=fixture
+
+      f.localisationDaoMock.findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext]) returns future{None}
+
+      val r=f.controller.moreInformation(bson.stringify).apply(FakeRequest(GET,"/campaigns/localisations/localisation/"+bson.stringify).withSession("user" -> """{"login":"test"}"""))
+
+      status(r) must equalTo(SEE_OTHER)
+      header("Location",r) must beSome("/campaigns/localisations")
+
+      there was one(f.localisationDaoMock).findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext])
     }
   }
 

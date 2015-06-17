@@ -1,0 +1,34 @@
+@(localisation:Localisation)(implicit request: Request[AnyContent])
+
+@main(Messages("campaign.localisation.title")){
+  @navigation("campaign")
+  <div class="container">
+    @navCampaign("localisation")
+    <section>
+      <article class="col-sm-12">
+        <div class="row">
+          <div class="col-sm-12">
+            <h4>
+              @localisation.nom
+            </h4>
+          </div>
+          <div class="col-sm-11 col-sm-offset-1">
+            <div class="row"><span class="bold">@Messages("campaign.localisation.commentaire")</span> : @localisation.commentaire</div>
+            <div class="row"><span class="bold">@Messages("campaign.localisation.lat")</span> : @localisation.lat</div>
+            <div class="row"><span class="bold">@Messages("campaign.localisation.lon")</span> : @localisation.lon</div>
+            <div class="row"><span class="bold">@Messages("campaign.localisation.photo")</span> :</div>
+            <div class="row">
+              @for(photo<-localisation.photo){
+               <span class="col-xs-4 col-md-3 col-lg-2">
+                 <a href="@routes.Assets.at("/public","images/campaign/"+photo)">
+                   <img src="@routes.Assets.at("/public","images/campaign/"+photo)" class="img-responsive">
+                 </a>
+               </span>
+              }
+            </div>
+          </div>
+        </div>
+      </article>
+    </section>
+  </div>
+}
