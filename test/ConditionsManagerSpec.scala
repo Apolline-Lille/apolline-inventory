@@ -1,23 +1,27 @@
+import java.io.File
 import java.text.ParseException
 import java.util.Date
 
 import controllers._
 import models._
 import org.junit.runner.RunWith
+import org.mockito.ArgumentCaptor
 import org.specs2.matcher.{MatchResult, Expectable, Matcher}
 import org.specs2.mock.Mockito
 import org.specs2.mutable.Specification
 import org.specs2.runner.JUnitRunner
 import play.api.data.Form
+import play.api.libs.Files.TemporaryFile
 import play.api.libs.json.{JsObject, Json}
-import play.api.mvc.{Action, Results, Result}
+import play.api.mvc.{MultipartFormData, Action, Results, Result}
 import play.api.test.Helpers._
-import play.api.test.{FakeRequest, WithApplication}
+import play.api.test.{FakeHeaders, FakeRequest, WithApplication}
 import reactivemongo.bson.{BSONDocument, BSONObjectID}
 import reactivemongo.extensions.BSONFormats.BSONObjectIDFormat
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent._
+import scala.concurrent.duration.Duration
 
 @RunWith(classOf[JUnitRunner])
 class ConditionsManagerSpec extends Specification with Mockito {
@@ -46,12 +50,14 @@ class ConditionsManagerSpec extends Specification with Mockito {
     val localisationDaoMock=mock[LocalisationDao]
     val campaignManagerMock=mock[CampagneManagerLike]
     val moduleManagerMock=mock[ModuleManagerLike]
+    val appMock=mock[play.api.Application]
     val controller=new ConditionsManagerTest{
       override val conditionsDao=conditionDaoMock
       override val moduleDao=moduleDaoMock
       override val localisationDao=localisationDaoMock
       override val campaignManager=campaignManagerMock
       override val moduleManager=moduleManagerMock
+      override val app=appMock
     }
   }
 
@@ -585,6 +591,128 @@ class ConditionsManagerSpec extends Specification with Mockito {
       content must contain("<textarea id=\"commentaire\" name=\"commentaire\" class=\"form-control\"></textarea>")
 
       there was one(f.campaignManagerMock).doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]])
+    }
+
+    "send redirect if campaign not found" in new WithApplication{
+      val f=fixture
+      val formData=MultipartFormData[TemporaryFile](dataParts = Map(), files = Seq(), badParts = Seq(), missingFileParts = Seq())
+
+      f.campaignManagerMock.doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]]) answers {(params,_) => params match{
+        case Array(_,_,p:(Unit=>Future[Result])) => p.apply()
+      }}
+
+      val req=FakeRequest(POST,"/campaigns/campaign/"+bson.stringify+"/form/localisation",FakeHeaders(),formData).withSession("user" -> """{"login":"test"}""")
+      val r=f.controller.addLocalisation(bson.stringify).apply(req)
+
+      status(r) must equalTo(SEE_OTHER)
+      header("Location",r) must beSome("/campaigns")
+
+      there was one(f.campaignManagerMock).doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]])
+    }
+
+    "send redirect if campaign type is not equal to 'Terrain'" in new WithApplication{
+      val f=fixture
+      val camp=Campagne(nom="camp",types="Test",conditions=List())
+      val formData=MultipartFormData[TemporaryFile](dataParts = Map(), files = Seq(), badParts = Seq(), missingFileParts = Seq())
+
+      f.campaignManagerMock.doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]]) answers {(params,_) => params match{
+        case Array(_,p:(Campagne=>Future[Result]),_) => p.apply(camp)
+      }}
+
+      val req=FakeRequest(POST,"/campaigns/campaign/"+bson.stringify+"/form/localisation",FakeHeaders(),formData).withSession("user" -> """{"login":"test"}""")
+      val r=f.controller.addLocalisation(bson.stringify).apply(req)
+
+      status(r) must equalTo(SEE_OTHER)
+      header("Location",r) must beSome("/campaigns/campaign/"+bson.stringify)
+
+      there was one(f.campaignManagerMock).doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]])
+    }
+
+    "send bad request if form is submit with empty field" in new WithApplication{
+      val f=fixture
+      val formData=MultipartFormData[TemporaryFile](dataParts = Map(), files = Seq(), badParts = Seq(), missingFileParts = Seq())
+      val camp=Campagne(nom="camp",types="Terrain",conditions=List())
+
+      f.campaignManagerMock.doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]]) answers {(params,_) => params match{
+        case Array(_,p:(Campagne=>Future[Result]),_) => p.apply(camp)
+      }}
+
+      val req=FakeRequest(POST,"/campaigns/campaign/"+bson.stringify+"/form/localisation",FakeHeaders(),formData).withSession("user" -> """{"login":"test"}""")
+      val r=f.controller.addLocalisation(bson.stringify).apply(req)
+
+      status(r) must equalTo(BAD_REQUEST)
+      contentAsString(r) must contain("<span class=\"control-label errors\">This field is required</span>")
+
+      there was one(f.campaignManagerMock).doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]])
+    }
+
+    "send redirect to localisation list after insert data received" in new WithApplication{
+      val f=fixture
+      val file=mock[MultipartFormData.FilePart[TemporaryFile]]
+      val tempFile=mock[TemporaryFile]
+      val captor = ArgumentCaptor.forClass(classOf[File])
+      val param=Map("nom"->Seq("unNom"),"lat"->Seq("2.3"),"lon"->Seq("3.5"),"commentaire"->Seq("un com"))
+      val formData=MultipartFormData[TemporaryFile](dataParts = param, files = Seq(file), badParts = Seq(), missingFileParts = Seq())
+      val camp=Campagne(nom="camp",types="Terrain",conditions=List())
+
+      file.filename returns "file.jpg"
+      f.appMock.path returns (new File("/route"))
+      file.ref returns tempFile
+      org.mockito.Mockito.doNothing.when(tempFile).moveTo(any[File],any[Boolean])
+      f.campaignManagerMock.doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]]) answers {(params,_) => params match{
+        case Array(_,p:(Campagne=>Future[Result]),_) => p.apply(camp)
+      }}
+
+      val req=FakeRequest(POST,"/campaigns/campaign/"+bson.stringify+"/form/localisation",FakeHeaders(),formData).withSession("user" -> """{"login":"test"}""")
+      val r=f.controller.addLocalisation(bson.stringify).apply(req)
+
+      Await.result(r,Duration.Inf)
+
+      there was one(tempFile).moveTo(captor.capture,any[Boolean])
+      val arg=captor.getValue
+      arg.getAbsolutePath must matchRegex("/route/public/images/campaign/tmp/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.jpg")
+
+      status(r) must equalTo(SEE_OTHER)
+      header("Location",r) must beSome("/campaigns/campaign/"+bson.stringify)
+
+      there was one(file).filename
+      there was one(f.appMock).path
+      there was 2.times(file).ref
+      there was one(f.campaignManagerMock).doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]])
+    }
+  }
+
+  "When method insertImage is called, ConditionsManager" should{
+    "return an empty list if not have file" in new WithApplication{
+      val f=fixture
+
+      val r=f.controller.insertImage(List())
+
+      r must equalTo(List())
+    }
+
+    "return list with new name file" in new WithApplication{
+      val f=fixture
+      val file=mock[MultipartFormData.FilePart[TemporaryFile]]
+      val tempFile=mock[TemporaryFile]
+      val captor = ArgumentCaptor.forClass(classOf[File])
+
+      file.filename returns "file.jpg"
+      f.appMock.path returns (new File("/route"))
+      file.ref returns tempFile
+      org.mockito.Mockito.doNothing.when(tempFile).moveTo(any[File],any[Boolean])
+
+      val r=f.controller.insertImage(List(file))
+
+      there was one(tempFile).moveTo(captor.capture,any[Boolean])
+      val arg=captor.getValue
+
+      arg.getAbsolutePath must matchRegex("/route/public/images/campaign/tmp/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.jpg")
+      r must equalTo(List(arg.getAbsolutePath.split("/").last))
+
+      there was one(file).filename
+      there was one(f.appMock).path
+      there was 2.times(file).ref
     }
   }
 

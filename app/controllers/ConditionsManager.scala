@@ -1,8 +1,9 @@
 package controllers
 
+import java.io.File
 import java.lang.annotation.Annotation
 import java.text.SimpleDateFormat
-import java.util.Date
+import java.util.{UUID, Date}
 
 import com.wordnik.swagger.annotations._
 import models._
@@ -11,6 +12,7 @@ import play.api.data.Form
 import play.api.data.Forms._
 import play.api.data.validation.Constraints._
 import play.api.i18n.Messages
+import play.api.libs.Files.TemporaryFile
 import play.api.libs.json.{JsObject, Json}
 import play.api.mvc._
 import reactivemongo.bson.BSONObjectID
@@ -221,7 +223,7 @@ trait ConditionsManagerLike extends Controller{
 
             campaign.types match {
 
-              //If campaign type is equal to 'Terrain', find localisation
+              //If campaign type is equal to 'Terrain', display the form
               case "Terrain" =>future{Ok(views.html.campaign.formLocalisation(localisationForm,"",id,printStateForm("localisation",campaign.types, id)))}
 
               //else redirect to conditions list
@@ -334,6 +336,63 @@ trait ConditionsManagerLike extends Controller{
   }
 
   /**
+   * This method is call when the user is on the page /campaigns/campaign/:id/form/localisation. It add localisation to the ground condition
+   * @return Return Redirect Action when the user is not log in or after insert localisation information
+   *         Return Bad request with the form if data received are not valid
+   */
+  @ApiOperation(
+    nickname = "conditions/form/localisation",
+    value = "Add localisation for ground condition to the session",
+    notes = "Add localisation for ground condition to the session",
+    httpMethod = "POST")
+  @ApiResponses(Array(
+    new ApiResponse(code=303,message="<ul><li>Move resource to the login page at /login if the user is not log</li><li>Move resource to the validate page at /campaigns/campaign/:id/form/validate after add localisation to the session</li><li>Move resource to the list of condition at /campaigns/campaign/:id if campaign type is not ground</li></ul>"),
+    new ApiResponse(code=400,message="Data received are not valid")
+  ))
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(name="id",value="Campaign id",required=true,dataType="String",paramType="path"),
+    new ApiImplicitParam(name="nom",value="Localisation name",required=true,dataType="String",paramType = "form"),
+    new ApiImplicitParam(name="lat",value="Latitude of the localisation",dataType="Float",paramType="form"),
+    new ApiImplicitParam(name="lon",value="Longitude of the localisation",dataType="Float",paramType="form"),
+    new ApiImplicitParam(name="commentaire",value="Comment for the localisation",dataType="String",paramType="form"),
+    new ApiImplicitParam(name="photo[]",value="Picture describe the localisation",dataType="file",paramType="body")
+  ))
+  def addLocalisation(id:String)=Action.async(parse.multipartFormData) {
+    implicit request =>
+      //Verify if user is connect
+      UserManager.doIfconnectAsync(request.asInstanceOf[Request[AnyContent]]) {
+        //Verify if campaign exist
+        campaignManager.doIfCampaignFound(BSONObjectID(id)) {
+
+          //If campaign found
+          campaign => campaign.types match {
+
+            case "Terrain" => localisationForm.bindFromRequest.fold(
+              //If form have error, display the form with error
+              formWithErrors => future {BadRequest(views.html.campaign.formLocalisation(formWithErrors, "", id, printStateForm("localisation", campaign.types, id))(request.asInstanceOf[Request[AnyContent]]))},
+              data => {
+
+                //Insert image into the temporary directory
+                val img = insertImage(request.body.files.toList)
+
+                //Create the localisation
+                val loc = Localisation(nom = data.nom, lat = data.lat, lon = data.lon, commentaire = data.commentaire, photo = img, condition = BSONObjectID.generate)
+
+                val cond=findCondition(request.asInstanceOf[Request[AnyContent]]) + ("localisation" -> Json.toJson(loc))
+                //Redirect to the next page
+                future {Redirect(routes.ConditionsManager.listConditions(id)).withSession(request.session + "condition" -> Json.stringify(cond))}
+              }
+            )
+            case _ => future {Redirect(routes.ConditionsManager.listConditions(id))}
+          }
+        } {
+          //If campaign not found
+          _ => future {Redirect(routes.CampagneManager.listCampaign())}
+        }
+      }
+  }
+
+  /**
    * This method find condition in session and parse the string into JsObject
    * @param request
    * @return
@@ -425,6 +484,34 @@ trait ConditionsManagerLike extends Controller{
    * @return Html code for navigate in the form for create a new conditions
    */
   def printStateForm(activ:String,types:String,id:String)=views.html.campaign.stateForm(activ,types,id)
+
+  /**
+   * This method insert image in the folder public/images/campaign/tmp
+   * @param list Images to insert in the folder
+   * @return List of image name
+   */
+  def insertImage(list:List[MultipartFormData.FilePart[TemporaryFile]]):List[String]=list match{
+    //If not have image
+    case Nil=>List()
+
+    //If have image
+    case h::t=> {
+      //Find the image extension
+      val extension=h.filename.split("\\.").last
+
+      //Create an uniq name
+      val filename = UUID.randomUUID().toString+"."+extension
+
+      //Find the location
+      val r=app.path
+
+      //Move the file
+      h.ref.moveTo(new File((r+"/public/images/campaign/tmp/"+filename)))
+
+      //Insert other image
+      filename::insertImage(t)
+    }
+  }
 }
 
 @Api(value = "/conditions", description = "Operations for conditions")
