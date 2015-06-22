@@ -13,7 +13,7 @@ import play.api.data.Forms._
 import play.api.data.validation.Constraints._
 import play.api.i18n.Messages
 import play.api.libs.Files.TemporaryFile
-import play.api.libs.json.{JsObject, Json}
+import play.api.libs.json._
 import play.api.mvc._
 import reactivemongo.bson.BSONObjectID
 import reactivemongo.extensions.BSONFormats.BSONObjectIDFormat
@@ -22,6 +22,8 @@ import play.api.data.format.Formats._
 
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import play.api.Play.current
+
+import scala.concurrent.duration.Duration
 
 case class ConditionForm(debut:Date,fin:Option[Date],commentaire:Option[String])
 
@@ -193,15 +195,15 @@ trait ConditionsManagerLike extends Controller{
   }
 
   /**
-   * This method is call when the user is on the page /campaigns/campaign/:id/form/localisation. It display the localisation list for associat to a condition
-   * @return Return Ok Action when the user is on the page /campaigns/campaign/:id/form/localisation with the localisation list for associat to a condition
+   * This method is call when the user is on the page /campaigns/campaign/:id/form/localisation. It display a form for input localisation
+   * @return Return Ok Action when the user is on the page /campaigns/campaign/:id/form/localisation with a form for input localisation
    *         Return Redirect Action when the user is not log in or if campaign not found or if campaign is not correct
    *         Return Internal Server Error Action when have mongoDB error
    */
   @ApiOperation(
     nickname = "conditions/form/localisation",
-    value = "Get the html page with the localisation list for associat to a condition",
-    notes = "Get the html page with the localisation list for associat to a condition",
+    value = "Get the html page with the form for input localisation",
+    notes = "Get the html page with the form for input localisation",
     httpMethod = "GET")
   @ApiResponses(Array(
     new ApiResponse(code=303,message="<ul><li>Move resource to the login page at /login if the user is not log</li><li>Move resource to the conditions list if campaign not found</li><li>Move resource to the conditions list if campaigns type is not equal to 'Terrain'</li></ul>"),
@@ -228,6 +230,52 @@ trait ConditionsManagerLike extends Controller{
 
               //else redirect to conditions list
               case _ =>future{Redirect(routes.ConditionsManager.listConditions(id))}
+            }
+        }{
+          //If campaign not found
+          _ => future{Redirect(routes.CampagneManager.listCampaign())}
+        }
+      }
+  }
+
+  /**
+   * This method is call when the user is on the page /campaigns/campaign/:id/form/validate. It display all information condition input
+   * @return Return Ok Action when the user is on the page /campaigns/campaign/:id/form/validate with information condition input
+   *         Return Redirect Action when the user is not log in or if campaign not found or if campaign is not correct
+   *         Return bad request if condition information have an error
+   *         Return Internal Server Error Action when have mongoDB error
+   */
+  @ApiOperation(
+    nickname = "conditions/form/validate",
+    value = "Get the html page with condition information",
+    notes = "Get the html page with condition information",
+    httpMethod = "GET")
+  @ApiResponses(Array(
+    new ApiResponse(code=303,message="<ul><li>Move resource to the login page at /login if the user is not log</li><li>Move resource to the conditions list if campaign not found</li></ul>"),
+    new ApiResponse(code=400,message="condition information have an error"),
+    new ApiResponse(code=500,message="Have a mongoDB error")
+  ))
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(name="id",value="Campaign id",required=true,dataType="String",paramType="path")
+  ))
+  def formValidate(id:String)=Action.async{
+    implicit request=>
+      //Verify if user is connect
+      UserManager.doIfconnectAsync(request) {
+
+        //Verify if campaign exist
+        campaignManager.doIfCampaignFound(BSONObjectID(id)) {
+
+          //If campaign found
+          campaign =>
+            //Verify condition information
+            verifyAllData(campaign.types){
+
+                  //If condition information not have error
+              (cond,loc,module)=>Ok(views.html.campaign.validate(cond,loc,Some(module),"",printStateForm("validate", campaign.types, id)))
+            }{
+                  //Id condition information have error
+              (error,cond,loc,module)=>BadRequest(views.html.campaign.validate(cond,loc,module,error,printStateForm("validate", campaign.types, id)))
             }
         }{
           //If campaign not found
@@ -371,7 +419,6 @@ trait ConditionsManagerLike extends Controller{
               //If form have error, display the form with error
               formWithErrors => future {BadRequest(views.html.campaign.formLocalisation(formWithErrors, "", id, printStateForm("localisation", campaign.types, id))(request.asInstanceOf[Request[AnyContent]]))},
               data => {
-
                 //Insert image into the temporary directory
                 val img = insertImage(request.body.files.toList)
 
@@ -379,8 +426,9 @@ trait ConditionsManagerLike extends Controller{
                 val loc = Localisation(nom = data.nom, lat = data.lat, lon = data.lon, commentaire = data.commentaire, photo = img, condition = BSONObjectID.generate)
 
                 val cond=findCondition(request.asInstanceOf[Request[AnyContent]]) + ("localisation" -> Json.toJson(loc))
+
                 //Redirect to the next page
-                future {Redirect(routes.ConditionsManager.listConditions(id)).withSession(request.session + "condition" -> Json.stringify(cond))}
+                future {Redirect(routes.ConditionsManager.formValidate(id)).withSession(request.asInstanceOf[Request[AnyContent]].session + ("condition" -> Json.stringify(cond)))}
               }
             )
             case _ => future {Redirect(routes.ConditionsManager.listConditions(id))}
@@ -400,6 +448,239 @@ trait ConditionsManagerLike extends Controller{
   def findCondition(implicit request:Request[AnyContent]):JsObject=request.session.get("condition") match{
     case None=>Json.obj()
     case Some(str)=>Json.parse(str).asInstanceOf[JsObject]
+  }
+
+  /**
+   * This method all condition information in the session and transform it to Condition and Localisation
+   * @param request Request received
+   * @return Return the Condition and Localisation create with session data
+   */
+  def findSessionData(implicit request:Request[AnyContent]):(Condition,Option[Localisation])={
+    //Find data in session
+    val jsCond=findCondition
+
+    //Transform data to condition
+    val cond=toCondition(jsCond)
+
+    //Transform data to localisation
+    val loc=toLocalisation(jsCond)
+
+    //Return condition and localisation
+    (cond,loc)
+  }
+
+  /**
+   * This method transform data in session to condition
+   * @param jsObj Data in session
+   * @return The condition represent by session data
+   */
+  def toCondition(jsObj: JsObject):Condition={
+
+    //Find the begin date
+    val debut=findDateDebut(jsObj)
+
+    //Find the end date
+    val fin=findDateFin(jsObj)
+
+    //Find module id
+    val module=findModule(jsObj)
+
+    //Create the condition
+    Condition(dateDebut = debut,dateFin=fin,commentaire = (jsObj\"commentaire").as[Option[String]],modules=module)
+  }
+
+  /**
+   * This method transform the begin date in session to a date
+   * @param jsObj Data in session
+   * @return The begin date
+   */
+  def findDateDebut(jsObj:JsObject):Date=(jsObj\"debut") match{
+      //if begin date is undefined
+    case _:JsUndefined => new Date
+
+      //if begin date is defined
+    case p =>{
+
+      //Transform the date
+      val date=new Date
+      date.setTime(p.as[Long])
+
+      //Return the date
+      date
+    }
+  }
+
+  /**
+   * This method transform the end date in session to a date
+   * @param jsObj Data in session
+   * @return The end date
+   */
+  def findDateFin(jsObj:JsObject):Option[Date]=(jsObj\"fin") match{
+
+        //If end date is equal to null
+      case JsNull => None
+
+        //If end date is undefined
+      case _:JsUndefined => None
+
+        //If end date is defined
+      case p => p.as[Option[Long]] match {
+
+          //If end date is equal to None
+        case None => None
+
+          //If end date is equal to some date
+        case Some(time) => {
+
+          //Transform the date
+          val d = new Date
+          d.setTime(time)
+
+          //Return the date
+          Some(d)
+        }
+      }
+    }
+
+  /**
+   * This method transform the module id in session to an BSONObjectID
+   * @param jsObj data in session
+   * @return The module BSONObjectID
+   */
+  def findModule(jsObj:JsObject):BSONObjectID=jsObj\"module" match{
+      //If module id is null
+    case JsNull => BSONObjectID.generate
+
+      //If module id is undefined
+    case _:JsUndefined => BSONObjectID.generate
+
+      //If module id is defined
+    case id=>BSONObjectID(id.as[String])
+  }
+
+  /**
+   * This method transform localisation in session to an Localisation
+   * @param jsObj Data in session
+   * @return The localisation
+   */
+  def toLocalisation(jsObj: JsObject):Option[Localisation]=jsObj\"localisation" match{
+
+        //If localisation is null
+      case JsNull => None
+
+        //If localisation is undefined
+      case _:JsUndefined=>None
+
+        //If localisation is defined
+      case p => Some(Localisation.localisationFormat.reads(p).get)
+  }
+
+  /**
+   * This method verify all condition information
+   * @param types Campaign type
+   * @param correct Function call if datas are correct
+   * @param notCorrect Function call if datas are not correct
+   * @param request Request received
+   * @return The Result return by function call
+   */
+  def verifyAllData(types:String)(correct:(Condition,Option[Localisation],Module)=>Result)(notCorrect:(String,Condition,Option[Localisation],Option[Module])=>Result)(implicit request:Request[AnyContent])={
+
+    //Find condition and localisation in session
+    val (cond,loc)=findSessionData
+
+    //Find module associat to the condition
+    moduleDao.findOne(Json.obj("delete"->false,"_id"->cond.modules)).map(
+      data=>data match {
+
+          //If module not found
+        case None => notCorrect(Messages("campaign.condition.error.notSelectModule"), cond, loc, None)
+
+          //If module found
+        case Some(module) => {
+
+          //Verify condtion dates
+          if (verifyDate(cond.dateDebut, cond.dateFin)) {
+
+            //Verify localisation if is a ground campaign
+            if (!types.equals("Terrain") || verifyLocalisation(loc)) {
+
+              //Verify if module is not used in other condition at the same time
+              if(verifyModuleAvailable(cond.modules,cond.dateDebut,cond.dateFin)) {
+                correct(cond, loc, module)
+              }
+              else{
+                notCorrect(Messages("campaign.condition.error.usedInSameTime"),cond,loc,Some(module))
+              }
+
+            }else{
+              notCorrect(Messages("campaign.condition.error.notLocalisation"),cond,loc,Some(module))
+            }
+          }
+          else{
+            notCorrect(Messages("campaign.condition.error.beginAfterEnd"),cond,loc,Some(module))
+          }
+        }
+      }
+    )
+  }
+
+  /**
+   * This method verify if the module is already used
+   * @param id Module id
+   * @param debut Begin date of the condition
+   * @param fin End date of the condition
+   * @return Return true if the module is not used else false
+   */
+  def verifyModuleAvailable(id:BSONObjectID,debut:Date,fin:Option[Date]):Boolean={
+    //Create part of query for begin date
+    val begin=createQueryIntersect("dateDebut",debut,fin)
+
+    //Create part of query for end date
+    val end=Json.obj("$or"->JsArray(Seq(createQueryIntersect("dateFin",debut,fin) + ("dateFin"->Json.obj("$exists"->false)))))
+
+    //Find condition if module is used
+    val res=conditionsDao.findOne(Json.obj("modules"->id,"$or"->JsArray(Seq(begin,end)))).map(
+      data=>data match{
+
+          //Condition not found
+        case None => true
+
+          //Condition found
+        case _ => false
+      }
+    )
+
+    //Return the result
+    Await.result(res,Duration.Inf)
+  }
+
+  /**
+   * This method create part of query for intersect between 2 date
+   * @param name Name of the column
+   * @param debut Begin date of the condition
+   * @param fin End date of the condition
+   * @return Part of query for the intersect
+   */
+  def createQueryIntersect(name:String,debut:Date,fin:Option[Date]):JsObject=fin match{
+      //End date not found
+    case None=>Json.obj(name->Json.obj("$gte"->debut))
+
+      //End date found
+    case Some(d)=>Json.obj(name->Json.obj("$gte"->debut,"$lte"->d))
+  }
+
+  /**
+   * This method verify if the localisation is found and it name is not empty
+   * @param locOpt Option with the localisation
+   * @return
+   */
+  def verifyLocalisation(locOpt:Option[Localisation])=locOpt match{
+
+      //Localisation not found
+    case None => false
+
+      //Localisation found verify if the name is not empty
+    case Some(loc) => loc.nom.nonEmpty
   }
 
   /**
@@ -431,9 +712,11 @@ trait ConditionsManagerLike extends Controller{
    * @param request Request received
    * @return
    */
-  def redirectToNextFormPage(id:String,types:String,condition:JsObject)(implicit request:Request[AnyContent]):Result=types match{
-    case "Terrain" =>Redirect(routes.ConditionsManager.formLocalisation(id)).withSession(request.session + ("condition" -> Json.stringify(condition)))
-    case _ =>Redirect(routes.ConditionsManager.listConditions(id)).withSession(request.session + ("condition" -> Json.stringify(condition)))
+  def redirectToNextFormPage(id:String,types:String,condition:JsObject)(implicit request:Request[AnyContent]):Result= {
+    types match {
+      case "Terrain" => Redirect(routes.ConditionsManager.formLocalisation(id)).withSession(request.session + ("condition" -> Json.stringify(condition)))
+      case _ => Redirect(routes.ConditionsManager.listConditions(id)).withSession(request.session + ("condition" -> Json.stringify(condition)))
+    }
   }
 
   /**

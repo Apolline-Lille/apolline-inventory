@@ -12,7 +12,7 @@ import org.specs2.mutable.Specification
 import org.specs2.runner.JUnitRunner
 import play.api.data.Form
 import play.api.libs.Files.TemporaryFile
-import play.api.libs.json.{JsObject, Json}
+import play.api.libs.json.{JsArray, JsNull, JsObject, Json}
 import play.api.mvc.{MultipartFormData, Action, Results, Result}
 import play.api.test.Helpers._
 import play.api.test.{FakeHeaders, FakeRequest, WithApplication}
@@ -130,6 +130,29 @@ class ConditionsManagerSpec extends Specification with Mockito {
 
     "redirect to login for resource /campaigns/campaign/:id/form/localisation" in new WithApplication {
       route(FakeRequest(GET, "/campaigns/campaign/"+bson.stringify+"/form/localisation")).map(
+        r => {
+          status(r) must equalTo(SEE_OTHER)
+          header("Location", r) must equalTo(Some("/login"))
+        }
+      ).getOrElse(
+          failure("Pas de retour de la fonction")
+        )
+    }
+
+    "redirect to login for resource /campaigns/campaign/:id/form/localisation" in new WithApplication {
+      val f=fixture
+      val formData=MultipartFormData[TemporaryFile](dataParts = Map(), files = Seq(), badParts = Seq(), missingFileParts = Seq())
+      f.controller.addLocalisation(bson.stringify).apply(FakeRequest(POST, "/campaigns/campaign/"+bson.stringify+"/form/localisation").withMultipartFormDataBody(formData)).map(
+        data => {
+          val r=future{data}
+          status(r) must equalTo(SEE_OTHER)
+          header("Location", r) must equalTo(Some("/login"))
+        }
+      )
+    }
+
+    "redirect to login for resource /campaigns/campaign/:id/form/validate" in new WithApplication {
+      route(FakeRequest(GET, "/campaigns/campaign/"+bson.stringify+"/form/validate")).map(
         r => {
           status(r) must equalTo(SEE_OTHER)
           header("Location", r) must equalTo(Some("/login"))
@@ -673,11 +696,93 @@ class ConditionsManagerSpec extends Specification with Mockito {
       arg.getAbsolutePath must matchRegex("/route/public/images/campaign/tmp/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.jpg")
 
       status(r) must equalTo(SEE_OTHER)
-      header("Location",r) must beSome("/campaigns/campaign/"+bson.stringify)
+      header("Location",r) must beSome("/campaigns/campaign/"+bson.stringify+"/form/validate")
 
       there was one(file).filename
       there was one(f.appMock).path
       there was 2.times(file).ref
+      there was one(f.campaignManagerMock).doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]])
+    }
+  }
+
+  "When user is on resource /campaigns/campaign/:id/form/validate, ConditionsManager" should{
+    "send redirect if campaign not found" in new WithApplication{
+      val f=fixture
+      val formData=MultipartFormData[TemporaryFile](dataParts = Map(), files = Seq(), badParts = Seq(), missingFileParts = Seq())
+
+      f.campaignManagerMock.doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]]) answers {(params,_) => params match{
+        case Array(_,_,p:(Unit=>Future[Result])) => p.apply()
+      }}
+
+      val req=FakeRequest(GET,"/campaigns/campaign/"+bson.stringify+"/form/validate").withSession("user" -> """{"login":"test"}""")
+      val r=f.controller.formValidate(bson.stringify).apply(req)
+
+      status(r) must equalTo(SEE_OTHER)
+      header("Location",r) must beSome("/campaigns")
+
+      there was one(f.campaignManagerMock).doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]])
+    }
+
+    "send 200 Ok page with all condition informations" in new WithApplication{
+      val f = fixture
+      val locObj=Localisation(bson2,bson3,"loc",Some(1.2f),Some(3.4f),Some("un com"),List("img.jpg"))
+      val session=Json.obj("debut"->date,"fin"->date2,"commentaire"->"unCom","module"->bson4.stringify,"localisation"->Json.toJson(locObj))
+      val module=Module(bson4,"idMod","typeMod",date,List(),List(),Some("moduleCom"))
+      val camp=Campagne(nom="camp",types="Terrain",conditions=List())
+      val queryBegin=Json.obj("dateDebut"->Json.obj("$gte"->date,"$lte"->date2))
+      val queryEnd=Json.obj("$or"->JsArray(Seq(Json.obj("dateFin"->Json.obj("$gte"->date,"$lte"->date2),"dateFin"->Json.obj("$exists"->false)))))
+      val query=Json.obj("modules"->bson4,"$or"->JsArray(Seq(queryBegin,queryEnd)))
+
+      f.campaignManagerMock.doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]]) answers {(params,_) => params match{
+        case Array(_,p:(Campagne=>Future[Result]),_) => p.apply(camp)
+      }}
+
+      f.moduleDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->bson4)))(any[ExecutionContext]) returns future{Some(module)}
+
+      f.conditionDaoMock.findOne(org.mockito.Matchers.eq(query))(any[ExecutionContext]) returns future{None}
+
+      val req=FakeRequest(GET,"/campaigns/campaign/"+bson.stringify+"/form/validate").withSession("user" -> """{"login":"test"}""").withSession("condition"->Json.stringify(session))
+      val r=f.controller.formValidate(bson.stringify)(req)
+
+      status(r) must equalTo(OK)
+      val content=contentAsString(r)
+      content must contain("<span class=\"bold\">Date de début</span> : 22/04/2015 00:00:00")
+      content must contain("<span class=\"bold\">Date de fin</span> : 23/04/2015 00:00:00")
+      content must contain("<span class=\"bold\">Commentaire</span> : unCom")
+      content must contain("typeMod")
+      content must contain("idMod")
+      content must contain("<span class=\"bold\">Commentaires</span> : moduleCom")
+      content must contain("<span class=\"bold\">Date d&#x27;assemblage</span> : 22/04/2015")
+      content must contain("<span class=\"bold\">Cartes</span> : 0")
+      content must contain("<span class=\"bold\">Capteurs</span> : 0")
+      content must contain("<span class=\"bold\">Localisation</span> : loc")
+      content must contain("<span class=\"bold\">Latitude</span> : 1.2")
+      content must contain("<span class=\"bold\">Longitude</span> : 3.4")
+      content must contain("<span class=\"bold\">Commentaire</span> : un com")
+      content must contain("<img src=\"/assets/images/campaign/tmp/img.jpg\" class=\"img-responsive\">")
+
+      there was one(f.moduleDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->bson4)))(any[ExecutionContext])
+      there was one(f.campaignManagerMock).doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]])
+      there was one(f.conditionDaoMock).findOne(org.mockito.Matchers.eq(query))(any[ExecutionContext])
+    }
+
+    "send Bad request with error message if condition have an error" in new WithApplication{
+      val f = fixture
+      val camp=Campagne(nom="camp",types="Terrain",conditions=List())
+
+      f.campaignManagerMock.doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]]) answers {(params,_) => params match{
+        case Array(_,p:(Campagne=>Future[Result]),_) => p.apply(camp)
+      }}
+
+      f.moduleDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{None}
+
+      val req=FakeRequest(GET,"/campaigns/campaign/"+bson.stringify+"/form/validate").withSession("user" -> """{"login":"test"}""")
+      val r=f.controller.formValidate(bson.stringify)(req)
+
+      status(r) must equalTo(BAD_REQUEST)
+      contentAsString(r) must contain("<div class=\"alert alert-danger\" role=\"alert\">Aucun module n'a été sélectionné</div>")
+
+      there was one(f.moduleDaoMock).findOne(any[JsObject])(any[ExecutionContext])
       there was one(f.campaignManagerMock).doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]])
     }
   }
@@ -871,5 +976,410 @@ class ConditionsManagerSpec extends Specification with Mockito {
       content must contain("<textarea id=\"commentaire\" name=\"commentaire\" class=\"form-control\"></textarea>")
       content must contain("<div class=\"alert alert-danger\" role=\"alert\">La date de début doit être inférieur à la date de fin</div>")
     }
+  }
+
+  "When method findDateDebut is called, ConditionsManager" should{
+    "return the current date if key 'debut' not found" in new WithApplication{
+      val f=fixture
+      val before=new Date
+
+      val r=f.controller.findDateDebut(Json.obj())
+
+      val after=new Date
+
+      r.compareTo(before) must greaterThanOrEqualTo(0)
+      r.compareTo(after) must lessThanOrEqualTo(0)
+    }
+
+    "return the date define with the key 'debut'" in new WithApplication{
+      val f=fixture
+      val d=new Date
+
+      val r=f.controller.findDateDebut(Json.obj("debut"->d.getTime))
+
+      r must equalTo(d)
+    }
+  }
+
+  "When method findDateFin is called, ConditionsManager" should{
+    "return None if key 'fin' not found" in new WithApplication{
+      val f=fixture
+
+      val r=f.controller.findDateFin(Json.obj())
+
+      r must beNone
+    }
+
+    "return the date define with the key 'fin'" in new WithApplication{
+      val f=fixture
+      val d=new Date
+
+      val r=f.controller.findDateFin(Json.obj("fin"->d.getTime))
+
+      r must beSome(d)
+    }
+
+    "return None if value with key 'fin' is null" in new WithApplication() {
+      val f=fixture
+      val d=new Date
+
+      val r=f.controller.findDateFin(Json.obj("fin"->JsNull))
+
+      r must beNone
+    }
+
+    "return None if value with key 'fin' is None" in new WithApplication() {
+      val f=fixture
+      val d=new Date
+
+      val r=f.controller.findDateFin(Json.obj("fin"->None))
+
+      r must beNone
+    }
+  }
+
+  "When method findModule is called, ConditionsManager" should{
+    "return an generated BSONObjectID if key 'module' not found" in new WithApplication{
+      val f=fixture
+
+      val r=f.controller.findModule(Json.obj())
+
+      r.getClass.getSimpleName must equalTo("BSONObjectID")
+    }
+
+    "return the BSONObjectID define with the key 'module'" in new WithApplication{
+      val f=fixture
+
+      val r=f.controller.findModule(Json.obj("module"->bson.stringify))
+
+      r must equalTo(bson)
+    }
+
+    "return generate BSONObjectID if value with key 'module' is null" in new WithApplication() {
+      val f=fixture
+
+      val r=f.controller.findModule(Json.obj("module"->JsNull))
+
+      r.getClass.getSimpleName must equalTo("BSONObjectID")
+    }
+  }
+
+  "When method toLocalisation is called, ConditionsManager" should{
+    "return None if key 'localisation' not found" in new WithApplication{
+      val f=fixture
+
+      val r=f.controller.toLocalisation(Json.obj())
+
+      r must beNone
+    }
+
+    "return the Localisation define with the key 'module'" in new WithApplication{
+      val f=fixture
+      val loc=Localisation(bson,bson2,"loc",Some(1.2f),Some(3.4f),Some("un com"),List("img.jpg"))
+
+      val r=f.controller.toLocalisation(Json.obj("localisation"->loc))
+
+      r must beSome(loc)
+    }
+
+    "return None if value with key 'localisation' is null" in new WithApplication() {
+      val f=fixture
+
+      val r=f.controller.toLocalisation(Json.obj("localisation"->JsNull))
+
+      r must beNone
+    }
+  }
+
+  "When method toCondition is called, ConditionsManager" should{
+    "return condition with data in the JsObject" in new WithApplication {
+      val f = fixture
+
+      val r = f.controller.toCondition(Json.obj("debut" -> date, "fin" -> date2, "commentaire" -> "unCom","module"->bson.stringify))
+
+      r.dateDebut must equalTo(date)
+      r.dateFin must beSome(date2)
+      r.commentaire must beSome("unCom")
+      r.modules must equalTo(bson)
+    }
+
+    "return condition with generate data if data not found in the JsObject" in new WithApplication{
+      val f = fixture
+      val before=new Date
+
+      val r = f.controller.toCondition(Json.obj())
+
+      val after=new Date
+
+      r.dateDebut.compareTo(before) must greaterThanOrEqualTo(0)
+      r.dateDebut.compareTo(after) must lessThanOrEqualTo(0)
+      r.dateFin must beNone
+      r.commentaire must beNone
+      r.modules.getClass.getSimpleName must equalTo("BSONObjectID")
+    }
+  }
+
+  "When method findSessionData is called, ConditionsManager" should{
+    "return condition with generate data and None for the localisation if key 'condition' not found" in new WithApplication {
+      val f = fixture
+      val before=new Date
+
+      val req = FakeRequest(GET, "url")
+      val r=f.controller.findSessionData(req)
+      val cond=r._1
+      val loc=r._2
+
+      val after=new Date
+
+      cond.dateDebut.compareTo(before) must greaterThanOrEqualTo(0)
+      cond.dateDebut.compareTo(after) must lessThanOrEqualTo(0)
+      cond.dateFin must beNone
+      cond.commentaire must beNone
+      cond.modules.getClass.getSimpleName must equalTo("BSONObjectID")
+      loc must beNone
+    }
+
+    "return condition with data in session and None for localisation if localisation data not found" in new WithApplication{
+      val f = fixture
+      val session=Json.obj("debut"->date,"fin"->date2,"commentaire"->"unCom","module"->bson.stringify)
+
+      val req = FakeRequest(GET, "url").withSession("condition"->Json.stringify(session))
+      val r=f.controller.findSessionData(req)
+      val cond=r._1
+      val loc=r._2
+
+      cond.dateDebut must equalTo(date)
+      cond.dateFin must beSome(date2)
+      cond.commentaire must beSome("unCom")
+      cond.modules must equalTo(bson)
+      loc must beNone
+    }
+
+    "return condition with generate data if condition data not found and localisation with data in session" in new WithApplication{
+      val f=fixture
+      val locObj=Localisation(bson,bson2,"loc",Some(1.2f),Some(3.4f),Some("un com"),List("img.jpg"))
+      val session=Json.obj("localisation"->Json.toJson(locObj))
+      val before=new Date
+
+      val req = FakeRequest(GET, "url").withSession("condition"->Json.stringify(session))
+      val r=f.controller.findSessionData(req)
+      val cond=r._1
+      val loc=r._2
+
+      val after=new Date
+
+      cond.dateDebut.compareTo(before) must greaterThanOrEqualTo(0)
+      cond.dateDebut.compareTo(after) must lessThanOrEqualTo(0)
+      cond.dateFin must beNone
+      cond.commentaire must beNone
+      cond.modules.getClass.getSimpleName must equalTo("BSONObjectID")
+      loc must beSome(locObj)
+    }
+
+    "return condition and localisation with data in the session" in new WithApplication{
+      val f = fixture
+      val locObj=Localisation(bson,bson2,"loc",Some(1.2f),Some(3.4f),Some("un com"),List("img.jpg"))
+      val session=Json.obj("debut"->date,"fin"->date2,"commentaire"->"unCom","module"->bson.stringify,"localisation"->Json.toJson(locObj))
+
+      val req = FakeRequest(GET, "url").withSession("condition"->Json.stringify(session))
+      val r=f.controller.findSessionData(req)
+      val cond=r._1
+      val loc=r._2
+
+      cond.dateDebut must equalTo(date)
+      cond.dateFin must beSome(date2)
+      cond.commentaire must beSome("unCom")
+      cond.modules must equalTo(bson)
+      loc must beSome(locObj)
+    }
+  }
+
+  "When method verifyLocalisation is called, ConditionsManager" should{
+    "return false if Localisation not found" in new WithApplication{
+      val f=fixture
+
+      f.controller.verifyLocalisation(None) must beFalse
+    }
+
+    "return false if Localisation name is empty" in new WithApplication{
+      val f=fixture
+      val loc=Localisation(nom="",lat=None,lon=None,commentaire=None,condition=bson,photo=List())
+
+      f.controller.verifyLocalisation(Some(loc)) must beFalse
+    }
+
+    "return true if Localisation name is not empty" in new WithApplication{
+      val f=fixture
+      val loc=Localisation(nom="unNom",lat=None,lon=None,commentaire=None,condition=bson,photo=List())
+
+      f.controller.verifyLocalisation(Some(loc)) must beTrue
+    }
+  }
+
+  "When method verifyAllData is called, ConditionsManager" should{
+    "execute notCorrect function if module not found" in new WithApplication {
+      val f = fixture
+      val correct = mock[(Condition, Option[Localisation], Module) => Result]
+      val notCorrect = mock[(String, Condition, Option[Localisation], Option[Module]) => Result]
+      val locObj=Localisation(bson,bson2,"loc",Some(1.2f),Some(3.4f),Some("un com"),List("img.jpg"))
+      val session=Json.obj("debut"->date,"fin"->date2,"commentaire"->"unCom","module"->bson.stringify,"localisation"->Json.toJson(locObj))
+
+      f.moduleDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->bson)))(any[ExecutionContext]) returns future{None}
+      notCorrect.apply(org.mockito.Matchers.eq("Aucun module n'a été sélectionné"),any[Condition],any[Option[Localisation]],org.mockito.Matchers.eq(None)) returns Results.Ok("notCorrect func")
+
+      val req=FakeRequest(GET,"url").withSession("condition"->Json.stringify(session))
+      val r=f.controller.verifyAllData("Test")(correct)(notCorrect)(req)
+
+      status(r) must equalTo(OK)
+      contentAsString(r) must equalTo("notCorrect func")
+
+      there was one(f.moduleDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->bson)))(any[ExecutionContext])
+      there was one(notCorrect).apply(org.mockito.Matchers.eq("Aucun module n'a été sélectionné"),any[Condition],any[Option[Localisation]],org.mockito.Matchers.eq(None))
+      there was no(correct).apply(any[Condition],any[Option[Localisation]],any[Module])
+    }
+
+    "execute notCorrect function if date are not valid" in new WithApplication {
+      val f = fixture
+      val correct = mock[(Condition, Option[Localisation], Module) => Result]
+      val notCorrect = mock[(String, Condition, Option[Localisation], Option[Module]) => Result]
+      val locObj=Localisation(bson,bson2,"loc",Some(1.2f),Some(3.4f),Some("un com"),List("img.jpg"))
+      val session=Json.obj("debut"->date2,"fin"->date,"commentaire"->"unCom","module"->bson.stringify,"localisation"->Json.toJson(locObj))
+      val module=mock[Module]
+
+      f.moduleDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->bson)))(any[ExecutionContext]) returns future{Some(module)}
+      notCorrect.apply(org.mockito.Matchers.eq("La date de début doit être inférieur à la date de fin"),any[Condition],any[Option[Localisation]],org.mockito.Matchers.eq(Some(module))) returns Results.Ok("notCorrect func")
+
+      val req=FakeRequest(GET,"url").withSession("condition"->Json.stringify(session))
+      val r=f.controller.verifyAllData("Test")(correct)(notCorrect)(req)
+
+      status(r) must equalTo(OK)
+      contentAsString(r) must equalTo("notCorrect func")
+
+      there was one(f.moduleDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->bson)))(any[ExecutionContext])
+      there was one(notCorrect).apply(org.mockito.Matchers.eq("La date de début doit être inférieur à la date de fin"),any[Condition],any[Option[Localisation]],org.mockito.Matchers.eq(Some(module)))
+      there was no(correct).apply(any[Condition],any[Option[Localisation]],any[Module])
+    }
+
+    "execute notCorrect function if localisation not found for ground condition" in new WithApplication {
+      val f = fixture
+      val correct = mock[(Condition, Option[Localisation], Module) => Result]
+      val notCorrect = mock[(String, Condition, Option[Localisation], Option[Module]) => Result]
+      val session=Json.obj("debut"->date,"fin"->date2,"commentaire"->"unCom","module"->bson.stringify)
+      val module=mock[Module]
+
+      f.moduleDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->bson)))(any[ExecutionContext]) returns future{Some(module)}
+      notCorrect.apply(org.mockito.Matchers.eq("Erreur de localisation"),any[Condition],any[Option[Localisation]],org.mockito.Matchers.eq(Some(module))) returns Results.Ok("notCorrect func")
+
+      val req=FakeRequest(GET,"url").withSession("condition"->Json.stringify(session))
+      val r=f.controller.verifyAllData("Terrain")(correct)(notCorrect)(req)
+
+      status(r) must equalTo(OK)
+      contentAsString(r) must equalTo("notCorrect func")
+
+      there was one(f.moduleDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->bson)))(any[ExecutionContext])
+      there was one(notCorrect).apply(org.mockito.Matchers.eq("Erreur de localisation"),any[Condition],any[Option[Localisation]],org.mockito.Matchers.eq(Some(module)))
+      there was no(correct).apply(any[Condition],any[Option[Localisation]],any[Module])
+    }
+
+    "execute notCorrect function if module already used" in new WithApplication {
+      val f = fixture
+      val correct = mock[(Condition, Option[Localisation], Module) => Result]
+      val notCorrect = mock[(String, Condition, Option[Localisation], Option[Module]) => Result]
+      val session=Json.obj("debut"->date,"fin"->date2,"commentaire"->"unCom","module"->bson.stringify)
+      val module=mock[Module]
+      val cond=mock[Condition]
+      val queryBegin=Json.obj("dateDebut"->Json.obj("$gte"->date,"$lte"->date2))
+      val queryEnd=Json.obj("$or"->JsArray(Seq(Json.obj("dateFin"->Json.obj("$gte"->date,"$lte"->date2),"dateFin"->Json.obj("$exists"->false)))))
+      val query=Json.obj("modules"->bson,"$or"->JsArray(Seq(queryBegin,queryEnd)))
+
+      f.moduleDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->bson)))(any[ExecutionContext]) returns future{Some(module)}
+      notCorrect.apply(org.mockito.Matchers.eq("Le module est déjà utilisé dans la même période sur une autre installation"),any[Condition],any[Option[Localisation]],org.mockito.Matchers.eq(Some(module))) returns Results.Ok("notCorrect func")
+      f.conditionDaoMock.findOne(org.mockito.Matchers.eq(query))(any[ExecutionContext]) returns future{Some(cond)}
+
+      val req=FakeRequest(GET,"url").withSession("condition"->Json.stringify(session))
+      val r=f.controller.verifyAllData("Test")(correct)(notCorrect)(req)
+
+      status(r) must equalTo(OK)
+      contentAsString(r) must equalTo("notCorrect func")
+
+      there was one(f.moduleDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->bson)))(any[ExecutionContext])
+      there was one(notCorrect).apply(org.mockito.Matchers.eq("Le module est déjà utilisé dans la même période sur une autre installation"),any[Condition],any[Option[Localisation]],org.mockito.Matchers.eq(Some(module)))
+      there was no(correct).apply(any[Condition],any[Option[Localisation]],any[Module])
+      there was one(f.conditionDaoMock).findOne(org.mockito.Matchers.eq(query))(any[ExecutionContext])
+    }
+
+    "execute correct function if data are correct" in new WithApplication {
+      val f = fixture
+      val correct = mock[(Condition, Option[Localisation], Module) => Result]
+      val notCorrect = mock[(String, Condition, Option[Localisation], Option[Module]) => Result]
+      val session=Json.obj("debut"->date,"fin"->date2,"commentaire"->"unCom","module"->bson.stringify)
+      val module=mock[Module]
+      val queryBegin=Json.obj("dateDebut"->Json.obj("$gte"->date,"$lte"->date2))
+      val queryEnd=Json.obj("$or"->JsArray(Seq(Json.obj("dateFin"->Json.obj("$gte"->date,"$lte"->date2),"dateFin"->Json.obj("$exists"->false)))))
+      val query=Json.obj("modules"->bson,"$or"->JsArray(Seq(queryBegin,queryEnd)))
+
+      f.moduleDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->bson)))(any[ExecutionContext]) returns future{Some(module)}
+      correct.apply(any[Condition],any[Option[Localisation]],org.mockito.Matchers.eq(module)) returns Results.Ok("correct func")
+      f.conditionDaoMock.findOne(org.mockito.Matchers.eq(query))(any[ExecutionContext]) returns future{None}
+
+      val req=FakeRequest(GET,"url").withSession("condition"->Json.stringify(session))
+      val r=f.controller.verifyAllData("Test")(correct)(notCorrect)(req)
+
+      status(r) must equalTo(OK)
+      contentAsString(r) must equalTo("correct func")
+
+      there was one(f.moduleDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->bson)))(any[ExecutionContext])
+      there was no(notCorrect).apply(anyString,any[Condition],any[Option[Localisation]],any[Option[Module]])
+      there was one(correct).apply(any[Condition],any[Option[Localisation]],org.mockito.Matchers.eq(module))
+      there was one(f.conditionDaoMock).findOne(org.mockito.Matchers.eq(query))(any[ExecutionContext])
+    }
+  }
+
+  "When method createQueryIntersect is called, CondtionsManager" should{
+    "return JsObject without $lte clause if end date is equal to None" in new WithApplication{
+      val f=fixture
+
+      val r=f.controller.createQueryIntersect("dateDebut",date,None)
+
+      r must equalTo(Json.obj("dateDebut"->Json.obj("$gte"->date)))
+    }
+
+    "return JsObject with $lte clause" in new WithApplication{
+      val f=fixture
+
+      val r=f.controller.createQueryIntersect("dateDebut",date,Some(date2))
+
+      r must equalTo(Json.obj("dateDebut"->Json.obj("$gte"->date,"$lte"->date2)))
+    }
+  }
+
+  "When method verifyModuleAvailable is called, ConditionsManager" should{
+    "Return true if condition not found" in new WithApplication {
+      val f = fixture
+      val queryBegin = Json.obj("dateDebut" -> Json.obj("$gte" -> date, "$lte" -> date2))
+      val queryEnd = Json.obj("$or" -> JsArray(Seq(Json.obj("dateFin" -> Json.obj("$gte" -> date, "$lte" -> date2), "dateFin" -> Json.obj("$exists" -> false)))))
+      val query = Json.obj("modules" -> bson, "$or" -> JsArray(Seq(queryBegin, queryEnd)))
+
+      f.conditionDaoMock.findOne(org.mockito.Matchers.eq(query))(any[ExecutionContext]) returns future{None}
+
+      f.controller.verifyModuleAvailable(bson,date,Some(date2)) must beTrue
+
+      there was one(f.conditionDaoMock).findOne(org.mockito.Matchers.eq(query))(any[ExecutionContext])
+    }
+
+    "Return false if condition found" in new WithApplication {
+      val f = fixture
+      val queryBegin = Json.obj("dateDebut" -> Json.obj("$gte" -> date, "$lte" -> date2))
+      val queryEnd = Json.obj("$or" -> JsArray(Seq(Json.obj("dateFin" -> Json.obj("$gte" -> date, "$lte" -> date2), "dateFin" -> Json.obj("$exists" -> false)))))
+      val query = Json.obj("modules" -> bson, "$or" -> JsArray(Seq(queryBegin, queryEnd)))
+      val cond=mock[Condition]
+
+      f.conditionDaoMock.findOne(org.mockito.Matchers.eq(query))(any[ExecutionContext]) returns future{Some(cond)}
+
+      f.controller.verifyModuleAvailable(bson,date,Some(date2)) must beFalse
+
+      there was one(f.conditionDaoMock).findOne(org.mockito.Matchers.eq(query))(any[ExecutionContext])
+    }
+
   }
 }

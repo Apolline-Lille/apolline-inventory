@@ -11,7 +11,7 @@ import play.api.Play.current
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.parsing.json.JSONObject
 
-case class Condition(_id:BSONObjectID,dateDebut:Date,dateFin:Option[Date],commentaire:Option[String],modules:BSONObjectID)
+case class Condition(_id:BSONObjectID=BSONObjectID.generate,dateDebut:Date,dateFin:Option[Date],commentaire:Option[String],modules:BSONObjectID)
 
 /**
  * Object used for condition class

@@ -108,7 +108,6 @@ campaign.condition.fin=Date de fin
 campaign.condition.commentaire=Commentaire
 campaign.condition.onglet.info=Informations générales
 campaign.condition.onglet.module=Module
-campaign.condition.onglet.param=Paramétres
 campaign.condition.onglet.localisation=Localisation
 campaign.condition.onglet.validate=Validation
 campaign.condition.associat=Associer à la condition
@@ -118,6 +117,9 @@ campaign.condition.localisation.lat=Latitude
 campaign.condition.localisation.lon=Longitude
 campaign.condition.localisation.photo=Photo
 campaign.condition.localisation.commentaire=Commentaire
+campaign.condition.error.notSelectModule=Aucun module n''a été sélectionné
+campaign.condition.error.notLocalisation=Erreur de localisation
+campaign.condition.error.usedInSameTime=Le module est déjà utilisé dans la même période sur une autre installation
 
 login.username=Login
 login.password=Password

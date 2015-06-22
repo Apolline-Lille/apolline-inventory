@@ -8,7 +8,7 @@
     <section>
       <article>
         @state
-        @helper.form(action=routes.ConditionsManager.listConditions(id),'enctype -> "multipart/form-data"){
+        @helper.form(action=routes.ConditionsManager.addLocalisation(id),'enctype -> "multipart/form-data"){
           @for(error<-form.globalErrors){
             <div class="alert alert-danger" role="alert">@Html(error.message)</div>
           }

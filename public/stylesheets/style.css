@@ -27,3 +27,67 @@ form dl{
 .breadcrumb>li+li:before {
     content: ">\00a0";
 }
+
+@media (max-width: 992px) {
+    .img-xs {
+        height:100px;
+        line-height:100px;
+        width:100px;
+        float:left;
+        margin:5px;
+    }
+
+    .img-xs a{
+        display:block;
+        text-align:center;
+        max-height:100px;
+        max-width:100px;
+    }
+
+    .img-xs img{
+        max-height:80px;
+        display:inline-block;
+    }
+}
+@media (min-width: 992px) {
+    .img-md {
+        height:150px;
+        line-height:150px;
+        width:150px;
+        float:left;
+        margin:5px;
+    }
+
+    .img-md a{
+        display:block;
+        text-align:center;
+        max-height:150px;
+        max-width:150px;
+    }
+
+    .img-md img{
+        max-height:130px;
+        display:inline-block;
+    }
+}
+@media (min-width: 1200px) {
+    .img-lg {
+        height:200px;
+        line-height:200px;
+        width:200px;
+        float:left;
+        margin:5px;
+    }
+
+    .img-lg a{
+        display:block;
+        text-align:center;
+        max-height:200px;
+        max-width:200px;
+    }
+
+    .img-lg img{
+        max-height:180px;
+        display:inline-block;
+    }
+}
