@@ -78,7 +78,7 @@ GET         /campaigns/campaign                               controllers.Campag
 POST        /campaigns/campaign                               controllers.CampagneManager.insertCampaign()
 GET         /campaigns/campaign/:id/update                    controllers.CampagneManager.updateCampaignPage(id)
 POST        /campaigns/campaign/:id/update                    controllers.CampagneManager.updateCampaign(id)
-GET         /campaigns/campaign/:id                           controllers.ConditionsManager.listConditions(id)
+GET         /campaigns/campaign/:id                           controllers.ConditionsManager.listConditions(id,filtre ?="")
 GET         /campaigns/campaign/:id/form                      controllers.ConditionsManager.formGeneral(id)
 POST        /campaigns/campaign/:id/form                      controllers.ConditionsManager.addGeneralInformation(id)
 GET         /campaigns/campaign/:id/form/module               controllers.ConditionsManager.formModule(id,filtre ?= "")

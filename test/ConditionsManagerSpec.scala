@@ -11,7 +11,7 @@ import org.specs2.mutable.Specification
 import org.specs2.runner.JUnitRunner
 import play.api.data.Form
 import play.api.libs.Files.TemporaryFile
-import play.api.libs.json.{JsArray, JsNull, JsObject, Json}
+import play.api.libs.json._
 import play.api.mvc.{MultipartFormData, Action, Results, Result}
 import play.api.test.Helpers._
 import play.api.test.{FakeHeaders, FakeRequest, WithApplication}
@@ -48,6 +48,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
     val conditionDaoMock=mock[ConditionDao]
     val moduleDaoMock=mock[ModuleDao]
     val localisationDaoMock=mock[LocalisationDao]
+    val campaignDaoMock=mock[CampagneDao]
     val campaignManagerMock=mock[CampagneManagerLike]
     val moduleManagerMock=mock[ModuleManagerLike]
     val appMock=mock[play.api.Application]
@@ -56,6 +57,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
       override val conditionsDao=conditionDaoMock
       override val moduleDao=moduleDaoMock
       override val localisationDao=localisationDaoMock
+      override val campaignDao=campaignDaoMock
       override val campaignManager=campaignManagerMock
       override val moduleManager=moduleManagerMock
       override val app=appMock
@@ -166,7 +168,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
   }
 
   "When user is on resource /campaigns/campaign/:id, ConditionsManager" should{
-    "send 200 Ok page" in new WithApplication {
+    "send 200 Ok page with the message 'Aucun résultat trouvé'" in new WithApplication {
       val f=fixture
       val camp=Campagne(bson,"camp","type",List())
 
@@ -174,15 +176,89 @@ class ConditionsManagerSpec extends Specification with Mockito {
         case Array(_,p:(Campagne=>Future[Result]),_) => p.apply(camp)
       }}
 
+      f.conditionDaoMock.findAll(org.mockito.Matchers.eq(Json.obj("_id"->Json.obj("$in"->JsArray()))),any[JsObject])(any[ExecutionContext]) returns future{List()}
+      f.moduleDaoMock.findAll(org.mockito.Matchers.eq(Json.obj("_id"->Json.obj("$in"->JsArray()))),any[JsObject])(any[ExecutionContext]) returns future{List()}
+
       val r=f.controller.listConditions(bson.stringify).apply(FakeRequest(GET,"/campaigns/campaign/"+bson.stringify).withSession("user" -> """{"login":"test"}"""))
 
       status(r) must equalTo(OK)
       val content=contentAsString(r)
       content must contain("<h4>camp</h4>")
       content must contain("<div class=\"row\"><span class=\"bold\">Type</span> : type</div>")
-      content must contain("<div class=\"row\"><span class=\"bold\">Conditions</span> : 0</div>")
+      content must contain("<div class=\"row\"><span class=\"bold\">Installations</span> : 0</div>")
+      content must contain("<h3 style=\"text-align:center\">Aucun résultat trouvé</h3>")
 
       there was one(f.campaignManagerMock).doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]])
+      there was one(f.conditionDaoMock).findAll(org.mockito.Matchers.eq(Json.obj("_id"->Json.obj("$in"->JsArray()))),any[JsObject])(any[ExecutionContext])
+      there was one(f.moduleDaoMock).findAll(org.mockito.Matchers.eq(Json.obj("_id"->Json.obj("$in"->JsArray()))),any[JsObject])(any[ExecutionContext])
+      there was no(f.localisationDaoMock).findAll(org.mockito.Matchers.eq(Json.obj("condition"->Json.obj("$in"->JsArray()))),any[JsObject])(any[ExecutionContext])
+    }
+
+    "send 200 Ok page with 1 result" in new WithApplication {
+      val f=fixture
+      val idCond=List(Json.toJson(bson2))
+      val idMod=List(Json.toJson(bson3))
+      val camp=Campagne(bson,"camp","Terrain",List(bson2))
+      val cond=Condition(bson2,date,Some(date2),Some("unCom"),bson3)
+      val module=Module(bson3,"idMod","typeMod",date,List(),List(),None)
+      val localisation=Localisation(bson4,bson2,"loc",Some(1.2f),Some(3.4f),None,List())
+
+      f.campaignManagerMock.doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]]) answers {(params,_) => params match{
+        case Array(_,p:(Campagne=>Future[Result]),_) => p.apply(camp)
+      }}
+
+      f.conditionDaoMock.findAll(any[JsObject],any[JsObject])(any[ExecutionContext]) returns future{List(cond)}
+      f.moduleDaoMock.findAll(org.mockito.Matchers.eq(Json.obj("_id"->Json.obj("$in"->JsArray(idMod)))),any[JsObject])(any[ExecutionContext]) returns future{List(module)}
+      f.localisationDaoMock.findAll(org.mockito.Matchers.eq(Json.obj("condition"->Json.obj("$in"->JsArray(idCond)))),any[JsObject])(any[ExecutionContext]) returns future{List(localisation)}
+
+      val r=f.controller.listConditions(bson.stringify,"ongoing").apply(FakeRequest(GET,"/campaigns/campaign/"+bson.stringify).withSession("user" -> """{"login":"test"}"""))
+
+      status(r) must equalTo(OK)
+      val content=contentAsString(r)
+      content must contain("<h4>camp</h4>")
+      content must contain("<div class=\"row\"><span class=\"bold\">Type</span> : Terrain</div>")
+      content must contain("<div class=\"row\"><span class=\"bold\">Installations</span> : 1</div>")
+      content must contain("<td>22/04/2015 00:00:00</td>")
+      content must contain("<td>23/04/2015 00:00:00</td>")
+      content must contain("<td>typeMod / idMod</td>")
+      content must contain("<td>loc (1.2 - 3.4)</td>")
+
+      there was one(f.campaignManagerMock).doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]])
+      there was one(f.conditionDaoMock).findAll(any[JsObject],any[JsObject])(any[ExecutionContext])
+      there was one(f.moduleDaoMock).findAll(org.mockito.Matchers.eq(Json.obj("_id"->Json.obj("$in"->JsArray(idMod)))),any[JsObject])(any[ExecutionContext])
+      there was one(f.localisationDaoMock).findAll(org.mockito.Matchers.eq(Json.obj("condition"->Json.obj("$in"->JsArray(idCond)))),any[JsObject])(any[ExecutionContext])
+    }
+
+    "send 200 Ok page with 2 result" in new WithApplication {
+      val f=fixture
+      val idCond=List(Json.toJson(bson2),Json.toJson(bson3))
+      val camp=Campagne(bson,"camp","Test",List(bson2,bson3))
+      val cond=List(Condition(bson2,date,Some(date2),Some("unCom"),bson3),Condition(bson3,date,Some(date2),Some("unCom"),bson4))
+      val module=List(Module(bson3,"idMod","typeMod",date,List(),List(),None),Module(bson4,"idMod2","typeMod2",date,List(),List(),None))
+
+      f.campaignManagerMock.doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]]) answers {(params,_) => params match{
+        case Array(_,p:(Campagne=>Future[Result]),_) => p.apply(camp)
+      }}
+
+      f.conditionDaoMock.findAll(any[JsObject],any[JsObject])(any[ExecutionContext]) returns future{cond}
+      f.moduleDaoMock.findAll(any[JsObject],any[JsObject])(any[ExecutionContext]) returns future{module}
+
+      val r=f.controller.listConditions(bson.stringify,"finish").apply(FakeRequest(GET,"/campaigns/campaign/"+bson.stringify).withSession("user" -> """{"login":"test"}"""))
+
+      status(r) must equalTo(OK)
+      val content=contentAsString(r)
+      content must contain("<h4>camp</h4>")
+      content must contain("<div class=\"row\"><span class=\"bold\">Type</span> : Test</div>")
+      content must contain("<div class=\"row\"><span class=\"bold\">Installations</span> : 2</div>")
+      content must contains("<td>22/04/2015 00:00:00</td>",2)
+      content must contains("<td>23/04/2015 00:00:00</td>",2)
+      content must contain("<td>typeMod / idMod</td>")
+      content must contain("<td>typeMod2 / idMod2</td>")
+
+      there was one(f.campaignManagerMock).doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]])
+      there was one(f.conditionDaoMock).findAll(any[JsObject],any[JsObject])(any[ExecutionContext])
+      there was one(f.moduleDaoMock).findAll(any[JsObject],any[JsObject])(any[ExecutionContext])
+      there was no(f.localisationDaoMock).findAll(org.mockito.Matchers.eq(Json.obj("condition"->Json.obj("$in"->JsArray(idCond)))),any[JsObject])(any[ExecutionContext])
     }
 
     "send redirect if campaign not found" in new WithApplication {
@@ -824,6 +900,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
       tempFile.clean() returns true
       f.localisationDaoMock.insert(any[Localisation],any[GetLastError])(any[ExecutionContext]) returns future{lastError}
       f.conditionDaoMock.insert(any[Condition],any[GetLastError])(any[ExecutionContext]) returns future{lastError}
+      f.campaignDaoMock.updateById(org.mockito.Matchers.eq(camp._id),any[Campagne],any[GetLastError])(any[Writes[Campagne]],any[ExecutionContext]) returns future{lastError}
       f.campaignManagerMock.doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]]) answers {(params,_) => params match{
         case Array(_,p:(Campagne=>Future[Result]),_) => p.apply(camp)
       }}
@@ -1509,8 +1586,9 @@ class ConditionsManagerSpec extends Specification with Mockito {
   "When method insertLocalisation is called, ConditionsManager" should{
     "do nothing if not have localisation" in new WithApplication{
       val f=fixture
+      val cond=mock[Condition]
 
-      val r=f.controller.insertLocalisation(None)
+      val r=f.controller.insertLocalisation(None,cond)
 
       Await.result(r,Duration.Inf) must equalTo(LastError(true,None,None,None,None,0,false))
 
@@ -1519,12 +1597,13 @@ class ConditionsManagerSpec extends Specification with Mockito {
       there was no(f.localisationDaoMock).insert(any[Localisation],any[GetLastError])(any[ExecutionContext])
     }
 
-    "do nothing if not have localisation" in new WithApplication{
+    "move picture and insert the localisation" in new WithApplication{
       val f=fixture
       val localisation=Localisation(bson,bson2,"Test",Some(1.2f),Some(3.4f),Some("un com"),List("img.jpg"))
       val tempFile=mock[TemporaryFile]
       val f1=new File("/route/public/images/campaign/img.jpg")
       val lastError=mock[LastError]
+      val cond=Condition(bson2,date,None,None,bson3)
 
       f.appMock.path returns (new File("/route"))
       f.tempFileBuilderMock.createTemporaryFile(org.mockito.Matchers.eq(new File("/route/public/images/campaign/tmp/img.jpg"))) returns tempFile
@@ -1532,13 +1611,82 @@ class ConditionsManagerSpec extends Specification with Mockito {
       tempFile.clean() returns true
       f.localisationDaoMock.insert(org.mockito.Matchers.eq(localisation),any[GetLastError])(any[ExecutionContext]) returns future{lastError}
 
-      val r=f.controller.insertLocalisation(Some(localisation))
+      val r=f.controller.insertLocalisation(Some(localisation),cond)
 
       there was 2.times(f.appMock).path
       there was one(f.tempFileBuilderMock).createTemporaryFile(any[File])
       there was one(tempFile).moveTo(org.mockito.Matchers.eq(f1),any[Boolean])
       there was one(tempFile).clean()
       there was one(f.localisationDaoMock).insert(org.mockito.Matchers.eq(localisation),any[GetLastError])(any[ExecutionContext])
+    }
+  }
+
+  "When method findLocalisation is called, ConditionsManager" should{
+    "return an empty list if is not a ground campaign" in new WithApplication{
+      val f=fixture
+      val cond=mock[List[JsValue]]
+
+      val r=f.controller.findLocalisation("Test",cond)
+
+      Await.result(r,Duration.Inf) must equalTo(List[Localisation]())
+
+      there was no(f.localisationDaoMock).findAll(any[JsObject],any[JsObject])(any[ExecutionContext])
+    }
+
+    "return the list of localisation associat to conditions" in new WithApplication{
+      val f=fixture
+      val cond=List(Json.toJson(bson),Json.toJson(bson2))
+      val localisation=List(mock[Localisation],mock[Localisation])
+
+      f.localisationDaoMock.findAll(org.mockito.Matchers.eq(Json.obj("condition"->Json.obj("$in"->JsArray(cond.toSeq)))),any[JsObject])(any[ExecutionContext]) returns future{localisation}
+
+      val r=f.controller.findLocalisation("Terrain",cond)
+
+      Await.result(r,Duration.Inf) must equalTo(localisation)
+
+      there was one(f.localisationDaoMock).findAll(org.mockito.Matchers.eq(Json.obj("condition"->Json.obj("$in"->JsArray(cond.toSeq)))),any[JsObject])(any[ExecutionContext])
+    }
+  }
+
+  "When method createQueryConditionDate is called, ConditionsManager" should{
+    "Return a JsObject for get all conditions" in new WithApplication{
+      val f=fixture
+      val id=List(Json.toJson(bson))
+
+      val r=f.controller.createQueryConditionDate("",id)
+
+      r must equalTo(Json.obj("_id" -> Json.obj("$in" -> JsArray(id.toSeq))))
+    }
+
+    "Return a JsObject for get conditions finish" in new WithApplication{
+      val f=fixture
+      val id=List(Json.toJson(bson))
+      val before=new Date
+
+      val r=f.controller.createQueryConditionDate("finish",id)
+
+      r.\("_id") must equalTo(Json.obj("$in" -> JsArray(id.toSeq)))
+      val date=r.\("dateFin").\("$lt").as[Date]
+      date.compareTo(new Date) must lessThanOrEqualTo(0)
+      date.compareTo(before) must greaterThanOrEqualTo(0)
+    }
+
+    "Return a JsObject for get conditions ongoing" in new WithApplication{
+      val f=fixture
+      val id=List(Json.toJson(bson))
+      val before=new Date
+
+      val r=f.controller.createQueryConditionDate("ongoing",id)
+
+      r.\("_id") must equalTo(Json.obj("$in" -> JsArray(id.toSeq)))
+      val seq=r.\("$or").as[List[JsValue]]
+      seq(0) must equalTo(Json.obj("dateFin"->Json.obj("$exists"->false)))
+      val date1=seq(1).\("dateDebut").\("$lt").as[Date]
+      val date2=seq(1).\("dateFin").\("$gt").as[Date]
+      date1.compareTo(new Date) must lessThanOrEqualTo(0)
+      date1.compareTo(before) must greaterThanOrEqualTo(0)
+      date2.compareTo(new Date) must lessThanOrEqualTo(0)
+      date2.compareTo(before) must greaterThanOrEqualTo(0)
     }
   }
 }

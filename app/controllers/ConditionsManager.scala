@@ -18,6 +18,7 @@ import play.api.mvc._
 import reactivemongo.bson.BSONObjectID
 import reactivemongo.core.commands.LastError
 import reactivemongo.extensions.BSONFormats.BSONObjectIDFormat
+import scala.collection.immutable.HashSet
 import scala.concurrent._
 import play.api.data.format.Formats._
 
@@ -47,6 +48,8 @@ trait ConditionsManagerLike extends Controller{
   val moduleDao:ModuleDao=ModuleDaoObj
 
   val localisationDao:LocalisationDao=LocalisationDaoObj
+
+  val campaignDao:CampagneDao=CampagneDaoObj
 
   val moduleManager:ModuleManagerLike=ModuleManager
 
@@ -99,7 +102,7 @@ trait ConditionsManagerLike extends Controller{
   @ApiImplicitParams(Array(
     new ApiImplicitParam(name="id",value="Campaign id",required=true,dataType="String",paramType="path")
   ))
-  def listConditions(id:String)=Action.async{
+  def listConditions(id:String,filtre:String="")=Action.async{
     implicit request =>
       //Verify if user is connect
       UserManager.doIfconnectAsync(request) {
@@ -108,7 +111,30 @@ trait ConditionsManagerLike extends Controller{
         campaignManager.doIfCampaignFound(BSONObjectID(id)){
 
           //If campaign found
-          campaign=>future{Ok(views.html.campaign.listCondition(campaign))}
+          campaign=> {
+
+            //Find conditions id associat to the campaign
+            val idCond=campaign.conditions.mapConserve(p => Json.toJson(p)).asInstanceOf[List[JsValue]]
+
+            //Find conditions
+            conditionsDao.findAll(createQueryConditionDate(filtre,idCond)).flatMap(
+              conditions => {
+
+                //Find module id associat to conditions
+                val idMod = conditions.foldLeft(HashSet[JsValue]())((set, cond) => set + Json.toJson(cond.modules))
+
+                //Find module
+                moduleDao.findAll(Json.obj("_id" -> Json.obj("$in" -> JsArray(idMod.toSeq)))).flatMap(
+                  modules =>
+
+                    //Find localisations
+                    findLocalisation(campaign.types,idCond).map(
+                      localisations=>Ok(views.html.campaign.listCondition(campaign,conditions,modules,localisations,filtre,id))
+                    )
+                )
+              }
+            )
+          }
         }{
 
           //If campaign not found
@@ -481,9 +507,11 @@ trait ConditionsManagerLike extends Controller{
                 //Insert the condition
                 conditionsDao.insert(cond).flatMap(
 
-                  //Move picture and insert the localisation
-                  data=>insertLocalisation(loc).map(
-                    data=>Redirect(routes.ConditionsManager.listConditions(id)).withSession(request.session - "condition")
+                  data=>campaignDao.updateById(campaign._id,campaign.copy(conditions=(campaign.conditions :+ cond._id))).flatMap(
+                    //Move picture and insert the localisation
+                    data=>insertLocalisation(loc,cond).map(
+                      data=>Redirect(routes.ConditionsManager.listConditions(id)).withSession(request.session - "condition")
+                    )
                   )
                 )
               }
@@ -503,7 +531,7 @@ trait ConditionsManagerLike extends Controller{
    * @param locOpt Localistion to insert
    * @return
    */
-  def insertLocalisation(locOpt:Option[Localisation]): Future[LastError] =locOpt match{
+  def insertLocalisation(locOpt:Option[Localisation],cond:Condition): Future[LastError] =locOpt match{
 
       //If localisation not found
     case None=>future{LastError(true,None,None,None,None,0,false)}
@@ -515,7 +543,7 @@ trait ConditionsManagerLike extends Controller{
       moveImages(loc.photo)
 
       //Insert the localisation
-      localisationDao.insert(loc)
+      localisationDao.insert(loc.copy(condition=cond._id))
     }
   }
 
@@ -899,6 +927,44 @@ trait ConditionsManagerLike extends Controller{
       filename::insertImage(t)
     }
   }
+
+  /**
+   * This method find localisations associat to conditions for ground campaign
+   * @param types Campaign type
+   * @param idCond List of conditions id
+   * @return Return the list of localisations associat to conditions
+   */
+  def findLocalisation(types:String,idCond:List[JsValue])=types match{
+
+      //Find localisations if ground campaign
+    case "Terrain"=>localisationDao.findAll(Json.obj("condition"->Json.obj("$in"->JsArray(idCond.toSeq))))
+
+      //Return an empty list
+    case _=>future{List[Localisation]()}
+  }
+
+  /**
+   * This method create the mongoDB query for filter conditions
+   * @param filtre Conditions filter
+   * @param idCond List of conditions id
+   * @return Return a mongoDB query
+   */
+  def createQueryConditionDate(filtre:String,idCond:List[JsValue]):JsObject=filtre match{
+      //Query for conditions ongoing
+      case "ongoing" =>Json.obj(
+        "_id" -> Json.obj("$in" -> JsArray(idCond.toSeq)),
+        "$or"->JsArray(Seq(
+          Json.obj("dateFin"->Json.obj("$exists"->false)),
+          Json.obj("dateDebut"->Json.obj("$lt"->new Date),"dateFin"->Json.obj("$gt"->new Date))
+        ))
+      )
+
+      //Query for conditions finish
+      case "finish" => Json.obj("_id" -> Json.obj("$in" -> JsArray(idCond.toSeq)),"dateFin"->Json.obj("$lt"->new Date))
+
+      //Query for all conditions
+      case _=>Json.obj("_id" -> Json.obj("$in" -> JsArray(idCond.toSeq)))
+    }
 }
 
 @Api(value = "/conditions", description = "Operations for conditions")

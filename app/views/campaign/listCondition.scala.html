@@ -1,19 +1,63 @@
-@(campaign:Campagne)(implicit request: Request[AnyContent])
+@(campaign:Campagne,conditions:List[Condition],modules:List[Module],localisations:List[Localisation],filtre:String,id:String)(implicit request: Request[AnyContent])
+@import java.text.SimpleDateFormat
 
 @main(Messages("campaign.list.title")){
   @navigation("campaign")
   <div class="container">
     <section>
       <article class="col-sm-9">
-        <div class="col-sm-12">
-          <h4>@campaign.nom</h4>
-          <div class="col-sm-11 col-sm-offset-1">
-            <div class="row"><span class="bold">@Messages("campaign.list.type")</span> : @campaign.types</div>
-            <div class="row"><span class="bold">@Messages("campaign.list.conditions")</span> : @campaign.conditions.size</div>
+        <div class="row">
+          <div class="col-sm-12">
+            <h4>@campaign.nom</h4>
+            <div class="col-sm-11 col-sm-offset-1">
+              <div class="row"><span class="bold">@Messages("campaign.list.type")</span> : @campaign.types</div>
+              <div class="row"><span class="bold">@Messages("campaign.list.conditions")</span> : @conditions.size</div>
+            </div>
           </div>
         </div>
+        @if(conditions.size>0){
+          <div class="row table-responsive">
+            <table class="table table-hover table-bordered">
+              <thead>
+                <tr>
+                  <th>@Messages("campaign.condition.debut")</th>
+                  <th>@Messages("campaign.condition.fin")</th>
+                  <th>@Messages("campaign.condition.onglet.module")</th>
+                  @if(campaign.types.equals("Terrain")){<th>@Messages("campaign.condition.onglet.localisation")</th>}
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+              @for(cond<-conditions){
+                <tr>
+                  <td>@{new SimpleDateFormat("dd/MM/yyyy HH:mm:ss").format(cond.dateDebut)}</td>
+                  <td>@if(cond.dateFin.nonEmpty){@{new SimpleDateFormat("dd/MM/yyyy HH:mm:ss").format(cond.dateFin.get)}}else{-}</td>
+                  <td>@defining(modules.find(p=>p._id.equals(cond.modules)).get){mod=>@mod.types / @mod.id}</td>
+                  @if(campaign.types.equals("Terrain")){
+                    <td>@defining(localisations.find(p=>p.condition.equals(cond._id)).get){loc=>@loc.nom (@loc.lat - @loc.lon)}</td>
+                  }
+                  <td>
+                    <a href="" data-toggle-tooltip title="@Messages("global.tooltip.update")"><span class="glyphicon glyphicon-pencil"></span></a>
+                    <a data-toggle="modal" href="#modal-delete" data-toggle-tooltip title="@Messages("global.tooltip.delete")" data-title="" data-link="">
+                      <span class="glyphicon glyphicon-trash"></span>
+                    </a>
+                  </td>
+                </tr>
+              }
+              </tbody>
+            </table>
+          </div>
+        }else{
+          <h3 style="text-align:center">@Messages("global.error.noResult")</h3>
+        }
       </article>
       <nav class="col-sm-3">
+        <span class="bold">@Messages("campaign.list.conditions")</span>
+        <ul class="nav nav-pills nav-stacked">
+          <li role="presentation" @if(filtre.isEmpty){class="active"}><a href="@routes.ConditionsManager.listConditions(id)" style="padding : 0px 15px !important">@Messages("global.all")</a></li>
+          <li role="presentation" @if(filtre.equals("ongoing")){class="active"}><a href="@routes.ConditionsManager.listConditions(id,"ongoing")" style="padding : 0px 15px !important">@Messages("global.encours")</a></li>
+          <li role="presentation" @if(filtre.equals("finish")){class="active"}><a href="@routes.ConditionsManager.listConditions(id,"finish")" style="padding : 0px 15px !important">@Messages("global.termine")</a></li>
+        </ul>
         <a href="@routes.ConditionsManager.formGeneral(campaign._id.stringify)" class="btn btn-success">
           <span class="glyphicon glyphicon-plus"></span>
           @Messages("campaign.condition.addCondition")
