@@ -16,6 +16,7 @@ import play.api.libs.Files.TemporaryFile
 import play.api.libs.json._
 import play.api.mvc._
 import reactivemongo.bson.BSONObjectID
+import reactivemongo.core.commands.LastError
 import reactivemongo.extensions.BSONFormats.BSONObjectIDFormat
 import scala.concurrent._
 import play.api.data.format.Formats._
@@ -52,6 +53,8 @@ trait ConditionsManagerLike extends Controller{
   val campaignManager:CampagneManagerLike=CampagneManager
 
   val app=Play.application
+
+  val tempFileBuilder=new TemporaryFileBuilder
 
   val form=Form[ConditionForm](
     mapping(
@@ -272,10 +275,10 @@ trait ConditionsManagerLike extends Controller{
             verifyAllData(campaign.types){
 
                   //If condition information not have error
-              (cond,loc,module)=>Ok(views.html.campaign.validate(cond,loc,Some(module),"",printStateForm("validate", campaign.types, id)))
+              (cond,loc,module)=>future{Ok(views.html.campaign.validate(cond,loc,Some(module),"",id,printStateForm("validate", campaign.types, id)))}
             }{
                   //Id condition information have error
-              (error,cond,loc,module)=>BadRequest(views.html.campaign.validate(cond,loc,module,error,printStateForm("validate", campaign.types, id)))
+              (error,cond,loc,module)=>future{BadRequest(views.html.campaign.validate(cond,loc,module,error,id,printStateForm("validate", campaign.types, id)))}
             }
         }{
           //If campaign not found
@@ -441,6 +444,107 @@ trait ConditionsManagerLike extends Controller{
   }
 
   /**
+   * This method is call when the user is on the page /campaigns/campaign/:id/form/validate. It verify condition information before insert the condition and the localisation
+   * @return Return Redirect Action when the user is not log in or if campaign not found or after insert condition and localisation
+   *         Return bad request if condition information have an error
+   *         Return Internal Server Error Action when have mongoDB error
+   */
+  @ApiOperation(
+    nickname = "conditions/form/validate",
+    value = "Verify condition information before insert condition and localisation",
+    notes = "Verify condition information before insert condition and localisation",
+    httpMethod = "POST")
+  @ApiResponses(Array(
+    new ApiResponse(code=303,message="<ul><li>Move resource to the login page at /login if the user is not log</li><li>Move resource to the conditions list if campaign not found</li><li>Move resource to the conditions list after insert condition and localisation</li></ul>"),
+    new ApiResponse(code=400,message="condition information have an error"),
+    new ApiResponse(code=500,message="Have a mongoDB error")
+  ))
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(name="id",value="Campaign id",required=true,dataType="String",paramType="path")
+  ))
+  def validate(id:String)=Action.async{
+    implicit request=>
+      //Verify if user is connect
+      UserManager.doIfconnectAsync(request) {
+
+        //Verify if campaign exist
+        campaignManager.doIfCampaignFound(BSONObjectID(id)) {
+
+          //If campaign found
+          campaign =>
+            //Verify condition information
+            verifyAllData(campaign.types){
+
+              //If condition information not have error
+              (cond,loc,module)=>{
+
+                //Insert the condition
+                conditionsDao.insert(cond).flatMap(
+
+                  //Move picture and insert the localisation
+                  data=>insertLocalisation(loc).map(
+                    data=>Redirect(routes.ConditionsManager.listConditions(id)).withSession(request.session - "condition")
+                  )
+                )
+              }
+            }{
+              //Id condition information have error
+              (error,cond,loc,module)=>future{BadRequest(views.html.campaign.validate(cond,loc,module,error,id,printStateForm("validate", campaign.types, id)))}
+            }
+        }{
+          //If campaign not found
+          _ => future{Redirect(routes.CampagneManager.listCampaign())}
+        }
+      }
+  }
+
+  /**
+   * This method move localisation picture and insert localisation into mongoDB if localisation was found
+   * @param locOpt Localistion to insert
+   * @return
+   */
+  def insertLocalisation(locOpt:Option[Localisation]): Future[LastError] =locOpt match{
+
+      //If localisation not found
+    case None=>future{LastError(true,None,None,None,None,0,false)}
+
+      //If localisation found
+    case Some(loc)=>{
+
+      //Move picture
+      moveImages(loc.photo)
+
+      //Insert the localisation
+      localisationDao.insert(loc)
+    }
+  }
+
+  /**
+   * This method move localisation picture into campaign directory
+   * @param imgs List of pictures
+   */
+  def moveImages(imgs:List[String]): Unit =imgs match{
+
+      //If not have picture
+    case Nil=>
+
+      //If have picture
+    case h::t=>{
+      //Get the picture
+      val tempFile=tempFileBuilder.createTemporaryFile(new File(app.path+"/public/images/campaign/tmp/"+h))
+
+      //Move the picture
+      tempFile.moveTo(new File(app.path+"/public/images/campaign/"+h))
+
+      //Delete the old picture
+      tempFile.clean
+
+      //Move other image
+      moveImages(t)
+    }
+  }
+
+  /**
    * This method find condition in session and parse the string into JsObject
    * @param request
    * @return
@@ -583,13 +687,13 @@ trait ConditionsManagerLike extends Controller{
    * @param request Request received
    * @return The Result return by function call
    */
-  def verifyAllData(types:String)(correct:(Condition,Option[Localisation],Module)=>Result)(notCorrect:(String,Condition,Option[Localisation],Option[Module])=>Result)(implicit request:Request[AnyContent])={
+  def verifyAllData(types:String)(correct:(Condition,Option[Localisation],Module)=>Future[Result])(notCorrect:(String,Condition,Option[Localisation],Option[Module])=>Future[Result])(implicit request:Request[AnyContent])={
 
     //Find condition and localisation in session
     val (cond,loc)=findSessionData
 
     //Find module associat to the condition
-    moduleDao.findOne(Json.obj("delete"->false,"_id"->cond.modules)).map(
+    moduleDao.findOne(Json.obj("delete"->false,"_id"->cond.modules)).flatMap(
       data=>data match {
 
           //If module not found

@@ -16,6 +16,7 @@ global.dispo=Disponibles
 global.used=Utilisés
 global.reactiver=Réactiver
 global.ignorer=Ignorer
+global.valider=Valider
 
 global.tooltip.update=Modifier
 global.tooltip.delete=Supprimer

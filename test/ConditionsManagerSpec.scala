@@ -1,5 +1,4 @@
 import java.io.File
-import java.text.ParseException
 import java.util.Date
 
 import controllers._
@@ -17,6 +16,7 @@ import play.api.mvc.{MultipartFormData, Action, Results, Result}
 import play.api.test.Helpers._
 import play.api.test.{FakeHeaders, FakeRequest, WithApplication}
 import reactivemongo.bson.{BSONDocument, BSONObjectID}
+import reactivemongo.core.commands.{GetLastError, LastError}
 import reactivemongo.extensions.BSONFormats.BSONObjectIDFormat
 
 import scala.concurrent.ExecutionContext
@@ -51,6 +51,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
     val campaignManagerMock=mock[CampagneManagerLike]
     val moduleManagerMock=mock[ModuleManagerLike]
     val appMock=mock[play.api.Application]
+    val tempFileBuilderMock=mock[TemporaryFileBuilder]
     val controller=new ConditionsManagerTest{
       override val conditionsDao=conditionDaoMock
       override val moduleDao=moduleDaoMock
@@ -58,6 +59,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
       override val campaignManager=campaignManagerMock
       override val moduleManager=moduleManagerMock
       override val app=appMock
+      override val tempFileBuilder=tempFileBuilderMock
     }
   }
 
@@ -785,6 +787,87 @@ class ConditionsManagerSpec extends Specification with Mockito {
       there was one(f.moduleDaoMock).findOne(any[JsObject])(any[ExecutionContext])
       there was one(f.campaignManagerMock).doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]])
     }
+
+    "send redirect if campaign not found" in new WithApplication{
+      val f=fixture
+      val formData=MultipartFormData[TemporaryFile](dataParts = Map(), files = Seq(), badParts = Seq(), missingFileParts = Seq())
+
+      f.campaignManagerMock.doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]]) answers {(params,_) => params match{
+        case Array(_,_,p:(Unit=>Future[Result])) => p.apply()
+      }}
+
+      val req=FakeRequest(POST,"/campaigns/campaign/"+bson.stringify+"/form/validate").withSession("user" -> """{"login":"test"}""")
+      val r=f.controller.validate(bson.stringify).apply(req)
+
+      status(r) must equalTo(SEE_OTHER)
+      header("Location",r) must beSome("/campaigns")
+
+      there was one(f.campaignManagerMock).doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]])
+    }
+
+    "send redirect after insert condition and localisation into the database" in new WithApplication{
+      val f = fixture
+      val locObj=Localisation(bson2,bson3,"loc",Some(1.2f),Some(3.4f),Some("un com"),List("img.jpg"))
+      val session=Json.obj("debut"->date,"fin"->date2,"commentaire"->"unCom","module"->bson4.stringify,"localisation"->Json.toJson(locObj))
+      val module=Module(bson4,"idMod","typeMod",date,List(),List(),Some("moduleCom"))
+      val camp=Campagne(nom="camp",types="Terrain",conditions=List())
+      val queryBegin=Json.obj("dateDebut"->Json.obj("$gte"->date,"$lte"->date2))
+      val queryEnd=Json.obj("$or"->JsArray(Seq(Json.obj("dateFin"->Json.obj("$gte"->date,"$lte"->date2),"dateFin"->Json.obj("$exists"->false)))))
+      val query=Json.obj("modules"->bson4,"$or"->JsArray(Seq(queryBegin,queryEnd)))
+      val tempFile=mock[TemporaryFile]
+      val f1=new File("/route/public/images/campaign/img.jpg")
+      val lastError=mock[LastError]
+
+      f.appMock.path returns (new File("/route"))
+      f.tempFileBuilderMock.createTemporaryFile(org.mockito.Matchers.eq(new File("/route/public/images/campaign/tmp/img.jpg"))) returns tempFile
+      org.mockito.Mockito.doNothing.when(tempFile).moveTo(org.mockito.Matchers.eq(f1),any[Boolean])
+      tempFile.clean() returns true
+      f.localisationDaoMock.insert(any[Localisation],any[GetLastError])(any[ExecutionContext]) returns future{lastError}
+      f.conditionDaoMock.insert(any[Condition],any[GetLastError])(any[ExecutionContext]) returns future{lastError}
+      f.campaignManagerMock.doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]]) answers {(params,_) => params match{
+        case Array(_,p:(Campagne=>Future[Result]),_) => p.apply(camp)
+      }}
+
+      f.moduleDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->bson4)))(any[ExecutionContext]) returns future{Some(module)}
+
+      f.conditionDaoMock.findOne(org.mockito.Matchers.eq(query))(any[ExecutionContext]) returns future{None}
+
+      val req=FakeRequest(POST,"/campaigns/campaign/"+bson.stringify+"/form/validate").withSession("user" -> """{"login":"test"}""").withSession("condition"->Json.stringify(session))
+      val r=f.controller.validate(bson.stringify)(req)
+
+      status(r) must equalTo(SEE_OTHER)
+      header("Location",r) must beSome("/campaigns/campaign/"+bson.stringify)
+
+      there was one(f.moduleDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->bson4)))(any[ExecutionContext])
+      there was one(f.campaignManagerMock).doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]])
+      there was one(f.conditionDaoMock).findOne(org.mockito.Matchers.eq(query))(any[ExecutionContext])
+      there was 2.times(f.appMock).path
+      there was one(f.tempFileBuilderMock).createTemporaryFile(any[File])
+      there was one(tempFile).moveTo(org.mockito.Matchers.eq(f1),any[Boolean])
+      there was one(tempFile).clean()
+      there was one(f.localisationDaoMock).insert(any[Localisation],any[GetLastError])(any[ExecutionContext])
+      there was one(f.conditionDaoMock).insert(any[Condition],any[GetLastError])(any[ExecutionContext])
+    }
+
+    "send Bad request with error message if condition have an error" in new WithApplication{
+      val f = fixture
+      val camp=Campagne(nom="camp",types="Terrain",conditions=List())
+
+      f.campaignManagerMock.doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]]) answers {(params,_) => params match{
+        case Array(_,p:(Campagne=>Future[Result]),_) => p.apply(camp)
+      }}
+
+      f.moduleDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{None}
+
+      val req=FakeRequest(POST,"/campaigns/campaign/"+bson.stringify+"/form/validate").withSession("user" -> """{"login":"test"}""")
+      val r=f.controller.validate(bson.stringify)(req)
+
+      status(r) must equalTo(BAD_REQUEST)
+      contentAsString(r) must contain("<div class=\"alert alert-danger\" role=\"alert\">Aucun module n'a été sélectionné</div>")
+
+      there was one(f.moduleDaoMock).findOne(any[JsObject])(any[ExecutionContext])
+      there was one(f.campaignManagerMock).doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]])
+    }
   }
 
   "When method insertImage is called, ConditionsManager" should{
@@ -1219,13 +1302,13 @@ class ConditionsManagerSpec extends Specification with Mockito {
   "When method verifyAllData is called, ConditionsManager" should{
     "execute notCorrect function if module not found" in new WithApplication {
       val f = fixture
-      val correct = mock[(Condition, Option[Localisation], Module) => Result]
-      val notCorrect = mock[(String, Condition, Option[Localisation], Option[Module]) => Result]
+      val correct = mock[(Condition, Option[Localisation], Module) => Future[Result]]
+      val notCorrect = mock[(String, Condition, Option[Localisation], Option[Module]) => Future[Result]]
       val locObj=Localisation(bson,bson2,"loc",Some(1.2f),Some(3.4f),Some("un com"),List("img.jpg"))
       val session=Json.obj("debut"->date,"fin"->date2,"commentaire"->"unCom","module"->bson.stringify,"localisation"->Json.toJson(locObj))
 
       f.moduleDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->bson)))(any[ExecutionContext]) returns future{None}
-      notCorrect.apply(org.mockito.Matchers.eq("Aucun module n'a été sélectionné"),any[Condition],any[Option[Localisation]],org.mockito.Matchers.eq(None)) returns Results.Ok("notCorrect func")
+      notCorrect.apply(org.mockito.Matchers.eq("Aucun module n'a été sélectionné"),any[Condition],any[Option[Localisation]],org.mockito.Matchers.eq(None)) returns future{Results.Ok("notCorrect func")}
 
       val req=FakeRequest(GET,"url").withSession("condition"->Json.stringify(session))
       val r=f.controller.verifyAllData("Test")(correct)(notCorrect)(req)
@@ -1240,14 +1323,14 @@ class ConditionsManagerSpec extends Specification with Mockito {
 
     "execute notCorrect function if date are not valid" in new WithApplication {
       val f = fixture
-      val correct = mock[(Condition, Option[Localisation], Module) => Result]
-      val notCorrect = mock[(String, Condition, Option[Localisation], Option[Module]) => Result]
+      val correct = mock[(Condition, Option[Localisation], Module) => Future[Result]]
+      val notCorrect = mock[(String, Condition, Option[Localisation], Option[Module]) => Future[Result]]
       val locObj=Localisation(bson,bson2,"loc",Some(1.2f),Some(3.4f),Some("un com"),List("img.jpg"))
       val session=Json.obj("debut"->date2,"fin"->date,"commentaire"->"unCom","module"->bson.stringify,"localisation"->Json.toJson(locObj))
       val module=mock[Module]
 
       f.moduleDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->bson)))(any[ExecutionContext]) returns future{Some(module)}
-      notCorrect.apply(org.mockito.Matchers.eq("La date de début doit être inférieur à la date de fin"),any[Condition],any[Option[Localisation]],org.mockito.Matchers.eq(Some(module))) returns Results.Ok("notCorrect func")
+      notCorrect.apply(org.mockito.Matchers.eq("La date de début doit être inférieur à la date de fin"),any[Condition],any[Option[Localisation]],org.mockito.Matchers.eq(Some(module))) returns future{Results.Ok("notCorrect func")}
 
       val req=FakeRequest(GET,"url").withSession("condition"->Json.stringify(session))
       val r=f.controller.verifyAllData("Test")(correct)(notCorrect)(req)
@@ -1262,13 +1345,13 @@ class ConditionsManagerSpec extends Specification with Mockito {
 
     "execute notCorrect function if localisation not found for ground condition" in new WithApplication {
       val f = fixture
-      val correct = mock[(Condition, Option[Localisation], Module) => Result]
-      val notCorrect = mock[(String, Condition, Option[Localisation], Option[Module]) => Result]
+      val correct = mock[(Condition, Option[Localisation], Module) => Future[Result]]
+      val notCorrect = mock[(String, Condition, Option[Localisation], Option[Module]) => Future[Result]]
       val session=Json.obj("debut"->date,"fin"->date2,"commentaire"->"unCom","module"->bson.stringify)
       val module=mock[Module]
 
       f.moduleDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->bson)))(any[ExecutionContext]) returns future{Some(module)}
-      notCorrect.apply(org.mockito.Matchers.eq("Erreur de localisation"),any[Condition],any[Option[Localisation]],org.mockito.Matchers.eq(Some(module))) returns Results.Ok("notCorrect func")
+      notCorrect.apply(org.mockito.Matchers.eq("Erreur de localisation"),any[Condition],any[Option[Localisation]],org.mockito.Matchers.eq(Some(module))) returns future{Results.Ok("notCorrect func")}
 
       val req=FakeRequest(GET,"url").withSession("condition"->Json.stringify(session))
       val r=f.controller.verifyAllData("Terrain")(correct)(notCorrect)(req)
@@ -1283,8 +1366,8 @@ class ConditionsManagerSpec extends Specification with Mockito {
 
     "execute notCorrect function if module already used" in new WithApplication {
       val f = fixture
-      val correct = mock[(Condition, Option[Localisation], Module) => Result]
-      val notCorrect = mock[(String, Condition, Option[Localisation], Option[Module]) => Result]
+      val correct = mock[(Condition, Option[Localisation], Module) => Future[Result]]
+      val notCorrect = mock[(String, Condition, Option[Localisation], Option[Module]) => Future[Result]]
       val session=Json.obj("debut"->date,"fin"->date2,"commentaire"->"unCom","module"->bson.stringify)
       val module=mock[Module]
       val cond=mock[Condition]
@@ -1293,7 +1376,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
       val query=Json.obj("modules"->bson,"$or"->JsArray(Seq(queryBegin,queryEnd)))
 
       f.moduleDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->bson)))(any[ExecutionContext]) returns future{Some(module)}
-      notCorrect.apply(org.mockito.Matchers.eq("Le module est déjà utilisé dans la même période sur une autre installation"),any[Condition],any[Option[Localisation]],org.mockito.Matchers.eq(Some(module))) returns Results.Ok("notCorrect func")
+      notCorrect.apply(org.mockito.Matchers.eq("Le module est déjà utilisé dans la même période sur une autre installation"),any[Condition],any[Option[Localisation]],org.mockito.Matchers.eq(Some(module))) returns future{Results.Ok("notCorrect func")}
       f.conditionDaoMock.findOne(org.mockito.Matchers.eq(query))(any[ExecutionContext]) returns future{Some(cond)}
 
       val req=FakeRequest(GET,"url").withSession("condition"->Json.stringify(session))
@@ -1310,8 +1393,8 @@ class ConditionsManagerSpec extends Specification with Mockito {
 
     "execute correct function if data are correct" in new WithApplication {
       val f = fixture
-      val correct = mock[(Condition, Option[Localisation], Module) => Result]
-      val notCorrect = mock[(String, Condition, Option[Localisation], Option[Module]) => Result]
+      val correct = mock[(Condition, Option[Localisation], Module) => Future[Result]]
+      val notCorrect = mock[(String, Condition, Option[Localisation], Option[Module]) => Future[Result]]
       val session=Json.obj("debut"->date,"fin"->date2,"commentaire"->"unCom","module"->bson.stringify)
       val module=mock[Module]
       val queryBegin=Json.obj("dateDebut"->Json.obj("$gte"->date,"$lte"->date2))
@@ -1319,7 +1402,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
       val query=Json.obj("modules"->bson,"$or"->JsArray(Seq(queryBegin,queryEnd)))
 
       f.moduleDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->bson)))(any[ExecutionContext]) returns future{Some(module)}
-      correct.apply(any[Condition],any[Option[Localisation]],org.mockito.Matchers.eq(module)) returns Results.Ok("correct func")
+      correct.apply(any[Condition],any[Option[Localisation]],org.mockito.Matchers.eq(module)) returns future{Results.Ok("correct func")}
       f.conditionDaoMock.findOne(org.mockito.Matchers.eq(query))(any[ExecutionContext]) returns future{None}
 
       val req=FakeRequest(GET,"url").withSession("condition"->Json.stringify(session))
@@ -1380,6 +1463,82 @@ class ConditionsManagerSpec extends Specification with Mockito {
 
       there was one(f.conditionDaoMock).findOne(org.mockito.Matchers.eq(query))(any[ExecutionContext])
     }
+  }
 
+  "When method moveImages is called, ConditionsManager" should{
+    "Move files into an other directory" in new WithApplication{
+      val f=fixture
+      val tempFile=mock[TemporaryFile]
+      val tempFile2=mock[TemporaryFile]
+      val f1=new File("/route/public/images/campaign/img.jpg")
+      val f2=new File("/route/public/images/campaign/img2.jpg")
+
+      f.appMock.path returns (new File("/route"))
+      f.tempFileBuilderMock.createTemporaryFile(org.mockito.Matchers.eq(new File("/route/public/images/campaign/tmp/img.jpg"))) returns tempFile
+      f.tempFileBuilderMock.createTemporaryFile(org.mockito.Matchers.eq(new File("/route/public/images/campaign/tmp/img2.jpg"))) returns tempFile2
+
+      org.mockito.Mockito.doNothing.when(tempFile).moveTo(org.mockito.Matchers.eq(f1),any[Boolean])
+      org.mockito.Mockito.doNothing.when(tempFile2).moveTo(org.mockito.Matchers.eq(f2),any[Boolean])
+
+      tempFile.clean() returns true
+      tempFile2.clean() returns true
+
+      f.controller.moveImages(List("img.jpg","img2.jpg"))
+
+      there was 4.times(f.appMock).path
+      there was one(f.tempFileBuilderMock).createTemporaryFile(org.mockito.Matchers.eq(new File("/route/public/images/campaign/tmp/img.jpg")))
+      there was one(f.tempFileBuilderMock).createTemporaryFile(org.mockito.Matchers.eq(new File("/route/public/images/campaign/tmp/img2.jpg")))
+
+      there was one(tempFile).moveTo(org.mockito.Matchers.eq(f1),any[Boolean])
+      there was one(tempFile2).moveTo(org.mockito.Matchers.eq(f2),any[Boolean])
+
+      there was one(tempFile).clean()
+      there was one(tempFile2).clean()
+    }
+
+    "Not find files" in new WithApplication{
+      val f=fixture
+
+      f.controller.moveImages(List())
+
+      there was no(f.appMock).path
+      there was no(f.tempFileBuilderMock).createTemporaryFile(any[File])
+    }
+  }
+
+  "When method insertLocalisation is called, ConditionsManager" should{
+    "do nothing if not have localisation" in new WithApplication{
+      val f=fixture
+
+      val r=f.controller.insertLocalisation(None)
+
+      Await.result(r,Duration.Inf) must equalTo(LastError(true,None,None,None,None,0,false))
+
+      there was no(f.appMock).path
+      there was no(f.tempFileBuilderMock).createTemporaryFile(any[File])
+      there was no(f.localisationDaoMock).insert(any[Localisation],any[GetLastError])(any[ExecutionContext])
+    }
+
+    "do nothing if not have localisation" in new WithApplication{
+      val f=fixture
+      val localisation=Localisation(bson,bson2,"Test",Some(1.2f),Some(3.4f),Some("un com"),List("img.jpg"))
+      val tempFile=mock[TemporaryFile]
+      val f1=new File("/route/public/images/campaign/img.jpg")
+      val lastError=mock[LastError]
+
+      f.appMock.path returns (new File("/route"))
+      f.tempFileBuilderMock.createTemporaryFile(org.mockito.Matchers.eq(new File("/route/public/images/campaign/tmp/img.jpg"))) returns tempFile
+      org.mockito.Mockito.doNothing.when(tempFile).moveTo(org.mockito.Matchers.eq(f1),any[Boolean])
+      tempFile.clean() returns true
+      f.localisationDaoMock.insert(org.mockito.Matchers.eq(localisation),any[GetLastError])(any[ExecutionContext]) returns future{lastError}
+
+      val r=f.controller.insertLocalisation(Some(localisation))
+
+      there was 2.times(f.appMock).path
+      there was one(f.tempFileBuilderMock).createTemporaryFile(any[File])
+      there was one(tempFile).moveTo(org.mockito.Matchers.eq(f1),any[Boolean])
+      there was one(tempFile).clean()
+      there was one(f.localisationDaoMock).insert(org.mockito.Matchers.eq(localisation),any[GetLastError])(any[ExecutionContext])
+    }
   }
 }
