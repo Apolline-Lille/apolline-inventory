@@ -127,7 +127,7 @@ class CampaignManagerSpec extends Specification with Mockito {
       content must not contain("<h3 style=\"text-align:center\">Aucun résultat trouvé</h3>")
       content must contain("camp1")
       content must contain("<div class=\"row\"><span class=\"bold\">Type</span> : type</div>")
-      content must contain("<div class=\"row\"><span class=\"bold\">Conditions</span> : 0</div>")
+      content must contain("<div class=\"row\"><span class=\"bold\">Installations</span> : 0</div>")
 
       there was one(f.campaignDaoMock).findAll(org.mockito.Matchers.eq(Json.obj("delete"->false)),any[JsObject])(any[ExecutionContext])
     }
@@ -148,10 +148,10 @@ class CampaignManagerSpec extends Specification with Mockito {
       content must not contain("<h3 style=\"text-align:center\">Aucun résultat trouvé</h3>")
       content must contain("camp1")
       content must contain("<div class=\"row\"><span class=\"bold\">Type</span> : type1</div>")
-      content must contain("<div class=\"row\"><span class=\"bold\">Conditions</span> : 0</div>")
+      content must contain("<div class=\"row\"><span class=\"bold\">Installations</span> : 0</div>")
       content must contain("camp2")
       content must contain("<div class=\"row\"><span class=\"bold\">Type</span> : type2</div>")
-      content must contain("<div class=\"row\"><span class=\"bold\">Conditions</span> : 2</div>")
+      content must contain("<div class=\"row\"><span class=\"bold\">Installations</span> : 2</div>")
 
       there was one(f.campaignDaoMock).findAll(org.mockito.Matchers.eq(Json.obj("delete"->false)),any[JsObject])(any[ExecutionContext])
     }
