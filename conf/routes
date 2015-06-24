@@ -87,7 +87,8 @@ GET         /campaigns/campaign/:id/form/localisation         controllers.Condit
 POST        /campaigns/campaign/:id/form/localisation         controllers.ConditionsManager.addLocalisation(id)
 GET         /campaigns/campaign/:id/form/validate             controllers.ConditionsManager.formValidate(id)
 POST        /campaigns/campaign/:id/form/validate             controllers.ConditionsManager.validate(id)
-GET         /campaigns/campaign/:id/:id2                        controllers.ConditionsManager.moreInformation(id,id2)
+GET         /campaigns/campaign/:id/:id2                      controllers.ConditionsManager.moreInformation(id,id2)
+GET         /campaigns/campaign/:id/:id2/finish               controllers.ConditionsManager.finishCondition(id,id2)
 
 
 # Map static resources from the /public folder to the /assets URL path

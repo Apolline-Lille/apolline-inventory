@@ -564,6 +564,45 @@ trait ConditionsManagerLike extends Controller{
   }
 
   /**
+   * This method is call when the user is on the page /campaigns/campaign/:id/:id2/finish. It finish a condition
+   * @return Return Redirect Action when the user is not log in or if campaign not found or after finish a condition
+   *         Return Internal Server Error Action when have mongoDB error
+   */
+  @ApiOperation(
+    nickname = "conditions/finish",
+    value = "Finish a condition",
+    notes = "Finish a condition",
+    httpMethod = "GET")
+  @ApiResponses(Array(
+    new ApiResponse(code=303,message="<ul><li>Move resource to the login page at /login if the user is not log</li><li>Move resource to the conditions list if campaign not found</li><li>Move resource to the conditions list after finish a condition</li></ul>"),
+    new ApiResponse(code=500,message="Have a mongoDB error")
+  ))
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(name="id",value="Campaign id",required=true,dataType="String",paramType="path"),
+    new ApiImplicitParam(name="id2",value="Condition id",required=true,dataType="String",paramType="path")
+  ))
+  def finishCondition(id:String,id2:String)=Action.async{
+    implicit request =>
+      //Verify if user is connect
+      UserManager.doIfconnectAsync(request) {
+
+        //Verify if campaign exist
+        campaignManager.doIfCampaignFound(BSONObjectID(id)) {
+
+          //If campaign found
+          campaign =>
+            //Update end date of the condition
+            conditionsDao.updateById(BSONObjectID(id2),Json.obj("$set"->Json.obj("dateFin"->new Date))).map(
+              data=>Redirect(routes.ConditionsManager.listConditions(id))
+            )
+        }{
+          //If campaign not found
+          _ => future{Redirect(routes.CampagneManager.listCampaign())}
+        }
+      }
+  }
+
+  /**
    * This method move localisation picture and insert localisation into mongoDB if localisation was found
    * @param locOpt Localistion to insert
    * @return

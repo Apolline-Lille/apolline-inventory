@@ -24,6 +24,7 @@ global.tooltip.update=Modifier
 global.tooltip.delete=Supprimer
 global.tooltip.clone=Cloner
 global.tooltip.detail=Plus de détails
+global.tooltip.finish=Terminer
 
 global.btn.submit=Envoyer
 global.btn.reset=Reset

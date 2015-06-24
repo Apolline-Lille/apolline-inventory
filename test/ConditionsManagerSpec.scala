@@ -176,6 +176,17 @@ class ConditionsManagerSpec extends Specification with Mockito {
           failure("Pas de retour de la fonction")
         )
     }
+
+    "redirect to login for resource /campaigns/campaign/:id/:id2/finish" in new WithApplication {
+      route(FakeRequest(GET, "/campaigns/campaign/"+bson.stringify+"/"+bson2.stringify+"/finish")).map(
+        r => {
+          status(r) must equalTo(SEE_OTHER)
+          header("Location", r) must equalTo(Some("/login"))
+        }
+      ).getOrElse(
+          failure("Pas de retour de la fonction")
+        )
+    }
   }
 
   "When user is on resource /campaigns/campaign/:id, ConditionsManager" should{
@@ -1064,6 +1075,45 @@ class ConditionsManagerSpec extends Specification with Mockito {
 
       there was one(f.moduleDaoMock).findOne(any[JsObject])(any[ExecutionContext])
       there was one(f.campaignManagerMock).doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]])
+    }
+  }
+
+  "When user is on resource /campaigns/campaign/:id/:id2/finish, ConditionsManager" should{
+    "send redirect if campaign not found" in new WithApplication{
+      val f=fixture
+
+      f.campaignManagerMock.doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]]) answers {(params,_) => params match{
+        case Array(_,_,p:(Unit=>Future[Result])) => p.apply()
+      }}
+
+      val req=FakeRequest(GET,"/campaigns/campaign/"+bson.stringify+"/"+bson2.stringify).withSession("user" -> """{"login":"test"}""")
+      val r=f.controller.finishCondition(bson.stringify,bson2.stringify).apply(req)
+
+      status(r) must equalTo(SEE_OTHER)
+      header("Location",r) must beSome("/campaigns")
+
+      there was one(f.campaignManagerMock).doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]])
+    }
+
+    "send redirect after update end date of condition" in new WithApplication{
+      val f=fixture
+      val camp=mock[Campagne]
+      val lastError=mock[LastError]
+
+      f.campaignManagerMock.doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]]) answers {(params,_) => params match{
+        case Array(_,p:(Campagne=>Future[Result]),_) => p.apply(camp)
+      }}
+
+      f.conditionDaoMock.updateById(org.mockito.Matchers.eq(bson2),any[JsObject],any[GetLastError])(any[Writes[JsObject]],any[ExecutionContext]) returns future{lastError}
+
+      val req=FakeRequest(GET,"/campaigns/campaign/"+bson.stringify+"/"+bson2.stringify).withSession("user" -> """{"login":"test"}""")
+      val r=f.controller.finishCondition(bson.stringify,bson2.stringify).apply(req)
+
+      status(r) must equalTo(SEE_OTHER)
+      header("Location",r) must beSome("/campaigns/campaign/"+bson.stringify)
+
+      there was one(f.campaignManagerMock).doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]])
+      there was one(f.conditionDaoMock).updateById(org.mockito.Matchers.eq(bson2),any[JsObject],any[GetLastError])(any[Writes[JsObject]],any[ExecutionContext])
     }
   }
 
