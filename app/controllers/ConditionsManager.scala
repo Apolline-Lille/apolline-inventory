@@ -143,6 +143,43 @@ trait ConditionsManagerLike extends Controller{
       }
   }
 
+  def moreInformation(id1:String,id2:String)=Action.async{
+    implicit request =>
+      //Verify if user is connect
+      UserManager.doIfconnectAsync(request) {
+
+        //Verify if campaign exist
+        campaignManager.doIfCampaignFound(BSONObjectID(id1)){
+
+          //If campaign found
+          campaign=> {
+
+            //Find condition
+            conditionsDao.findOne(Json.obj("_id"->BSONObjectID(id2))).flatMap(
+              conditionOpt => conditionOpt match{
+                case None =>future{Redirect(routes.ConditionsManager.listConditions(id1))}
+                case Some(condition)=>
+                  //Find module
+                  moduleDao.findOne(Json.obj("_id" -> condition.modules,"delete"->false)).flatMap(
+                  moduleOpt => moduleOpt match{
+                    case None=>future{Redirect(routes.ConditionsManager.listConditions(id1))}
+                    case Some(module)=>
+                      localisationDao.findOne(Json.obj("condition"->BSONObjectID(id2))).map(
+                        localisation => Ok(views.html.campaign.moreInformation(condition,localisation,module))
+                      )
+                  }
+                )
+              }
+            )
+          }
+        }{
+
+          //If campaign not found
+          _ => future{Redirect(routes.CampagneManager.listCampaign())}
+        }
+      }
+  }
+
   /**
    * This method is call when the user is on the page /campaigns/campaign/:id/form. It display form for insert condition general information
    * @return Return Ok Action when the user is on the page /campaigns/campaign/:id/form with a form for insert condition general information

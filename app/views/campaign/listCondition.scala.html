@@ -37,6 +37,7 @@
                     <td>@defining(localisations.find(p=>p.condition.equals(cond._id)).get){loc=>@loc.nom (@loc.lat - @loc.lon)}</td>
                   }
                   <td>
+                    <a href="@routes.ConditionsManager.moreInformation(id,cond._id.stringify)" data-toggle-tooltip title="@Messages("global.tooltip.detail")"><span class="glyphicon glyphicon-info-sign"></span></a>
                     <a href="" data-toggle-tooltip title="@Messages("global.tooltip.update")"><span class="glyphicon glyphicon-pencil"></span></a>
                     <a data-toggle="modal" href="#modal-delete" data-toggle-tooltip title="@Messages("global.tooltip.delete")" data-title="" data-link="">
                       <span class="glyphicon glyphicon-trash"></span>
