@@ -165,7 +165,7 @@ trait ConditionsManagerLike extends Controller{
                     case None=>future{Redirect(routes.ConditionsManager.listConditions(id1))}
                     case Some(module)=>
                       localisationDao.findOne(Json.obj("condition"->BSONObjectID(id2))).map(
-                        localisation => Ok(views.html.campaign.moreInformation(condition,localisation,module))
+                        localisation => Ok(views.html.campaign.moreInformation(condition,localisation,module,id1))
                       )
                   }
                 )
@@ -600,6 +600,123 @@ trait ConditionsManagerLike extends Controller{
           _ => future{Redirect(routes.CampagneManager.listCampaign())}
         }
       }
+  }
+
+  /**
+   * This method is call when the user is on the page /campaigns/campaign/:id/:id2/picture/delete or /campaigns/campaign/:id/form/picture/delete. It suppress a picture for a localisation
+   * @return Return Redirect Action when the user is not log in or if campaign not found or after suppress the picture
+   *         Return Internal Server Error Action when have mongoDB error
+   */
+  @ApiOperation(
+    nickname = "conditions/picture/delete",
+    value = "Suppress a picture for a localisation",
+    notes = "Suppress a picture for a localisation",
+    httpMethod = "GET")
+  @ApiResponses(Array(
+    new ApiResponse(code=303,message="<ul><li>Move resource to the login page at /login if the user is not log</li><li>Move resource to the conditions list if campaign not found</li><li>Move resource after suppress a picture</li></ul>"),
+    new ApiResponse(code=500,message="Have a mongoDB error")
+  ))
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(name="id",value="Campaign id",required=true,dataType="String",paramType="path"),
+    new ApiImplicitParam(name="id2",value="Condition id",dataType="String",paramType="path"),
+    new ApiImplicitParam(name="filename",value="Picture name",dataType="String",paramType="query")
+  ))
+  def removeImageCondition(id:String,id2:String,filename:String)=Action.async{
+    implicit request =>
+      //Verify if user is connect
+      UserManager.doIfconnectAsync(request) {
+
+        //Verify if campaign exist
+        campaignManager.doIfCampaignFound(BSONObjectID(id)) {
+
+          //If campaign found
+          campaign => id2.isEmpty match{
+
+              //Remove a temporary picture
+            case true=>removeTemporaryImage(id,filename)
+
+              //Remove a definitive picture
+            case false=>removeDefinitiveImage(id,id2,filename)
+          }
+        }{
+
+          //If campaign not found
+          _ => future{Redirect(routes.CampagneManager.listCampaign())}
+        }
+      }
+  }
+
+  /**
+   * This method remove a temporary picture
+   * @param id Campaign id
+   * @param filename Picture name
+   * @param request Request received
+   * @return Return redirect to validate form
+   */
+  def removeTemporaryImage(id:String,filename:String)(implicit request:Request[AnyContent])={
+    //Find condition in session
+    val cond=findCondition
+
+    //Remove the picture
+    val loc=removeImage("tmp/",filename,(cond\"localisation").as[Localisation])
+
+    //Create new condition
+    val newCond=cond ++ Json.obj("localisation"->Json.toJson(loc))
+
+    //Redirect to validate form with new condition in session
+    future{Redirect(routes.ConditionsManager.formValidate(id)).withSession(request.session + ("condition"->Json.stringify(newCond)))}
+  }
+
+  /**
+   *  This method remove a definitive picture
+   * @param id Campaign id
+   * @param id2 Condition id
+   * @param filename Picture name
+   * @return Return redirect to condition information
+   */
+  def removeDefinitiveImage(id:String,id2:String,filename:String)={
+    //Find the localisation
+    localisationDao.findOne(Json.obj("condition"->BSONObjectID(id2))).flatMap(
+      locOpt=>locOpt match{
+
+          //If localisation not found redirect
+        case None=>future{Redirect(routes.ConditionsManager.moreInformation(id,id2))}
+
+          //If localisation found update the localisation and redirect
+        case Some(loc)=>localisationDao.updateById(loc._id,removeImage("",filename,loc)).map(
+          data=>Redirect(routes.ConditionsManager.moreInformation(id,id2))
+        )
+      }
+    )
+  }
+
+  /**
+   * This method remove physicaly a picture
+   * @param path Path to the picture
+   * @param filename Picture name
+   * @param localisation Localisation associat to the picture
+   * @return Return a localisation without the picture
+   */
+  def removeImage(path:String,filename:String,localisation: Localisation):Localisation={
+    //Create reference to the picture
+    val f=tempFileBuilder.createFile(app.path+"/public/images/campaign/"+path+filename)
+
+    //Verify if the picture exist
+    f.exists match{
+
+        //If the picture exist, delete it
+      case true=>f.delete match{
+
+          //If the picture is delete, return localisation without the picture
+        case true=>localisation.copy(photo=localisation.photo.filter(p=> !p.equals(filename)))
+
+          //If picture is not delete, return the same localisation
+        case false=>localisation
+      }
+
+        //If the picture not exist, return localisation without the picture
+      case false =>localisation.copy(photo=localisation.photo.filter(p=> !p.equals(filename)))
+    }
   }
 
   /**

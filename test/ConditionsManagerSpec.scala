@@ -1117,6 +1117,87 @@ class ConditionsManagerSpec extends Specification with Mockito {
     }
   }
 
+  "When user is on resource /campaigns/campaign/:id/:id2/picture/delete or /campaigns/cmapaign/:id/form/picture/delete, ConditionsManager" should{
+    "send redirect if campaign not found" in new WithApplication{
+      val f=fixture
+
+      f.campaignManagerMock.doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]]) answers {(params,_) => params match{
+        case Array(_,_,p:(Unit=>Future[Result])) => p.apply()
+      }}
+
+      val req=FakeRequest(GET,"/campaigns/campaign/"+bson.stringify+"/form/picture/delete").withSession("user" -> """{"login":"test"}""")
+      val r=f.controller.removeImageCondition(bson.stringify,"","img.jpg").apply(req)
+
+      status(r) must equalTo(SEE_OTHER)
+      header("Location",r) must beSome("/campaigns")
+
+      there was one(f.campaignManagerMock).doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]])
+    }
+
+    "send redirect after delete temporary picture" in new WithApplication{
+      val f=fixture
+      val camp=mock[Campagne]
+      val locObj=Localisation(bson,bson2,"loc",Some(1.2f),Some(3.4f),Some("un com"),List("img.jpg"))
+      val sessionObj=Json.obj("debut"->date2,"fin"->date,"commentaire"->"unCom","module"->bson.stringify,"localisation"->Json.toJson(locObj))
+      val sessionObj2=Json.obj("debut"->date2,"fin"->date,"commentaire"->"unCom","module"->bson.stringify,"localisation"->Json.toJson(locObj.copy(photo=List())))
+      val file=mock[File]
+
+      f.appMock.path returns new File("/route")
+      f.tempFileBuilderMock.createFile(org.mockito.Matchers.eq("/route/public/images/campaign/tmp/img.jpg")) returns file
+      file.exists returns true
+      file.delete returns true
+      f.campaignManagerMock.doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]]) answers {(params,_) => params match{
+        case Array(_,p:(Campagne=>Future[Result]),_) => p.apply(camp)
+      }}
+
+      val req=FakeRequest(GET,"/campaigns/campaign/"+bson.stringify+"/form/picture/delete").withSession("user" -> """{"login":"test"}""").withSession("condition"->Json.stringify(sessionObj))
+      val r=f.controller.removeImageCondition(bson.stringify,"","img.jpg").apply(req)
+
+      status(r) must equalTo(SEE_OTHER)
+      header("Location",r) must beSome("/campaigns/campaign/"+bson.stringify+"/form/validate")
+      session(r).get("condition") must beSome(Json.stringify(sessionObj2))
+
+      there was one(f.appMock).path
+      there was one(f.tempFileBuilderMock).createFile(org.mockito.Matchers.eq("/route/public/images/campaign/tmp/img.jpg"))
+      there was one(file).exists
+      there was one(file).delete
+      there was one(f.campaignManagerMock).doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]])
+    }
+
+    "send redirect after delete definitive picture" in new WithApplication{
+      val f=fixture
+      val camp=mock[Campagne]
+      val file=mock[File]
+      val loc=Localisation(bson3,bson2,"Test",Some(1.2f),Some(3.4f),Some("un com"),List("img.jpg"))
+      val lastError=mock[LastError]
+
+      f.appMock.path returns new File("/route")
+      f.tempFileBuilderMock.createFile(org.mockito.Matchers.eq("/route/public/images/campaign/img.jpg")) returns file
+      file.exists returns true
+      file.delete returns true
+      f.localisationDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("condition"->bson2)))(any[ExecutionContext]) returns future{Some(loc)}
+      f.localisationDaoMock.updateById(org.mockito.Matchers.eq(bson3),org.mockito.Matchers.eq(loc.copy(photo=List())),any[GetLastError])(any[Writes[Localisation]],any[ExecutionContext]) returns future{lastError}
+
+      f.campaignManagerMock.doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]]) answers {(params,_) => params match{
+        case Array(_,p:(Campagne=>Future[Result]),_) => p.apply(camp)
+      }}
+
+      val req=FakeRequest(GET,"/campaigns/campaign/"+bson.stringify+"/form/picture/delete").withSession("user" -> """{"login":"test"}""")
+      val r=f.controller.removeImageCondition(bson.stringify,bson2.stringify,"img.jpg").apply(req)
+
+      status(r) must equalTo(SEE_OTHER)
+      header("Location",r) must beSome("/campaigns/campaign/"+bson.stringify+"/"+bson2.stringify)
+
+      there was one(f.campaignManagerMock).doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]])
+      there was one(f.localisationDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("condition"->bson2)))(any[ExecutionContext])
+      there was one(f.appMock).path
+      there was one(f.tempFileBuilderMock).createFile(org.mockito.Matchers.eq("/route/public/images/campaign/img.jpg"))
+      there was one(file).exists
+      there was one(file).delete
+      there was one(f.localisationDaoMock).updateById(org.mockito.Matchers.eq(bson3),org.mockito.Matchers.eq(loc.copy(photo=List())),any[GetLastError])(any[Writes[Localisation]],any[ExecutionContext])
+    }
+  }
+
   "When method insertImage is called, ConditionsManager" should{
     "return an empty list if not have file" in new WithApplication{
       val f=fixture
@@ -1857,6 +1938,135 @@ class ConditionsManagerSpec extends Specification with Mockito {
       date1.compareTo(before) must greaterThanOrEqualTo(0)
       date2.compareTo(new Date) must lessThanOrEqualTo(0)
       date2.compareTo(before) must greaterThanOrEqualTo(0)
+    }
+  }
+
+  "When method removeImage is called, ConditionsManager" should{
+    "delete the picture and remove the filename in the list of localisation picture" in new WithApplication{
+      val f=fixture
+      val file=mock[File]
+      val loc=Localisation(bson,bson2,"Test",Some(1.2f),Some(3.4f),Some("un com"),List("img.jpg"))
+
+      f.appMock.path returns new File("/route")
+      f.tempFileBuilderMock.createFile(org.mockito.Matchers.eq("/route/public/images/campaign/tmp/img.jpg")) returns file
+      file.exists returns true
+      file.delete returns true
+
+      var r=f.controller.removeImage("tmp/","img.jpg",loc)
+
+      r must equalTo(loc.copy(photo=List()))
+
+      there was one(f.appMock).path
+      there was one(f.tempFileBuilderMock).createFile(org.mockito.Matchers.eq("/route/public/images/campaign/tmp/img.jpg"))
+      there was one(file).exists
+      there was one(file).delete
+    }
+
+    "picture not exist and remove the filename in the list of localisation picture" in new WithApplication{
+      val f=fixture
+      val file=mock[File]
+      val loc=Localisation(bson,bson2,"Test",Some(1.2f),Some(3.4f),Some("un com"),List("img.jpg"))
+
+      f.appMock.path returns new File("/route")
+      f.tempFileBuilderMock.createFile(org.mockito.Matchers.eq("/route/public/images/campaign/tmp/img.jpg")) returns file
+      file.exists returns false
+
+      var r=f.controller.removeImage("tmp/","img.jpg",loc)
+
+      r must equalTo(loc.copy(photo=List()))
+
+      there was one(f.appMock).path
+      there was one(f.tempFileBuilderMock).createFile(org.mockito.Matchers.eq("/route/public/images/campaign/tmp/img.jpg"))
+      there was one(file).exists
+      there was no(file).delete
+    }
+
+    "picture not remove and return the same localisation" in new WithApplication{
+      val f=fixture
+      val file=mock[File]
+      val loc=Localisation(bson,bson2,"Test",Some(1.2f),Some(3.4f),Some("un com"),List("img.jpg"))
+
+      f.appMock.path returns new File("/route")
+      f.tempFileBuilderMock.createFile(org.mockito.Matchers.eq("/route/public/images/campaign/tmp/img.jpg")) returns file
+      file.exists returns true
+      file.delete returns false
+
+      var r=f.controller.removeImage("tmp/","img.jpg",loc)
+
+      r must equalTo(loc)
+
+      there was one(f.appMock).path
+      there was one(f.tempFileBuilderMock).createFile(org.mockito.Matchers.eq("/route/public/images/campaign/tmp/img.jpg"))
+      there was one(file).exists
+      there was one(file).delete
+    }
+  }
+
+  "When method removeDefiniveImage is called, ConditionsManager" should{
+    "send redirect after remove the picture" in new WithApplication{
+      val f=fixture
+      val file=mock[File]
+      val loc=Localisation(bson3,bson2,"Test",Some(1.2f),Some(3.4f),Some("un com"),List("img.jpg"))
+      val lastError=mock[LastError]
+
+      f.appMock.path returns new File("/route")
+      f.tempFileBuilderMock.createFile(org.mockito.Matchers.eq("/route/public/images/campaign/img.jpg")) returns file
+      file.exists returns true
+      file.delete returns true
+      f.localisationDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("condition"->bson2)))(any[ExecutionContext]) returns future{Some(loc)}
+      f.localisationDaoMock.updateById(org.mockito.Matchers.eq(bson3),org.mockito.Matchers.eq(loc.copy(photo=List())),any[GetLastError])(any[Writes[Localisation]],any[ExecutionContext]) returns future{lastError}
+
+      val r=f.controller.removeDefinitiveImage(bson.stringify,bson2.stringify,"img.jpg")
+
+      status(r) must equalTo(SEE_OTHER)
+      header("Location",r) must beSome("/campaigns/campaign/"+bson.stringify+"/"+bson2.stringify)
+
+      there was one(f.localisationDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("condition"->bson2)))(any[ExecutionContext])
+      there was one(f.appMock).path
+      there was one(f.tempFileBuilderMock).createFile(org.mockito.Matchers.eq("/route/public/images/campaign/img.jpg"))
+      there was one(file).exists
+      there was one(file).delete
+      there was one(f.localisationDaoMock).updateById(org.mockito.Matchers.eq(bson3),org.mockito.Matchers.eq(loc.copy(photo=List())),any[GetLastError])(any[Writes[Localisation]],any[ExecutionContext])
+    }
+
+    "send redirect if localisation not found" in new WithApplication{
+      val f=fixture
+
+      f.localisationDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("condition"->bson2)))(any[ExecutionContext]) returns future{None}
+
+      val r=f.controller.removeDefinitiveImage(bson.stringify,bson2.stringify,"img.jpg")
+
+      status(r) must equalTo(SEE_OTHER)
+      header("Location",r) must beSome("/campaigns/campaign/"+bson.stringify+"/"+bson2.stringify)
+
+      there was one(f.localisationDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("condition"->bson2)))(any[ExecutionContext])
+    }
+  }
+
+  "When method removeTemporaryImage is called, ConditionsManager" should{
+    "send redirect after remove image" in new WithApplication{
+      val f=fixture
+      val locObj=Localisation(bson,bson2,"loc",Some(1.2f),Some(3.4f),Some("un com"),List("img.jpg"))
+      val sessionObj=Json.obj("debut"->date2,"fin"->date,"commentaire"->"unCom","module"->bson.stringify,"localisation"->Json.toJson(locObj))
+      val sessionObj2=Json.obj("debut"->date2,"fin"->date,"commentaire"->"unCom","module"->bson.stringify,"localisation"->Json.toJson(locObj.copy(photo=List())))
+      val file=mock[File]
+
+      f.appMock.path returns new File("/route")
+      f.tempFileBuilderMock.createFile(org.mockito.Matchers.eq("/route/public/images/campaign/tmp/img.jpg")) returns file
+      file.exists returns true
+      file.delete returns true
+
+      val req=FakeRequest(GET,"url").withSession("condition"->Json.stringify(sessionObj))
+      val r=f.controller.removeTemporaryImage(bson.stringify,"img.jpg")(req)
+
+      status(r) must equalTo(SEE_OTHER)
+      header("Location",r) must beSome("/campaigns/campaign/"+bson.stringify+"/form/validate")
+      session(r).get("condition") must beSome(Json.stringify(sessionObj2))
+
+      there was one(f.appMock).path
+      there was one(f.tempFileBuilderMock).createFile(org.mockito.Matchers.eq("/route/public/images/campaign/tmp/img.jpg"))
+      there was one(file).exists
+      there was one(file).delete
     }
   }
 }

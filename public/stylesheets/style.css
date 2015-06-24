@@ -28,8 +28,16 @@ form dl{
     content: ">\00a0";
 }
 
+.linkDeleteImg{
+    position:absolute;
+    top:10px;
+    right:10px;
+    line-height: normal;
+}
+
 @media (max-width: 992px) {
     .img-xs {
+        position:relative;
         height:100px;
         line-height:100px;
         width:100px;
@@ -37,7 +45,7 @@ form dl{
         margin:5px;
     }
 
-    .img-xs a{
+    .img-xs .linkImg{
         display:block;
         text-align:center;
         max-height:100px;
@@ -51,6 +59,7 @@ form dl{
 }
 @media (min-width: 992px) {
     .img-md {
+        position:relative;
         height:150px;
         line-height:150px;
         width:150px;
@@ -58,7 +67,7 @@ form dl{
         margin:5px;
     }
 
-    .img-md a{
+    .img-md .linkImg{
         display:block;
         text-align:center;
         max-height:150px;
@@ -72,6 +81,7 @@ form dl{
 }
 @media (min-width: 1200px) {
     .img-lg {
+        position:relative;
         height:200px;
         line-height:200px;
         width:200px;
@@ -79,7 +89,7 @@ form dl{
         margin:5px;
     }
 
-    .img-lg a{
+    .img-lg .linkImg{
         display:block;
         text-align:center;
         max-height:200px;

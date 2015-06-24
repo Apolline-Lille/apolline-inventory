@@ -1,4 +1,4 @@
-@(cond:Condition,loc:Option[Localisation],module:Module)(implicit request: Request[AnyContent])
+@(cond:Condition,loc:Option[Localisation],module:Module,id:String)(implicit request: Request[AnyContent])
 
 @import java.text.SimpleDateFormat
 
@@ -21,9 +21,10 @@
                 <div class="row">
                 @for(photo<-loc.get.photo){
                   <div class="img-xs img-md img-lg img-thumbnail">
-                    <a href="@routes.Assets.at("/public","images/campaign/"+photo)">
+                    <a class="linkImg" href="@routes.Assets.at("/public","images/campaign/"+photo)">
                       <img src="@routes.Assets.at("/public","images/campaign/"+photo)" class="img-responsive">
                     </a>
+                    <a class="linkDeleteImg" href="@routes.ConditionsManager.removeImageCondition(id,cond._id.stringify,photo)"><span class="glyphicon glyphicon-remove"></span></a>
                   </div>
                 }
                 </div>

@@ -25,9 +25,10 @@
                 <div class="row">
                   @for(photo<-loc.get.photo){
                     <div class="img-xs img-md img-lg img-thumbnail">
-                      <a href="@routes.Assets.at("/public","images/campaign/tmp/"+photo)">
+                      <a class="linkImg" href="@routes.Assets.at("/public","images/campaign/tmp/"+photo)">
                         <img src="@routes.Assets.at("/public","images/campaign/tmp/"+photo)" class="img-responsive">
                       </a>
+                      <a class="linkDeleteImg" href="@routes.ConditionsManager.removeImageCondition(id,"",photo)"><span class="glyphicon glyphicon-remove"></span></a>
                     </div>
                   }
                 </div>
