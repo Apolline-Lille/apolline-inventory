@@ -39,7 +39,7 @@
                   <td>
                     <a href="@routes.ConditionsManager.moreInformation(id,cond._id.stringify)" data-toggle-tooltip title="@Messages("global.tooltip.detail")"><span class="glyphicon glyphicon-info-sign"></span></a>
                     @if(cond.dateFin.isEmpty){<a href="@routes.ConditionsManager.finishCondition(id,cond._id.stringify)" data-toggle-tooltip title="@Messages("global.tooltip.finish")"><span class="glyphicon glyphicon-ban-circle"></span></a>}
-                    <a href="" data-toggle-tooltip title="@Messages("global.tooltip.update")"><span class="glyphicon glyphicon-pencil"></span></a>
+                    <a href="@routes.ConditionsManager.formGeneralUpdate(id,cond._id.stringify)" data-toggle-tooltip title="@Messages("global.tooltip.update")"><span class="glyphicon glyphicon-pencil"></span></a>
                     <a data-toggle="modal" href="#modal-delete" data-toggle-tooltip title="@Messages("global.tooltip.delete")" data-title="" data-link="">
                       <span class="glyphicon glyphicon-trash"></span>
                     </a>

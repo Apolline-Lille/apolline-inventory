@@ -80,6 +80,7 @@ GET         /campaigns/campaign/:id/update                     controllers.Campa
 POST        /campaigns/campaign/:id/update                     controllers.CampagneManager.updateCampaign(id)
 GET         /campaigns/campaign/:id                            controllers.ConditionsManager.listConditions(id,filtre ?="")
 GET         /campaigns/campaign/:id/form                       controllers.ConditionsManager.formGeneral(id)
+GET         /campaigns/campaign/:id/form/update                 controllers.ConditionsManager.formGeneralUpdateInput(id)
 POST        /campaigns/campaign/:id/form                       controllers.ConditionsManager.addGeneralInformation(id)
 GET         /campaigns/campaign/:id/form/module                controllers.ConditionsManager.formModule(id,filtre ?= "")
 POST        /campaigns/campaign/:id/form/module                controllers.ConditionsManager.addSelectedModule(id)
@@ -89,8 +90,9 @@ GET         /campaigns/campaign/:id/form/validate              controllers.Condi
 POST        /campaigns/campaign/:id/form/validate              controllers.ConditionsManager.validate(id)
 GET         /campaigns/campaign/:id/form/picture/delete        controllers.ConditionsManager.removeImageCondition(id,id2="",filename?="")
 GET         /campaigns/campaign/:id/:id2                       controllers.ConditionsManager.moreInformation(id,id2)
+GET         /campaigns/campaign/:id/:id2/form                  controllers.ConditionsManager.formGeneralUpdate(id,id2)
 GET         /campaigns/campaign/:id/:id2/finish                controllers.ConditionsManager.finishCondition(id,id2)
-GET         /campaigns/campaign/:id/:id2/picture/delete         controllers.ConditionsManager.removeImageCondition(id,id2,filename?="")
+GET         /campaigns/campaign/:id/:id2/picture/delete        controllers.ConditionsManager.removeImageCondition(id,id2,filename?="")
 
 
 # Map static resources from the /public folder to the /assets URL path

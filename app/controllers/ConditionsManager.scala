@@ -208,8 +208,118 @@ trait ConditionsManagerLike extends Controller{
 
           //If campaign found
           campaign=> {
-            val session=request.session + ("condition"->Json.stringify(Json.obj()))
+            val session=request.session + ("condition"->Json.stringify(Json.obj("form"->"insert")))
             future{Ok(views.html.campaign.formConditions(form.bind(Map("debut"->new SimpleDateFormat("dd/MM/yyyy HH:mm:ss").format(new Date))),id, printStateForm("infoCondition", campaign.types, id))).withSession(session)}
+          }
+        }{
+
+          //If campaign not found
+          _ => future{Redirect(routes.CampagneManager.listCampaign())}
+        }
+      }
+  }
+
+  /**
+   * This method is call when the user is on the page /campaigns/campaign/:id/:id2/form. It display form for update a condition
+   * @return Return Ok Action when the user is on the page /campaigns/campaign/:id/:id2/form with a form for update a condition
+   *         Return Redirect Action when the user is not log in
+   *         Return Internal Server Error Action when have mongoDB error
+   */
+  @ApiOperation(
+    nickname = "conditions/form/update",
+    value = "Get the html page with form for update a condition",
+    notes = "Get the html page with form for update a condition",
+    httpMethod = "GET")
+  @ApiResponses(Array(
+    new ApiResponse(code=303,message="Move resource to the login page at /login if the user is not log"),
+    new ApiResponse(code=500,message="Have a mongoDB error")
+  ))
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(name="id",value="Campaign id",required=true,dataType="String",paramType="path"),
+    new ApiImplicitParam(name="id2",value="Condition id",required=true,dataType="String",paramType="path")
+  ))
+  def formGeneralUpdate(id:String,id2:String)=Action.async{
+    implicit request =>
+      //Verify if user is connect
+      UserManager.doIfconnectAsync(request) {
+
+        //Verify if campaign exist
+        campaignManager.doIfCampaignFound(BSONObjectID(id)){
+
+          //If campaign found
+          campaign=>
+
+            //Find the condition
+            conditionsDao.findById(BSONObjectID(id2)).flatMap(
+            conditionOpt=>conditionOpt match{
+
+                //If condition not found redirect to the list of conditions
+              case None=>future{Redirect(routes.ConditionsManager.listConditions(id))}
+
+                //If condition found, find the localisation
+              case Some(condition)=>localisationDao.findOne(Json.obj("condition"->condition._id)).map(
+                localisation=>{
+
+                  //Prepare data condition for set to the session
+                  val session=request.session + ("condition"->Json.stringify(Json.obj("form"->"update","id"->id2,"debut"->condition.dateDebut,"fin"->condition.dateFin,"commentaire"->condition.commentaire,"module"->condition.modules.stringify,"localisation"->localisation)))
+
+                  //Prepare data for prefilled the form
+                  val data=Map("debut"->new SimpleDateFormat("dd/MM/yyyy HH:mm:ss").format(condition.dateDebut),
+                    "fin"->condition.dateFin.fold("")(d=>new SimpleDateFormat("dd/MM/yyyy HH:mm:ss").format(d)),
+                    "commentaire"->condition.commentaire.getOrElse("")
+                  )
+
+                  //Display the form
+                  Ok(views.html.campaign.formConditions(form.bind(data),id, printStateForm("infoCondition", campaign.types, id))).withSession(session)
+                }
+              )
+            }
+          )
+        }{
+
+          //If campaign not found
+          _ => future{Redirect(routes.CampagneManager.listCampaign())}
+        }
+      }
+  }
+
+  /**
+   * This method is call when the user is on the page /campaigns/campaign/:id/form/update. It display form for update input condition general information
+   * @return Return Ok Action when the user is on the page /campaigns/campaign/:id/form/update with a form for update input condition general information
+   *         Return Redirect Action when the user is not log in
+   *         Return Internal Server Error Action when have mongoDB error
+   */
+  @ApiOperation(
+    nickname = "conditions/form",
+    value = "Get the html page with form for update input condition general information",
+    notes = "Get the html page with form for update input condition general information",
+    httpMethod = "GET")
+  @ApiResponses(Array(
+    new ApiResponse(code=303,message="Move resource to the login page at /login if the user is not log"),
+    new ApiResponse(code=500,message="Have a mongoDB error")
+  ))
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(name="id",value="Campaign id",required=true,dataType="String",paramType="path")
+  ))
+  def formGeneralUpdateInput(id:String)=Action.async{
+    implicit request =>
+      //Verify if user is connect
+      UserManager.doIfconnectAsync(request) {
+
+        //Verify if campaign exist
+        campaignManager.doIfCampaignFound(BSONObjectID(id)){
+
+          //If campaign found
+          campaign=> {
+
+            //Find condition in session
+            val cond=findCondition
+
+            //Prepare data for prefilled the form
+            val dataForm=ConditionForm((cond\"debut").asOpt[Date].getOrElse(new Date),(cond\"fin").asOpt[Date],(cond\"commentaire").asOpt[String])
+
+            //Display the form
+            future{Ok(views.html.campaign.formConditions(form.fill(dataForm),id, printStateForm("infoCondition", campaign.types, id)))}
           }
         }{
 
@@ -292,7 +402,20 @@ trait ConditionsManagerLike extends Controller{
             campaign.types match {
 
               //If campaign type is equal to 'Terrain', display the form
-              case "Terrain" =>future{Ok(views.html.campaign.formLocalisation(localisationForm,"",id,printStateForm("localisation",campaign.types, id)))}
+              case "Terrain" =>{
+
+                //Find condition
+                val cond=findCondition
+
+                //Prepare data for prefilled the form
+                val formLoc=(cond\"localisation").asOpt[Localisation] match{
+                  case None=>localisationForm
+                  case Some(loc)=>localisationForm.fill(LocalisationForm(loc.nom,loc.lat,loc.lon,loc.commentaire))
+                }
+
+                //Display the form
+                future{Ok(views.html.campaign.formLocalisation(formLoc,"",id,printStateForm("localisation",campaign.types, id)))}
+              }
 
               //else redirect to conditions list
               case _ =>future{Redirect(routes.ConditionsManager.listConditions(id))}
@@ -338,10 +461,10 @@ trait ConditionsManagerLike extends Controller{
             verifyAllData(campaign.types){
 
                   //If condition information not have error
-              (cond,loc,module)=>future{Ok(views.html.campaign.validate(cond,loc,Some(module),"",id,printStateForm("validate", campaign.types, id)))}
+              (cond,loc,module)=>future{Ok(views.html.campaign.validate(cond,loc,Some(module),"",id,app.path.toString,tempFileBuilder,printStateForm("validate", campaign.types, id)))}
             }{
                   //Id condition information have error
-              (error,cond,loc,module)=>future{BadRequest(views.html.campaign.validate(cond,loc,module,error,id,printStateForm("validate", campaign.types, id)))}
+              (error,cond,loc,module)=>future{BadRequest(views.html.campaign.validate(cond,loc,module,error,id,app.path.toString,tempFileBuilder,printStateForm("validate", campaign.types, id)))}
             }
         }{
           //If campaign not found
@@ -485,13 +608,18 @@ trait ConditionsManagerLike extends Controller{
               //If form have error, display the form with error
               formWithErrors => future {BadRequest(views.html.campaign.formLocalisation(formWithErrors, "", id, printStateForm("localisation", campaign.types, id))(request.asInstanceOf[Request[AnyContent]]))},
               data => {
+                val oldCond=findCondition(request.asInstanceOf[Request[AnyContent]])
+
                 //Insert image into the temporary directory
                 val img = insertImage(request.body.files.toList)
 
                 //Create the localisation
-                val loc = Localisation(nom = data.nom, lat = data.lat, lon = data.lon, commentaire = data.commentaire, photo = img, condition = BSONObjectID.generate)
+                val loc = (oldCond\"localisation").asOpt[Localisation] match{
+                  case None=>Localisation(nom = data.nom, lat = data.lat, lon = data.lon, commentaire = data.commentaire, photo = img, condition = BSONObjectID.generate)
+                  case Some(locSession)=>Localisation(nom = data.nom, lat = data.lat, lon = data.lon, commentaire = data.commentaire, photo = img ::: locSession.photo, condition = BSONObjectID.generate)
+                }
 
-                val cond=findCondition(request.asInstanceOf[Request[AnyContent]]) + ("localisation" -> Json.toJson(loc))
+                val cond=oldCond + ("localisation" -> Json.toJson(loc))
 
                 //Redirect to the next page
                 future {Redirect(routes.ConditionsManager.formValidate(id)).withSession(request.asInstanceOf[Request[AnyContent]].session + ("condition" -> Json.stringify(cond)))}
@@ -554,7 +682,7 @@ trait ConditionsManagerLike extends Controller{
               }
             }{
               //Id condition information have error
-              (error,cond,loc,module)=>future{BadRequest(views.html.campaign.validate(cond,loc,module,error,id,printStateForm("validate", campaign.types, id)))}
+              (error,cond,loc,module)=>future{BadRequest(views.html.campaign.validate(cond,loc,module,error,id,app.path.toString,tempFileBuilder,printStateForm("validate", campaign.types, id)))}
             }
         }{
           //If campaign not found
@@ -930,7 +1058,7 @@ trait ConditionsManagerLike extends Controller{
             if (!types.equals("Terrain") || verifyLocalisation(loc)) {
 
               //Verify if module is not used in other condition at the same time
-              if(verifyModuleAvailable(cond.modules,cond.dateDebut,cond.dateFin)) {
+              if(verifyModuleAvailable(cond.modules,cond.dateDebut,cond.dateFin,(findCondition\"id").asOpt[String])) {
                 correct(cond, loc, module)
               }
               else{
@@ -956,15 +1084,20 @@ trait ConditionsManagerLike extends Controller{
    * @param fin End date of the condition
    * @return Return true if the module is not used else false
    */
-  def verifyModuleAvailable(id:BSONObjectID,debut:Date,fin:Option[Date]):Boolean={
+  def verifyModuleAvailable(id:BSONObjectID,debut:Date,fin:Option[Date],idCondition:Option[String]):Boolean={
     //Create part of query for begin date
     val begin=createQueryIntersect("dateDebut",debut,fin)
 
     //Create part of query for end date
     val end=Json.obj("$or"->JsArray(Seq(createQueryIntersect("dateFin",debut,fin) + ("dateFin"->Json.obj("$exists"->false)))))
 
+    val query=idCondition match{
+      case None=>Json.obj("modules"->id,"$or"->JsArray(Seq(begin,end)))
+      case Some(idCond)=>Json.obj("_id"->Json.obj("$ne"->BSONObjectID(idCond)),"modules"->id,"$or"->JsArray(Seq(begin,end)))
+    }
+
     //Find condition if module is used
-    val res=conditionsDao.findOne(Json.obj("modules"->id,"$or"->JsArray(Seq(begin,end)))).map(
+    val res=conditionsDao.findOne(query).map(
       data=>data match{
 
           //Condition not found

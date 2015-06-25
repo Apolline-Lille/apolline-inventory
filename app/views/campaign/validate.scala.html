@@ -1,6 +1,18 @@
-@(cond:Condition,loc:Option[Localisation],module:Option[Module],error:String,id:String,state:Html)(implicit request: Request[AnyContent])
+@(cond:Condition,loc:Option[Localisation],module:Option[Module],error:String,id:String,path:String,tempFileBuilder:TemporaryFileBuilder,state:Html)(implicit request: Request[AnyContent])
 
 @import java.text.SimpleDateFormat
+@import java.io.File
+@import play.api.libs.json.Json
+
+@deleteLink(path:String,fileName:String)={@{tempFileBuilder.createFile(path + "/public/images/campaign/tmp/" + fileName).exists() match {
+      case true => routes.ConditionsManager.removeImageCondition(id,"",fileName)
+      case false =>routes.ConditionsManager.removeImageCondition(id,(Json.parse(request.session.get("condition").get)\"id").as[String],fileName)
+}}}
+
+@imgUrl(path:String,fileName:String)={@{tempFileBuilder.createFile(path + "/public/images/campaign/tmp/" + fileName).exists() match {
+      case true => routes.Assets.at("/public", "images/campaign/tmp/" + fileName)
+      case false =>routes.Assets.at("/public", "images/campaign/" + fileName)
+}}}
 
 @main(Messages("campaign.list.title")){
   @navigation("campaign")
@@ -25,10 +37,10 @@
                 <div class="row">
                   @for(photo<-loc.get.photo){
                     <div class="img-xs img-md img-lg img-thumbnail">
-                      <a class="linkImg" href="@routes.Assets.at("/public","images/campaign/tmp/"+photo)">
-                        <img src="@routes.Assets.at("/public","images/campaign/tmp/"+photo)" class="img-responsive">
+                      <a class="linkImg" href="@imgUrl(path,photo)">
+                        <img src="@imgUrl(path,photo)" class="img-responsive">
                       </a>
-                      <a class="linkDeleteImg" href="@routes.ConditionsManager.removeImageCondition(id,"",photo)"><span class="glyphicon glyphicon-remove"></span></a>
+                      <a class="linkDeleteImg" href="@deleteLink(path,photo)"><span class="glyphicon glyphicon-remove"></span></a>
                     </div>
                   }
                 </div>
