@@ -1235,16 +1235,19 @@ class ConditionsManagerSpec extends Specification with Mockito {
       val locObj=Localisation(bson2,bson3,"loc",Some(1.2f),Some(3.4f),Some("un com"),List("img.jpg"))
       val session=Json.obj("debut"->date,"fin"->date2,"commentaire"->"unCom","module"->bson4.stringify,"localisation"->Json.toJson(locObj))
       val module=Module(bson4,"idMod","typeMod",date,List(),List(),Some("moduleCom"))
-      val camp=Campagne(nom="camp",types="Terrain",conditions=List())
+      val camp=Campagne(bson,nom="camp",types="Terrain",conditions=List())
       val queryBegin=Json.obj("dateDebut"->Json.obj("$gte"->date,"$lte"->date2))
       val queryEnd=Json.obj("$or"->JsArray(Seq(Json.obj("dateFin"->Json.obj("$gte"->date,"$lte"->date2),"dateFin"->Json.obj("$exists"->false)))))
       val query=Json.obj("modules"->bson4,"$or"->JsArray(Seq(queryBegin,queryEnd)))
       val tempFile=mock[TemporaryFile]
+      val fTmp=mock[File]
       val f1=new File("/route/public/images/campaign/img.jpg")
       val lastError=mock[LastError]
 
       f.appMock.path returns (new File("/route"))
-      f.tempFileBuilderMock.createTemporaryFile(org.mockito.Matchers.eq(new File("/route/public/images/campaign/tmp/img.jpg"))) returns tempFile
+      f.tempFileBuilderMock.createFile(org.mockito.Matchers.eq("/route/public/images/campaign/tmp/img.jpg")) returns fTmp
+      fTmp.exists returns true
+      f.tempFileBuilderMock.createTemporaryFile(org.mockito.Matchers.eq(fTmp)) returns tempFile
       org.mockito.Mockito.doNothing.when(tempFile).moveTo(org.mockito.Matchers.eq(f1),any[Boolean])
       tempFile.clean() returns true
       f.localisationDaoMock.insert(any[Localisation],any[GetLastError])(any[ExecutionContext]) returns future{lastError}
@@ -1268,11 +1271,54 @@ class ConditionsManagerSpec extends Specification with Mockito {
       there was one(f.campaignManagerMock).doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]])
       there was one(f.conditionDaoMock).findOne(org.mockito.Matchers.eq(query))(any[ExecutionContext])
       there was 2.times(f.appMock).path
+      there was one(f.tempFileBuilderMock).createFile(org.mockito.Matchers.eq("/route/public/images/campaign/tmp/img.jpg"))
+      there was one(fTmp).exists
       there was one(f.tempFileBuilderMock).createTemporaryFile(any[File])
       there was one(tempFile).moveTo(org.mockito.Matchers.eq(f1),any[Boolean])
       there was one(tempFile).clean()
       there was one(f.localisationDaoMock).insert(any[Localisation],any[GetLastError])(any[ExecutionContext])
       there was one(f.conditionDaoMock).insert(any[Condition],any[GetLastError])(any[ExecutionContext])
+    }
+
+    "send redirect after update condition and localisation into the database" in new WithApplication{
+      val f = fixture
+      val locObj=Localisation(bson2,bson3,"loc",Some(1.2f),Some(3.4f),Some("un com"),List("img.jpg"))
+      val session=Json.obj("form"->"update","id"->bson3.stringify,"debut"->date,"fin"->date2,"commentaire"->"unCom","module"->bson4.stringify,"localisation"->Json.toJson(locObj))
+      val module=Module(bson4,"idMod","typeMod",date,List(),List(),Some("moduleCom"))
+      val camp=Campagne(bson,nom="camp",types="Terrain",conditions=List())
+      val queryBegin=Json.obj("dateDebut"->Json.obj("$gte"->date,"$lte"->date2))
+      val queryEnd=Json.obj("$or"->JsArray(Seq(Json.obj("dateFin"->Json.obj("$gte"->date,"$lte"->date2),"dateFin"->Json.obj("$exists"->false)))))
+      val query=Json.obj("_id"->Json.obj("$ne"->bson3),"modules"->bson4,"$or"->JsArray(Seq(queryBegin,queryEnd)))
+      val fTmp=mock[File]
+      val lastError=mock[LastError]
+
+      f.appMock.path returns (new File("/route"))
+      f.tempFileBuilderMock.createFile(org.mockito.Matchers.eq("/route/public/images/campaign/tmp/img.jpg")) returns fTmp
+      fTmp.exists returns false
+      f.localisationDaoMock.updateById(org.mockito.Matchers.eq(bson2),org.mockito.Matchers.eq(locObj),any[GetLastError])(any[Writes[Localisation]],any[ExecutionContext]) returns future{lastError}
+      f.conditionDaoMock.updateById(org.mockito.Matchers.eq(bson3),any[Condition],any[GetLastError])(any[Writes[Condition]],any[ExecutionContext]) returns future{lastError}
+      f.campaignManagerMock.doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]]) answers {(params,_) => params match{
+        case Array(_,p:(Campagne=>Future[Result]),_) => p.apply(camp)
+      }}
+
+      f.moduleDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->bson4)))(any[ExecutionContext]) returns future{Some(module)}
+
+      f.conditionDaoMock.findOne(org.mockito.Matchers.eq(query))(any[ExecutionContext]) returns future{None}
+
+      val req=FakeRequest(POST,"/campaigns/campaign/"+bson.stringify+"/form/validate").withSession("user" -> """{"login":"test"}""").withSession("condition"->Json.stringify(session))
+      val r=f.controller.validate(bson.stringify)(req)
+
+      status(r) must equalTo(SEE_OTHER)
+      header("Location",r) must beSome("/campaigns/campaign/"+bson.stringify)
+
+      there was one(f.moduleDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->bson4)))(any[ExecutionContext])
+      there was one(f.campaignManagerMock).doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]])
+      there was one(f.conditionDaoMock).findOne(org.mockito.Matchers.eq(query))(any[ExecutionContext])
+      there was 1.times(f.appMock).path
+      there was one(f.tempFileBuilderMock).createFile(org.mockito.Matchers.eq("/route/public/images/campaign/tmp/img.jpg"))
+      there was one(fTmp).exists
+      there was one(f.localisationDaoMock).updateById(org.mockito.Matchers.eq(bson2),org.mockito.Matchers.eq(locObj),any[GetLastError])(any[Writes[Localisation]],any[ExecutionContext])
+      there was one(f.conditionDaoMock).updateById(org.mockito.Matchers.eq(bson3),any[Condition],any[GetLastError])(any[Writes[Condition]],any[ExecutionContext])
     }
 
     "send Bad request with error message if condition have an error" in new WithApplication{
@@ -2019,12 +2065,18 @@ class ConditionsManagerSpec extends Specification with Mockito {
       val f=fixture
       val tempFile=mock[TemporaryFile]
       val tempFile2=mock[TemporaryFile]
+      val fTmp1=mock[File]
+      val fTmp2=mock[File]
       val f1=new File("/route/public/images/campaign/img.jpg")
       val f2=new File("/route/public/images/campaign/img2.jpg")
 
       f.appMock.path returns (new File("/route"))
-      f.tempFileBuilderMock.createTemporaryFile(org.mockito.Matchers.eq(new File("/route/public/images/campaign/tmp/img.jpg"))) returns tempFile
-      f.tempFileBuilderMock.createTemporaryFile(org.mockito.Matchers.eq(new File("/route/public/images/campaign/tmp/img2.jpg"))) returns tempFile2
+      f.tempFileBuilderMock.createFile(org.mockito.Matchers.eq("/route/public/images/campaign/tmp/img.jpg")) returns fTmp1
+      f.tempFileBuilderMock.createFile(org.mockito.Matchers.eq("/route/public/images/campaign/tmp/img2.jpg")) returns fTmp2
+      fTmp1.exists returns true
+      fTmp2.exists returns true
+      f.tempFileBuilderMock.createTemporaryFile(org.mockito.Matchers.eq(fTmp1)) returns tempFile
+      f.tempFileBuilderMock.createTemporaryFile(org.mockito.Matchers.eq(fTmp2)) returns tempFile2
 
       org.mockito.Mockito.doNothing.when(tempFile).moveTo(org.mockito.Matchers.eq(f1),any[Boolean])
       org.mockito.Mockito.doNothing.when(tempFile2).moveTo(org.mockito.Matchers.eq(f2),any[Boolean])
@@ -2035,14 +2087,35 @@ class ConditionsManagerSpec extends Specification with Mockito {
       f.controller.moveImages(List("img.jpg","img2.jpg"))
 
       there was 4.times(f.appMock).path
-      there was one(f.tempFileBuilderMock).createTemporaryFile(org.mockito.Matchers.eq(new File("/route/public/images/campaign/tmp/img.jpg")))
-      there was one(f.tempFileBuilderMock).createTemporaryFile(org.mockito.Matchers.eq(new File("/route/public/images/campaign/tmp/img2.jpg")))
+      there was one(f.tempFileBuilderMock).createTemporaryFile(org.mockito.Matchers.eq(fTmp1))
+      there was one(f.tempFileBuilderMock).createTemporaryFile(org.mockito.Matchers.eq(fTmp2))
+      there was one(f.tempFileBuilderMock).createFile(org.mockito.Matchers.eq("/route/public/images/campaign/tmp/img.jpg"))
+      there was one(f.tempFileBuilderMock).createFile(org.mockito.Matchers.eq("/route/public/images/campaign/tmp/img2.jpg"))
+      there was one(fTmp1).exists
+      there was one(fTmp2).exists
 
       there was one(tempFile).moveTo(org.mockito.Matchers.eq(f1),any[Boolean])
       there was one(tempFile2).moveTo(org.mockito.Matchers.eq(f2),any[Boolean])
 
       there was one(tempFile).clean()
       there was one(tempFile2).clean()
+    }
+
+    "Not move file if not exists in temporary folder" in new WithApplication{
+      val f=fixture
+      val tempFile=mock[TemporaryFile]
+      val fTmp=mock[File]
+
+      f.appMock.path returns (new File("/route"))
+      f.tempFileBuilderMock.createFile(org.mockito.Matchers.eq("/route/public/images/campaign/tmp/img.jpg")) returns fTmp
+      fTmp.exists returns false
+
+      f.controller.moveImages(List("img.jpg"))
+
+      there was 1.times(f.appMock).path
+      there was one(f.tempFileBuilderMock).createFile(org.mockito.Matchers.eq("/route/public/images/campaign/tmp/img.jpg"))
+      there was one(fTmp).exists
+      there was no(f.tempFileBuilderMock).createTemporaryFile(org.mockito.Matchers.eq(fTmp))
     }
 
     "Not find files" in new WithApplication{
@@ -2073,12 +2146,15 @@ class ConditionsManagerSpec extends Specification with Mockito {
       val f=fixture
       val localisation=Localisation(bson,bson2,"Test",Some(1.2f),Some(3.4f),Some("un com"),List("img.jpg"))
       val tempFile=mock[TemporaryFile]
+      val fTmp1=mock[File]
       val f1=new File("/route/public/images/campaign/img.jpg")
       val lastError=mock[LastError]
       val cond=Condition(bson2,date,None,None,bson3)
 
       f.appMock.path returns (new File("/route"))
-      f.tempFileBuilderMock.createTemporaryFile(org.mockito.Matchers.eq(new File("/route/public/images/campaign/tmp/img.jpg"))) returns tempFile
+      f.tempFileBuilderMock.createFile(org.mockito.Matchers.eq("/route/public/images/campaign/tmp/img.jpg")) returns fTmp1
+      f.tempFileBuilderMock.createTemporaryFile(org.mockito.Matchers.eq(fTmp1)) returns tempFile
+      fTmp1.exists returns true
       org.mockito.Mockito.doNothing.when(tempFile).moveTo(org.mockito.Matchers.eq(f1),any[Boolean])
       tempFile.clean() returns true
       f.localisationDaoMock.insert(org.mockito.Matchers.eq(localisation),any[GetLastError])(any[ExecutionContext]) returns future{lastError}
@@ -2090,6 +2166,50 @@ class ConditionsManagerSpec extends Specification with Mockito {
       there was one(tempFile).moveTo(org.mockito.Matchers.eq(f1),any[Boolean])
       there was one(tempFile).clean()
       there was one(f.localisationDaoMock).insert(org.mockito.Matchers.eq(localisation),any[GetLastError])(any[ExecutionContext])
+      there was one(fTmp1).exists
+      there was one(f.tempFileBuilderMock).createFile(org.mockito.Matchers.eq("/route/public/images/campaign/tmp/img.jpg"))
+    }
+  }
+
+  "When method updateLocalisation is called, ConditionsManager" should{
+    "do nothing if not have localisation" in new WithApplication{
+      val f=fixture
+      val cond=mock[Condition]
+
+      val r=f.controller.updateLocalisation(None)
+
+      Await.result(r,Duration.Inf) must equalTo(LastError(true,None,None,None,None,0,false))
+
+      there was no(f.appMock).path
+      there was no(f.tempFileBuilderMock).createTemporaryFile(any[File])
+      there was no(f.localisationDaoMock).updateById(any[BSONObjectID],any[Localisation],any[GetLastError])(any[Writes[Localisation]],any[ExecutionContext])
+    }
+
+    "move picture and update the localisation" in new WithApplication{
+      val f=fixture
+      val localisation=Localisation(bson,bson2,"Test",Some(1.2f),Some(3.4f),Some("un com"),List("img.jpg"))
+      val tempFile=mock[TemporaryFile]
+      val fTmp1=mock[File]
+      val f1=new File("/route/public/images/campaign/img.jpg")
+      val lastError=mock[LastError]
+
+      f.appMock.path returns (new File("/route"))
+      f.tempFileBuilderMock.createFile(org.mockito.Matchers.eq("/route/public/images/campaign/tmp/img.jpg")) returns fTmp1
+      f.tempFileBuilderMock.createTemporaryFile(org.mockito.Matchers.eq(fTmp1)) returns tempFile
+      fTmp1.exists returns true
+      org.mockito.Mockito.doNothing.when(tempFile).moveTo(org.mockito.Matchers.eq(f1),any[Boolean])
+      tempFile.clean() returns true
+      f.localisationDaoMock.updateById(org.mockito.Matchers.eq(bson),org.mockito.Matchers.eq(localisation),any[GetLastError])(any[Writes[Localisation]],any[ExecutionContext]) returns future{lastError}
+
+      val r=f.controller.updateLocalisation(Some(localisation))
+
+      there was 2.times(f.appMock).path
+      there was one(f.tempFileBuilderMock).createTemporaryFile(any[File])
+      there was one(tempFile).moveTo(org.mockito.Matchers.eq(f1),any[Boolean])
+      there was one(tempFile).clean()
+      there was one(f.localisationDaoMock).updateById(org.mockito.Matchers.eq(bson),org.mockito.Matchers.eq(localisation),any[GetLastError])(any[Writes[Localisation]],any[ExecutionContext])
+      there was one(fTmp1).exists
+      there was one(f.tempFileBuilderMock).createFile(org.mockito.Matchers.eq("/route/public/images/campaign/tmp/img.jpg"))
     }
   }
 
@@ -2288,6 +2408,51 @@ class ConditionsManagerSpec extends Specification with Mockito {
       there was one(f.tempFileBuilderMock).createFile(org.mockito.Matchers.eq("/route/public/images/campaign/tmp/img.jpg"))
       there was one(file).exists
       there was one(file).delete
+    }
+  }
+
+  "When method insertCondition is called, ConditionsManager" should{
+    "insert the condition, update the campaign, insert the localisation and redirect" in new WithApplication{
+      val f=fixture
+      val cond=mock[Condition]
+      val campaign=mock[Campagne]
+      val lastError=mock[LastError]
+
+      campaign._id returns bson
+      campaign.conditions returns List(bson2)
+      cond._id returns bson2
+      f.conditionDaoMock.insert(org.mockito.Matchers.eq(cond),any[GetLastError])(any[ExecutionContext]) returns future{lastError}
+      f.campaignDaoMock.updateById(org.mockito.Matchers.eq(bson),any[Campagne],any[GetLastError])(any[Writes[Campagne]],any[ExecutionContext]) returns future{lastError}
+
+      val r=f.controller.insertCondition(campaign,cond,None)(FakeRequest(GET,"url"))
+
+      status(r) must equalTo(SEE_OTHER)
+      header("Location",r) must beSome("/campaigns/campaign/"+bson.stringify)
+
+      there was 2.times(campaign)._id
+      there was one(campaign).conditions
+      there was one(cond)._id
+      there was one(f.conditionDaoMock).insert(org.mockito.Matchers.eq(cond),any[GetLastError])(any[ExecutionContext])
+      there was one(f.campaignDaoMock).updateById(org.mockito.Matchers.eq(bson),any[Campagne],any[GetLastError])(any[Writes[Campagne]],any[ExecutionContext])
+    }
+  }
+
+  "When method updateCondition is called, ConditionsManager" should{
+    "update the condition, update the localisation and redirect" in new WithApplication{
+      val f=fixture
+      val cond=mock[Condition]
+      val lastError=mock[LastError]
+
+      cond.copy(org.mockito.Matchers.eq(bson2),any[Date],any[Option[Date]],any[Option[String]],any[BSONObjectID]) returns cond
+      f.conditionDaoMock.updateById(org.mockito.Matchers.eq(bson2),org.mockito.Matchers.eq(cond),any[GetLastError])(any[Writes[Condition]],any[ExecutionContext]) returns future{lastError}
+
+      val r=f.controller.updateCondition(cond,None,bson.stringify)(FakeRequest(GET,"url").withSession("condition"->Json.stringify(Json.obj("id"->bson2.stringify))))
+
+      status(r) must equalTo(SEE_OTHER)
+      header("Location",r) must beSome("/campaigns/campaign/"+bson.stringify)
+
+      there was one(cond).copy(org.mockito.Matchers.eq(bson2),any[Date],any[Option[Date]],any[Option[String]],any[BSONObjectID])
+      there was one(f.conditionDaoMock).updateById(org.mockito.Matchers.eq(bson2),org.mockito.Matchers.eq(cond),any[GetLastError])(any[Writes[Condition]],any[ExecutionContext])
     }
   }
 }

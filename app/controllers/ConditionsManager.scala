@@ -669,16 +669,15 @@ trait ConditionsManagerLike extends Controller{
               //If condition information not have error
               (cond,loc,module)=>{
 
-                //Insert the condition
-                conditionsDao.insert(cond).flatMap(
+                //Find the type of form
+                (findCondition\"form").asOpt[String] match{
 
-                  data=>campaignDao.updateById(campaign._id,campaign.copy(conditions=(campaign.conditions :+ cond._id))).flatMap(
-                    //Move picture and insert the localisation
-                    data=>insertLocalisation(loc,cond).map(
-                      data=>Redirect(routes.ConditionsManager.listConditions(id)).withSession(request.session - "condition")
-                    )
-                  )
-                )
+                    //Update the condition
+                  case Some("update")=>updateCondition(cond,loc,id)
+
+                    //Insert the condition
+                  case _=>insertCondition(campaign,cond,loc)
+                }
               }
             }{
               //Id condition information have error
@@ -772,6 +771,53 @@ trait ConditionsManagerLike extends Controller{
           _ => future{Redirect(routes.CampagneManager.listCampaign())}
         }
       }
+  }
+
+  /**
+   * This method insert a condition, and the associat localisation into the database and udpate le campaign for associat the localisation
+   * @param campaign The Campaign to update
+   * @param cond The condition to insert
+   * @param loc The localisation to insert
+   * @param request Request received
+   * @return Return redirect to the conditions list
+   */
+  def insertCondition(campaign:Campagne,cond:Condition,loc:Option[Localisation])(implicit request:Request[AnyContent])={
+    //Insert the condition
+    conditionsDao.insert(cond).flatMap(
+
+      //Update the campaign
+      data=>campaignDao.updateById(campaign._id,campaign.copy(conditions=(campaign.conditions :+ cond._id))).flatMap(
+
+        //Move picture and insert the localisation
+        data=>insertLocalisation(loc,cond).map(
+          data=>Redirect(routes.ConditionsManager.listConditions(campaign._id.stringify)).withSession(request.session - "condition")
+        )
+
+      )
+    )
+  }
+
+  /**
+   * This method update a condition, and the associat localisation into the database
+   * @param cond The condition to update
+   * @param loc The localisation to update
+   * @param id Campaign id
+   * @param request Request received
+   * @return Return redirect to the conditions list
+   */
+  def updateCondition(cond:Condition,loc:Option[Localisation],id:String)(implicit request:Request[AnyContent])={
+
+    //Find the condition id
+    val condId=BSONObjectID((findCondition\"id").as[String])
+
+    //Update the condition
+    conditionsDao.updateById(condId,cond.copy(_id=condId)).flatMap(
+
+      //Move image in the temporary folder to the definitive folder
+      data=>updateLocalisation(loc).map(
+        data=>Redirect(routes.ConditionsManager.listConditions(id)).withSession(request.session - "condition")
+      )
+    )
   }
 
   /**
@@ -869,6 +915,26 @@ trait ConditionsManagerLike extends Controller{
   }
 
   /**
+   * This method move localisation picture and update localisation into mongoDB if localisation was found
+   * @param locOpt Localistion to update
+   * @return
+   */
+  def updateLocalisation(locOpt:Option[Localisation])=locOpt match{
+    //If localisation not found
+    case None=>future{LastError(true,None,None,None,None,0,false)}
+
+    //If localisation found
+    case Some(loc)=>{
+
+      //Move picture
+      moveImages(loc.photo)
+
+      //Insert the localisation
+      localisationDao.updateById(loc._id,loc)
+    }
+  }
+
+  /**
    * This method move localisation picture into campaign directory
    * @param imgs List of pictures
    */
@@ -879,14 +945,18 @@ trait ConditionsManagerLike extends Controller{
 
       //If have picture
     case h::t=>{
-      //Get the picture
-      val tempFile=tempFileBuilder.createTemporaryFile(new File(app.path+"/public/images/campaign/tmp/"+h))
+      val f=tempFileBuilder.createFile(app.path+"/public/images/campaign/tmp/"+h)
 
-      //Move the picture
-      tempFile.moveTo(new File(app.path+"/public/images/campaign/"+h))
+      if(f.exists()) {
+        //Get the picture
+        val tempFile = tempFileBuilder.createTemporaryFile(f)
 
-      //Delete the old picture
-      tempFile.clean
+        //Move the picture
+        tempFile.moveTo(new File(app.path + "/public/images/campaign/" + h))
+
+        //Delete the old picture
+        tempFile.clean
+      }
 
       //Move other image
       moveImages(t)
