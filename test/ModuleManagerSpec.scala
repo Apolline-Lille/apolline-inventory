@@ -45,6 +45,7 @@ class ModuleManagerSpec extends Specification with Mockito {
     val sensorsDaoMock: SensorDao = mock[SensorDao]
     val typeSensorsDaoMock: TypeSensorDao = mock[TypeSensorDao]
     val typeMesureDaoMock: TypeMesureDao = mock[TypeMesureDao]
+    val conditionDaoMock:ConditionDao = mock[ConditionDao]
     val controller=new ModuleManagerTest{
       override val typeCardsManager:TypeCardsManagerLike = typeCardsManagerMock
       override val cardsManager:CardsManagerLike = cardsManagerMock
@@ -57,6 +58,7 @@ class ModuleManagerSpec extends Specification with Mockito {
       override val sensorsDao: SensorDao = sensorsDaoMock
       override val typeSensorsDao: TypeSensorDao = typeSensorsDaoMock
       override val typeMesureDao: TypeMesureDao = typeMesureDaoMock
+      override val conditionDao:ConditionDao=conditionDaoMock
     }
   }
 
@@ -307,6 +309,7 @@ class ModuleManagerSpec extends Specification with Mockito {
       f.firmwareDaoMock.findAll(any[JsObject],any[JsObject])(any[ExecutionContext]) returns future{List(firmware)}
       f.cardsDaoMock.findAll(org.mockito.Matchers.eq(matcher),any[JsObject])(any[ExecutionContext]) returns future{List(cards)}
       f.moduleDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->bson4)))(any[ExecutionContext]) returns future{Some(module)}
+      f.conditionDaoMock.findModulesState(org.mockito.Matchers.eq(List(bson4))) returns future{Map(bson4->"Terrain")}
 
       val req=FakeRequest("GET","/inventary/modules/"+bson4.stringify).withSession("user" -> """{"login":"test"}""")
       val r=f.controller.moreInformation(bson4.stringify).apply(req)
@@ -329,7 +332,7 @@ class ModuleManagerSpec extends Specification with Mockito {
       content must contain("<div class=\"row\"> <span class=\"bold\">Nombre de signaux</span> : 1 (tension)</div>")
       content must contain("<div class=\"row\"> <span class=\"bold\">Espèces</span> : esp1</div>")
       content must contain("<td>Id</td>")
-      content must contain("<td>Hors service</td>")
+      content must contain("<td>Hors service<br/>Terrain</td>")
 
       there was one(f.sensorsDaoMock).fold(org.mockito.Matchers.eq(matcher),any[JsObject],org.mockito.Matchers.eq(HashSet[BSONObjectID]()))(any[(HashSet[BSONObjectID],Sensor)=>HashSet[BSONObjectID]])(any[ExecutionContext])
       there was one(f.typeSensorsDaoMock).findAll(org.mockito.Matchers.eq(matcher2),any[JsObject])(any[ExecutionContext])

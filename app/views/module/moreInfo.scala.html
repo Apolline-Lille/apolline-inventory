@@ -1,4 +1,4 @@
-@(mod:Module,typesCards:List[TypeCards],cards:List[Cards],listFirmware:List[Firmware],typeSensors:List[TypeSensor],typeMesure:List[TypeMesure],sensors:List[Sensor])(implicit request:Request[AnyContent])
+@(mod:Module,state:String,typesCards:List[TypeCards],cards:List[Cards],listFirmware:List[Firmware],typeSensors:List[TypeSensor],typeMesure:List[TypeMesure],sensors:List[Sensor])(implicit request:Request[AnyContent])
 
 @main(Messages("inventary.module.title")) {
   @navigation("inventary")
@@ -40,7 +40,7 @@
                         <td>@defining(listFirmware.filter(firm => firm._id.equals(mod.firmware))) { firm =>@firm.head.nom (@firm.head.version)}</td>
                         <td>@if(mod.agregateur) { @Messages("global.yes") } else { @Messages("global.no") }</td>
                         <td>@mod.apolline.getOrElse("-")</td>
-                        <td>@if(mod.hs) {@Messages("inventary.card.hs")}</td>
+                        <td>@if(mod.hs){@Messages("inventary.card.hs")}@if(mod.hs && state!=null){<br/>}@state</td>
                       </tr>
                     }
                     </tbody>
@@ -81,7 +81,7 @@
                         <td>@{SensorManager.format(sensor.acquisition)}</td>
                         <td>@if(sensor.expiration.nonEmpty) {@{SensorManager.format(sensor.expiration.get)}} else {-}</td>
                         <td>@if(sensor.firstUse.nonEmpty) {@{SensorManager.format(sensor.firstUse.get)}} else {-}</td>
-                        <td>@if(sensor.hs) {@Messages("inventary.sensor.hs")}</td>
+                        <td>@if(sensor.hs) {@Messages("inventary.sensor.hs")}@if(sensor.hs && state!=null){<br/>}@state</td>
                       </tr>
                     }
                     </tbody>

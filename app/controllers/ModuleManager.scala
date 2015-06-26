@@ -79,6 +79,8 @@ trait ModuleManagerLike extends Controller {
    */
   val sensorsDao: SensorDao = SensorDaoObj
 
+  val conditionDao:ConditionDao = ConditionDaoObj
+
   /**
    * DAO for type sensors
    */
@@ -174,12 +176,17 @@ trait ModuleManagerLike extends Controller {
                   case (typeSensors,typeMesure,sensors)=>
 
                     //Find cards information
-                    findCardsInfo (module).map (
+                    findCardsInfo (module).flatMap (
                       data => data match {
                         case (typesCards, cards,firmware) =>
 
-                          //Print module information
-                          Ok(views.html.module.moreInfo(module,typesCards,cards,firmware,typeSensors,typeMesure,sensors))
+                          //Find the state of the module
+                          conditionDao.findModulesState(List(module._id)).map(
+                            data =>
+                              //Print module information
+                              Ok(views.html.module.moreInfo(module,data(module._id),typesCards,cards,firmware,typeSensors,typeMesure,sensors))
+                          )
+
                       }
                     )
                 }
