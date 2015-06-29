@@ -1,4 +1,4 @@
-@(types:TypeSensor,mesure:TypeMesure,listSensor:List[Sensor],stockUsed:List[(reactivemongo.bson.BSONObjectID,Int)],trie:String,sens:Int)(implicit request: Request[AnyContent])
+@(types:TypeSensor,mesure:TypeMesure,listSensor:List[Sensor],stockUsed:List[(reactivemongo.bson.BSONObjectID,Int)],sensorState:Map[reactivemongo.bson.BSONObjectID,String],trie:String,sens:Int)(implicit request: Request[AnyContent])
 
 @main(Messages("inventary.typeSensor.title")){
   <script src="@routes.Assets.at("/public","javascripts/modal-delete.js")" type="text/javascript" defer></script>
@@ -55,7 +55,7 @@
                   <td>@{SensorManager.format(sensor.acquisition)}</td>
                   <td>@if(sensor.expiration.nonEmpty){@{SensorManager.format(sensor.expiration.get)}}else{-}</td>
                   <td>@if(sensor.firstUse.nonEmpty){@{SensorManager.format(sensor.firstUse.get)}}else{-}</td>
-                  <td>@if(sensor.hs){@Messages("inventary.sensor.hs")}</td>
+                  <td>@if(sensor.hs){@Messages("inventary.sensor.hs")}@if(sensor.hs && sensorState.getOrElse(sensor._id,"").nonEmpty){<br/>}@sensorState.getOrElse(sensor._id,"")</td>
                   <td>
                     <a href="@routes.SensorManager.sensorClonePage(types._id.stringify,sensor._id.stringify)" data-toggle-tooltip title="@Messages("global.tooltip.clone")"><span class="glyphicon glyphicon-copy"></span></a>
                     <a href="@routes.SensorManager.sensorUpdatePage(types._id.stringify,sensor._id.stringify)" data-toggle-tooltip title="@Messages("global.tooltip.update")"><span class="glyphicon glyphicon-pencil"></span></a>

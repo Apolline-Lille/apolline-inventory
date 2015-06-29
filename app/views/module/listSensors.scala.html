@@ -1,4 +1,4 @@
-@(form:Form[SelectInfo],types:TypeSensor,mesure:TypeMesure,listSensor:List[Sensor],stockUsed:List[(reactivemongo.bson.BSONObjectID,Int)],trie:String,sens:Int)(implicit request: Request[AnyContent])
+@(form:Form[SelectInfo],types:TypeSensor,mesure:TypeMesure,listSensor:List[Sensor],stockUsed:List[(reactivemongo.bson.BSONObjectID,Int)],sensorState:Map[reactivemongo.bson.BSONObjectID,String],trie:String,sens:Int)(implicit request: Request[AnyContent])
 
 @main(Messages("inventary.module.title")){
   @navigation("inventary")
@@ -57,7 +57,7 @@
                     <td>@{SensorManager.format(sensor.acquisition)}</td>
                     <td>@if(sensor.expiration.nonEmpty){@{SensorManager.format(sensor.expiration.get)}}else{-}</td>
                     <td>@if(sensor.firstUse.nonEmpty){@{SensorManager.format(sensor.firstUse.get)}}else{-}</td>
-                    <td>@if(sensor.hs){@Messages("inventary.sensor.hs")}</td>
+                    <td>@if(sensor.hs){@Messages("inventary.sensor.hs")}@if(sensor.hs && sensorState.getOrElse(sensor._id,"").nonEmpty){<br/>}@sensorState.getOrElse(sensor._id,"")</td>
                   </tr>
                 }
                 </tbody>

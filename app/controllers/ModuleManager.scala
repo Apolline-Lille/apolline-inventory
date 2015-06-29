@@ -184,7 +184,7 @@ trait ModuleManagerLike extends Controller {
                           conditionDao.findModulesState(List(module._id)).map(
                             data =>
                               //Print module information
-                              Ok(views.html.module.moreInfo(module,data(module._id),typesCards,cards,firmware,typeSensors,typeMesure,sensors))
+                              Ok(views.html.module.moreInfo(module,data.getOrElse(module._id,""),typesCards,cards,firmware,typeSensors,typeMesure,sensors))
                           )
 
                       }
@@ -439,7 +439,7 @@ trait ModuleManagerLike extends Controller {
             val listSensors = listSensorsUsed.mapConserve(p => BSONObjectIDFormat.writes(p)).asInstanceOf[List[JsValue]]
             //Find the list of sensors
             sensorsManager.getInventarySensor(Json.obj("delete" -> false, "types" -> BSONObjectID(id), "_id" -> Json.obj("$nin" -> JsArray(listSensors))), Json.obj(sort -> sens), BSONObjectID(id), Redirect(routes.ModuleManager.formTypeSensors())) {
-              (typeSensor, typeMesure, listSensors,sensorsUsed) => Ok(views.html.module.listSensors(selectElement, typeSensor, typeMesure, listSensors,sensorsUsed, sort, sens))
+              (typeSensor, typeMesure, listSensors,sensorsUsed,sensorState) => Ok(views.html.module.listSensors(selectElement, typeSensor, typeMesure, listSensors,sensorsUsed,sensorState, sort, sens))
             }
           }
         )
@@ -529,7 +529,7 @@ trait ModuleManagerLike extends Controller {
             formWithErrors => {
               //Find the list of cards
               sensorsManager.getInventarySensor(Json.obj("delete"->false,"types"->BSONObjectID(idType)),Json.obj("id"->1),BSONObjectID(idType),Redirect(routes.ModuleManager.formTypeCards())){
-                (typeSensor,typeMesure,listSensors,sensorUsed)=>BadRequest(views.html.module.listSensors(selectElement,typeSensor,typeMesure,listSensors,sensorUsed,"id",1))
+                (typeSensor,typeMesure,listSensors,sensorUsed,sensorState)=>BadRequest(views.html.module.listSensors(selectElement,typeSensor,typeMesure,listSensors,sensorUsed,sensorState,"id",1))
               }
             },
 
