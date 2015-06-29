@@ -75,6 +75,16 @@ abstract class ModuleDao extends JsonDao[Module, BSONObjectID](ReactiveMongoPlug
         }
       )
     )
+
+  def findCardState(cards:List[BSONObjectID])=fold(Json.obj("delete"->false,"cartes"->Json.obj("$in"->cards)),Json.obj(),Map[BSONObjectID,List[BSONObjectID]]()){
+    (maps,mod)=>maps + (mod._id->mod.cartes.intersect(cards))
+  }.flatMap(
+      cards=>ConditionDaoObj.findModulesState(cards.keys.toList).map(
+        data=>{
+          data.keys.foldLeft(Map[BSONObjectID,String]()){(maps,k) => maps ++ (cards(k) map (s=> s->data(k) )) }
+        }
+      )
+    )
 }
 
 /**

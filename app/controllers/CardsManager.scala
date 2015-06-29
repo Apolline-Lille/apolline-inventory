@@ -64,6 +64,8 @@ trait CardsManagerLike extends Controller{
    */
   val firmwareDao:FirmwareDao=FirmwareDaoObj
 
+  val moduleDao:ModuleDao=ModuleDaoObj
+
   /**
    * Manager for cards type
    */
@@ -112,7 +114,7 @@ trait CardsManagerLike extends Controller{
       //Verify if user is connect
       UserManager.doIfconnectAsync(request) {
         getInventaryCards(Json.obj("delete"->false,"types"->BSONFormats.BSONObjectIDFormat.writes(BSONObjectID(id))),Json.obj(sort->sens),BSONObjectID(id),Redirect(routes.TypeCardsManager.inventary())){
-          (typeCards,listCards,firmware,cardsUsed)=>Ok(views.html.cards.listCards(typeCards,listCards,firmware,cardsUsed,sort,sens))
+          (typeCards,listCards,firmware,cardsUsed,cardState)=>Ok(views.html.cards.listCards(typeCards,listCards,firmware,cardsUsed,cardState,sort,sens))
         }
       }
   }
@@ -426,7 +428,7 @@ trait CardsManagerLike extends Controller{
    * @param f Function for print the list of cards
    * @return
    */
-  def getInventaryCards(selector:JsObject,sort:JsObject,id:BSONObjectID,redirect:Result)(f:(TypeCards,List[Cards],List[Firmware],List[(BSONObjectID,Int)])=>Result)={
+  def getInventaryCards(selector:JsObject,sort:JsObject,id:BSONObjectID,redirect:Result)(f:(TypeCards,List[Cards],List[Firmware],List[(BSONObjectID,Int)],Map[BSONObjectID,String])=>Result)={
     //Find all cards
     val futureCards=cardDao.findAll(selector,sort)
 
@@ -444,10 +446,13 @@ trait CardsManagerLike extends Controller{
         case Some(typeCards) => {
           futureCards.flatMap(listCards=>
             futureFirmware.flatMap(firmware=>
-              cardDao.countUsedCards(List(typeCards)).map(
+              cardDao.countUsedCards(List(typeCards)).flatMap(
                 cardsUsed=>
-                  //Display the list of cards
-                  f(typeCards,listCards,firmware,cardsUsed)
+                  moduleDao.findCardState(listCards.mapConserve(c=>c._id).asInstanceOf[List[BSONObjectID]]).map(
+                   cardState=>
+                     //Display the list of cards
+                     f(typeCards,listCards,firmware,cardsUsed,cardState)
+                  )
               )
             ).recover({case _=>InternalServerError("error")})
           ).recover({case _=>InternalServerError("error")})
