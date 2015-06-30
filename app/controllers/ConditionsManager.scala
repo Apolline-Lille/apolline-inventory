@@ -51,6 +51,10 @@ trait ConditionsManagerLike extends Controller{
 
   val campaignDao:CampagneDao=CampagneDaoObj
 
+  val sensorDao:SensorDao=SensorDaoObj
+
+  val cardDao:CardsDao=CardsDaoObj
+
   val moduleManager:ModuleManagerLike=ModuleManager
 
   val campaignManager:CampagneManagerLike=CampagneManager
@@ -784,16 +788,23 @@ trait ConditionsManagerLike extends Controller{
   def insertCondition(campaign:Campagne,cond:Condition,loc:Option[Localisation])(implicit request:Request[AnyContent])={
     //Insert the condition
     conditionsDao.insert(cond).flatMap(
+      data=> {
 
-      //Update the campaign
-      data=>campaignDao.updateById(campaign._id,campaign.copy(conditions=(campaign.conditions :+ cond._id))).flatMap(
+        //Update the first use date of sensor and card
+        val updateCardSensor=updateFirstUseDate(cond.modules,cond.dateDebut)
 
-        //Move picture and insert the localisation
-        data=>insertLocalisation(loc,cond).map(
-          data=>Redirect(routes.ConditionsManager.listConditions(campaign._id.stringify)).withSession(request.session - "condition")
+        //Update the campaign
+        campaignDao.updateById(campaign._id, campaign.copy(conditions = (campaign.conditions :+ cond._id))).flatMap(
+
+          //Move picture and insert the localisation
+          data => insertLocalisation(loc, cond).flatMap(
+            data=>updateCardSensor.map(
+              data => Redirect(routes.ConditionsManager.listConditions(campaign._id.stringify)).withSession(request.session - "condition")
+            )
+          )
+
         )
-
-      )
+      }
     )
   }
 
@@ -814,9 +825,49 @@ trait ConditionsManagerLike extends Controller{
     conditionsDao.updateById(condId,cond.copy(_id=condId)).flatMap(
 
       //Move image in the temporary folder to the definitive folder
-      data=>updateLocalisation(loc).map(
-        data=>Redirect(routes.ConditionsManager.listConditions(id)).withSession(request.session - "condition")
+      data=>updateLocalisation(loc).flatMap(
+
+        //update the first use date of sensor and card
+        data=>updateFirstUseDate(cond.modules,cond.dateDebut).map(
+          data=>Redirect(routes.ConditionsManager.listConditions(id)).withSession(request.session - "condition")
+        )
       )
+    )
+  }
+
+  /**
+   * This method update the first use date of sensors and cards if the first use date not exists or is greater
+   * @param id Module id
+   * @param date Begin date of the condition
+   * @return Return future with the last error
+   */
+  def updateFirstUseDate(id:BSONObjectID,date:Date)={
+
+    //Find the module
+    moduleDao.findOne(Json.obj("_id"->id,"delete"->false)).flatMap(
+      moduleOpt=>moduleOpt match {
+
+          //If module not found return an error
+        case None =>future{LastError(false,None,None,Some("Module not found"),None,0,false)}
+
+          //If module found
+        case Some(module) =>
+          //update first use date of sensors
+          sensorDao.update(
+            selector=Json.obj("_id"->Json.obj("$in"->module.capteurs),"$or"->JsArray(Seq(Json.obj("firstUse"->Json.obj("$gt"->date)),Json.obj("firstUse"->Json.obj("$exists"->false))))),
+            update=Json.obj("$set"->Json.obj("firstUse"->date)),
+            multi=true
+          ).flatMap(
+
+            //update first use date of cards
+            data=>cardDao.update(
+              selector=Json.obj("_id"->Json.obj("$in"->module.cartes),"$or"->JsArray(Seq(Json.obj("firstUse"->Json.obj("$gt"->date)),Json.obj("firstUse"->Json.obj("$exists"->false))))),
+              update=Json.obj("$set"->Json.obj("firstUse"->date)),
+              multi=true
+            )
+
+          )
+      }
     )
   }
 

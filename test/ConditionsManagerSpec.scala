@@ -49,6 +49,8 @@ class ConditionsManagerSpec extends Specification with Mockito {
     val moduleDaoMock=mock[ModuleDao]
     val localisationDaoMock=mock[LocalisationDao]
     val campaignDaoMock=mock[CampagneDao]
+    val sensorDaoMock=mock[SensorDao]
+    val cardDaoMock=mock[CardsDao]
     val campaignManagerMock=mock[CampagneManagerLike]
     val moduleManagerMock=mock[ModuleManagerLike]
     val appMock=mock[play.api.Application]
@@ -58,6 +60,8 @@ class ConditionsManagerSpec extends Specification with Mockito {
       override val moduleDao=moduleDaoMock
       override val localisationDao=localisationDaoMock
       override val campaignDao=campaignDaoMock
+      override val sensorDao=sensorDaoMock
+      override val cardDao=cardDaoMock
       override val campaignManager=campaignManagerMock
       override val moduleManager=moduleManagerMock
       override val app=appMock
@@ -1234,7 +1238,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
       val f = fixture
       val locObj=Localisation(bson2,bson3,"loc",Some(1.2f),Some(3.4f),Some("un com"),List("img.jpg"))
       val session=Json.obj("debut"->date,"fin"->date2,"commentaire"->"unCom","module"->bson4.stringify,"localisation"->Json.toJson(locObj))
-      val module=Module(bson4,"idMod","typeMod",date,List(),List(),Some("moduleCom"))
+      val module=Module(bson4,"idMod","typeMod",date,List(bson2),List(bson3),Some("moduleCom"))
       val camp=Campagne(bson,nom="camp",types="Terrain",conditions=List())
       val queryBegin=Json.obj("dateDebut"->Json.obj("$gte"->date,"$lte"->date2))
       val queryEnd=Json.obj("$or"->JsArray(Seq(Json.obj("dateFin"->Json.obj("$gte"->date,"$lte"->date2),"dateFin"->Json.obj("$exists"->false)))))
@@ -1243,6 +1247,8 @@ class ConditionsManagerSpec extends Specification with Mockito {
       val fTmp=mock[File]
       val f1=new File("/route/public/images/campaign/img.jpg")
       val lastError=mock[LastError]
+      val query2=Json.obj("_id"->Json.obj("$in"->List(bson3)),"$or"->JsArray(Seq(Json.obj("firstUse"->Json.obj("$gt"->date)),Json.obj("firstUse"->Json.obj("$exists"->false)))))
+      val query3=Json.obj("_id"->Json.obj("$in"->List(bson2)),"$or"->JsArray(Seq(Json.obj("firstUse"->Json.obj("$gt"->date)),Json.obj("firstUse"->Json.obj("$exists"->false)))))
 
       f.appMock.path returns (new File("/route"))
       f.tempFileBuilderMock.createFile(org.mockito.Matchers.eq("/route/public/images/campaign/tmp/img.jpg")) returns fTmp
@@ -1260,6 +1266,8 @@ class ConditionsManagerSpec extends Specification with Mockito {
       f.moduleDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->bson4)))(any[ExecutionContext]) returns future{Some(module)}
 
       f.conditionDaoMock.findOne(org.mockito.Matchers.eq(query))(any[ExecutionContext]) returns future{None}
+      f.sensorDaoMock.update(org.mockito.Matchers.eq(query2),org.mockito.Matchers.eq(Json.obj("$set"->Json.obj("firstUse"->date))),any[GetLastError],org.mockito.Matchers.eq(false),org.mockito.Matchers.eq(true))(any[Writes[JsObject]],any[ExecutionContext]) returns future{lastError}
+      f.cardDaoMock.update(org.mockito.Matchers.eq(query3),org.mockito.Matchers.eq(Json.obj("$set"->Json.obj("firstUse"->date))),any[GetLastError],org.mockito.Matchers.eq(false),org.mockito.Matchers.eq(true))(any[Writes[JsObject]],any[ExecutionContext]) returns future{lastError}
 
       val req=FakeRequest(POST,"/campaigns/campaign/"+bson.stringify+"/form/validate").withSession("user" -> """{"login":"test"}""").withSession("condition"->Json.stringify(session))
       val r=f.controller.validate(bson.stringify)(req)
@@ -1267,7 +1275,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
       status(r) must equalTo(SEE_OTHER)
       header("Location",r) must beSome("/campaigns/campaign/"+bson.stringify)
 
-      there was one(f.moduleDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->bson4)))(any[ExecutionContext])
+      there was 2.times(f.moduleDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->bson4)))(any[ExecutionContext])
       there was one(f.campaignManagerMock).doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]])
       there was one(f.conditionDaoMock).findOne(org.mockito.Matchers.eq(query))(any[ExecutionContext])
       there was 2.times(f.appMock).path
@@ -1278,19 +1286,24 @@ class ConditionsManagerSpec extends Specification with Mockito {
       there was one(tempFile).clean()
       there was one(f.localisationDaoMock).insert(any[Localisation],any[GetLastError])(any[ExecutionContext])
       there was one(f.conditionDaoMock).insert(any[Condition],any[GetLastError])(any[ExecutionContext])
+      there was one(f.sensorDaoMock).update(org.mockito.Matchers.eq(query2),org.mockito.Matchers.eq(Json.obj("$set"->Json.obj("firstUse"->date))),any[GetLastError],org.mockito.Matchers.eq(false),org.mockito.Matchers.eq(true))(any[Writes[JsObject]],any[ExecutionContext])
+      there was one(f.cardDaoMock).update(org.mockito.Matchers.eq(query3),org.mockito.Matchers.eq(Json.obj("$set"->Json.obj("firstUse"->date))),any[GetLastError],org.mockito.Matchers.eq(false),org.mockito.Matchers.eq(true))(any[Writes[JsObject]],any[ExecutionContext])
+
     }
 
     "send redirect after update condition and localisation into the database" in new WithApplication{
       val f = fixture
       val locObj=Localisation(bson2,bson3,"loc",Some(1.2f),Some(3.4f),Some("un com"),List("img.jpg"))
       val session=Json.obj("form"->"update","id"->bson3.stringify,"debut"->date,"fin"->date2,"commentaire"->"unCom","module"->bson4.stringify,"localisation"->Json.toJson(locObj))
-      val module=Module(bson4,"idMod","typeMod",date,List(),List(),Some("moduleCom"))
+      val module=Module(bson4,"idMod","typeMod",date,List(bson2),List(bson3),Some("moduleCom"))
       val camp=Campagne(bson,nom="camp",types="Terrain",conditions=List())
       val queryBegin=Json.obj("dateDebut"->Json.obj("$gte"->date,"$lte"->date2))
       val queryEnd=Json.obj("$or"->JsArray(Seq(Json.obj("dateFin"->Json.obj("$gte"->date,"$lte"->date2),"dateFin"->Json.obj("$exists"->false)))))
       val query=Json.obj("_id"->Json.obj("$ne"->bson3),"modules"->bson4,"$or"->JsArray(Seq(queryBegin,queryEnd)))
       val fTmp=mock[File]
       val lastError=mock[LastError]
+      val query2=Json.obj("_id"->Json.obj("$in"->List(bson3)),"$or"->JsArray(Seq(Json.obj("firstUse"->Json.obj("$gt"->date)),Json.obj("firstUse"->Json.obj("$exists"->false)))))
+      val query3=Json.obj("_id"->Json.obj("$in"->List(bson2)),"$or"->JsArray(Seq(Json.obj("firstUse"->Json.obj("$gt"->date)),Json.obj("firstUse"->Json.obj("$exists"->false)))))
 
       f.appMock.path returns (new File("/route"))
       f.tempFileBuilderMock.createFile(org.mockito.Matchers.eq("/route/public/images/campaign/tmp/img.jpg")) returns fTmp
@@ -1304,6 +1317,8 @@ class ConditionsManagerSpec extends Specification with Mockito {
       f.moduleDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->bson4)))(any[ExecutionContext]) returns future{Some(module)}
 
       f.conditionDaoMock.findOne(org.mockito.Matchers.eq(query))(any[ExecutionContext]) returns future{None}
+      f.sensorDaoMock.update(org.mockito.Matchers.eq(query2),org.mockito.Matchers.eq(Json.obj("$set"->Json.obj("firstUse"->date))),any[GetLastError],org.mockito.Matchers.eq(false),org.mockito.Matchers.eq(true))(any[Writes[JsObject]],any[ExecutionContext]) returns future{lastError}
+      f.cardDaoMock.update(org.mockito.Matchers.eq(query3),org.mockito.Matchers.eq(Json.obj("$set"->Json.obj("firstUse"->date))),any[GetLastError],org.mockito.Matchers.eq(false),org.mockito.Matchers.eq(true))(any[Writes[JsObject]],any[ExecutionContext]) returns future{lastError}
 
       val req=FakeRequest(POST,"/campaigns/campaign/"+bson.stringify+"/form/validate").withSession("user" -> """{"login":"test"}""").withSession("condition"->Json.stringify(session))
       val r=f.controller.validate(bson.stringify)(req)
@@ -1311,14 +1326,16 @@ class ConditionsManagerSpec extends Specification with Mockito {
       status(r) must equalTo(SEE_OTHER)
       header("Location",r) must beSome("/campaigns/campaign/"+bson.stringify)
 
-      there was one(f.moduleDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->bson4)))(any[ExecutionContext])
+      there was 2.times(f.moduleDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->bson4)))(any[ExecutionContext])
       there was one(f.campaignManagerMock).doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]])
       there was one(f.conditionDaoMock).findOne(org.mockito.Matchers.eq(query))(any[ExecutionContext])
-      there was 1.times(f.appMock).path
+      there was one(f.appMock).path
       there was one(f.tempFileBuilderMock).createFile(org.mockito.Matchers.eq("/route/public/images/campaign/tmp/img.jpg"))
       there was one(fTmp).exists
       there was one(f.localisationDaoMock).updateById(org.mockito.Matchers.eq(bson2),org.mockito.Matchers.eq(locObj),any[GetLastError])(any[Writes[Localisation]],any[ExecutionContext])
       there was one(f.conditionDaoMock).updateById(org.mockito.Matchers.eq(bson3),any[Condition],any[GetLastError])(any[Writes[Condition]],any[ExecutionContext])
+      there was one(f.sensorDaoMock).update(org.mockito.Matchers.eq(query2),org.mockito.Matchers.eq(Json.obj("$set"->Json.obj("firstUse"->date))),any[GetLastError],org.mockito.Matchers.eq(false),org.mockito.Matchers.eq(true))(any[Writes[JsObject]],any[ExecutionContext])
+      there was one(f.cardDaoMock).update(org.mockito.Matchers.eq(query3),org.mockito.Matchers.eq(Json.obj("$set"->Json.obj("firstUse"->date))),any[GetLastError],org.mockito.Matchers.eq(false),org.mockito.Matchers.eq(true))(any[Writes[JsObject]],any[ExecutionContext])
     }
 
     "send Bad request with error message if condition have an error" in new WithApplication{
@@ -2417,12 +2434,20 @@ class ConditionsManagerSpec extends Specification with Mockito {
       val cond=mock[Condition]
       val campaign=mock[Campagne]
       val lastError=mock[LastError]
+      val mod=Module(bson,"id","type",date,List(bson2),List(bson3),None)
+      val query=Json.obj("_id"->Json.obj("$in"->List(bson3)),"$or"->JsArray(Seq(Json.obj("firstUse"->Json.obj("$gt"->date)),Json.obj("firstUse"->Json.obj("$exists"->false)))))
+      val query2=Json.obj("_id"->Json.obj("$in"->List(bson2)),"$or"->JsArray(Seq(Json.obj("firstUse"->Json.obj("$gt"->date)),Json.obj("firstUse"->Json.obj("$exists"->false)))))
 
       campaign._id returns bson
       campaign.conditions returns List(bson2)
       cond._id returns bson2
+      cond.modules returns bson
+      cond.dateDebut returns date
       f.conditionDaoMock.insert(org.mockito.Matchers.eq(cond),any[GetLastError])(any[ExecutionContext]) returns future{lastError}
       f.campaignDaoMock.updateById(org.mockito.Matchers.eq(bson),any[Campagne],any[GetLastError])(any[Writes[Campagne]],any[ExecutionContext]) returns future{lastError}
+      f.moduleDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("_id"->bson,"delete"->false)))(any[ExecutionContext]) returns future{Some(mod)}
+      f.sensorDaoMock.update(org.mockito.Matchers.eq(query),org.mockito.Matchers.eq(Json.obj("$set"->Json.obj("firstUse"->date))),any[GetLastError],org.mockito.Matchers.eq(false),org.mockito.Matchers.eq(true))(any[Writes[JsObject]],any[ExecutionContext]) returns future{lastError}
+      f.cardDaoMock.update(org.mockito.Matchers.eq(query2),org.mockito.Matchers.eq(Json.obj("$set"->Json.obj("firstUse"->date))),any[GetLastError],org.mockito.Matchers.eq(false),org.mockito.Matchers.eq(true))(any[Writes[JsObject]],any[ExecutionContext]) returns future{lastError}
 
       val r=f.controller.insertCondition(campaign,cond,None)(FakeRequest(GET,"url"))
 
@@ -2432,8 +2457,13 @@ class ConditionsManagerSpec extends Specification with Mockito {
       there was 2.times(campaign)._id
       there was one(campaign).conditions
       there was one(cond)._id
+      there was one(cond).modules
+      there was one(cond).dateDebut
       there was one(f.conditionDaoMock).insert(org.mockito.Matchers.eq(cond),any[GetLastError])(any[ExecutionContext])
       there was one(f.campaignDaoMock).updateById(org.mockito.Matchers.eq(bson),any[Campagne],any[GetLastError])(any[Writes[Campagne]],any[ExecutionContext])
+      there was one(f.moduleDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("_id"->bson,"delete"->false)))(any[ExecutionContext])
+      there was one(f.sensorDaoMock).update(org.mockito.Matchers.eq(query),org.mockito.Matchers.eq(Json.obj("$set"->Json.obj("firstUse"->date))),any[GetLastError],org.mockito.Matchers.eq(false),org.mockito.Matchers.eq(true))(any[Writes[JsObject]],any[ExecutionContext])
+      there was one(f.cardDaoMock).update(org.mockito.Matchers.eq(query2),org.mockito.Matchers.eq(Json.obj("$set"->Json.obj("firstUse"->date))),any[GetLastError],org.mockito.Matchers.eq(false),org.mockito.Matchers.eq(true))(any[Writes[JsObject]],any[ExecutionContext])
     }
   }
 
@@ -2442,9 +2472,17 @@ class ConditionsManagerSpec extends Specification with Mockito {
       val f=fixture
       val cond=mock[Condition]
       val lastError=mock[LastError]
+      val mod=Module(bson,"id","type",date,List(bson2),List(bson3),None)
+      val query=Json.obj("_id"->Json.obj("$in"->List(bson3)),"$or"->JsArray(Seq(Json.obj("firstUse"->Json.obj("$gt"->date)),Json.obj("firstUse"->Json.obj("$exists"->false)))))
+      val query2=Json.obj("_id"->Json.obj("$in"->List(bson2)),"$or"->JsArray(Seq(Json.obj("firstUse"->Json.obj("$gt"->date)),Json.obj("firstUse"->Json.obj("$exists"->false)))))
 
       cond.copy(org.mockito.Matchers.eq(bson2),any[Date],any[Option[Date]],any[Option[String]],any[BSONObjectID]) returns cond
+      cond.modules returns bson
+      cond.dateDebut returns date
       f.conditionDaoMock.updateById(org.mockito.Matchers.eq(bson2),org.mockito.Matchers.eq(cond),any[GetLastError])(any[Writes[Condition]],any[ExecutionContext]) returns future{lastError}
+      f.moduleDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("_id"->bson,"delete"->false)))(any[ExecutionContext]) returns future{Some(mod)}
+      f.sensorDaoMock.update(org.mockito.Matchers.eq(query),org.mockito.Matchers.eq(Json.obj("$set"->Json.obj("firstUse"->date))),any[GetLastError],org.mockito.Matchers.eq(false),org.mockito.Matchers.eq(true))(any[Writes[JsObject]],any[ExecutionContext]) returns future{lastError}
+      f.cardDaoMock.update(org.mockito.Matchers.eq(query2),org.mockito.Matchers.eq(Json.obj("$set"->Json.obj("firstUse"->date))),any[GetLastError],org.mockito.Matchers.eq(false),org.mockito.Matchers.eq(true))(any[Writes[JsObject]],any[ExecutionContext]) returns future{lastError}
 
       val r=f.controller.updateCondition(cond,None,bson.stringify)(FakeRequest(GET,"url").withSession("condition"->Json.stringify(Json.obj("id"->bson2.stringify))))
 
@@ -2452,7 +2490,49 @@ class ConditionsManagerSpec extends Specification with Mockito {
       header("Location",r) must beSome("/campaigns/campaign/"+bson.stringify)
 
       there was one(cond).copy(org.mockito.Matchers.eq(bson2),any[Date],any[Option[Date]],any[Option[String]],any[BSONObjectID])
+      there was one(cond).modules
+      there was one(cond).dateDebut
       there was one(f.conditionDaoMock).updateById(org.mockito.Matchers.eq(bson2),org.mockito.Matchers.eq(cond),any[GetLastError])(any[Writes[Condition]],any[ExecutionContext])
+      there was one(f.moduleDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("_id"->bson,"delete"->false)))(any[ExecutionContext])
+      there was one(f.sensorDaoMock).update(org.mockito.Matchers.eq(query),org.mockito.Matchers.eq(Json.obj("$set"->Json.obj("firstUse"->date))),any[GetLastError],org.mockito.Matchers.eq(false),org.mockito.Matchers.eq(true))(any[Writes[JsObject]],any[ExecutionContext])
+      there was one(f.cardDaoMock).update(org.mockito.Matchers.eq(query2),org.mockito.Matchers.eq(Json.obj("$set"->Json.obj("firstUse"->date))),any[GetLastError],org.mockito.Matchers.eq(false),org.mockito.Matchers.eq(true))(any[Writes[JsObject]],any[ExecutionContext])
+    }
+  }
+
+  "When method updateFirstUseDate is called, ConditionsManager" should{
+    "return a future de lastError after update first use date of cards and sensors" in new WithApplication{
+      val f=fixture
+      val mod=Module(bson,"id","type",date,List(bson2),List(bson3),None)
+      val query=Json.obj("_id"->Json.obj("$in"->List(bson3)),"$or"->JsArray(Seq(Json.obj("firstUse"->Json.obj("$gt"->date)),Json.obj("firstUse"->Json.obj("$exists"->false)))))
+      val query2=Json.obj("_id"->Json.obj("$in"->List(bson2)),"$or"->JsArray(Seq(Json.obj("firstUse"->Json.obj("$gt"->date)),Json.obj("firstUse"->Json.obj("$exists"->false)))))
+      val lastError=mock[LastError]
+
+      f.moduleDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("_id"->bson,"delete"->false)))(any[ExecutionContext]) returns future{Some(mod)}
+      f.sensorDaoMock.update(org.mockito.Matchers.eq(query),org.mockito.Matchers.eq(Json.obj("$set"->Json.obj("firstUse"->date))),any[GetLastError],org.mockito.Matchers.eq(false),org.mockito.Matchers.eq(true))(any[Writes[JsObject]],any[ExecutionContext]) returns future{lastError}
+      f.cardDaoMock.update(org.mockito.Matchers.eq(query2),org.mockito.Matchers.eq(Json.obj("$set"->Json.obj("firstUse"->date))),any[GetLastError],org.mockito.Matchers.eq(false),org.mockito.Matchers.eq(true))(any[Writes[JsObject]],any[ExecutionContext]) returns future{lastError}
+
+      val res=f.controller.updateFirstUseDate(bson,date)
+      val r=Await.result(res,Duration.Inf)
+
+      r must equalTo(lastError)
+
+      there was one(f.moduleDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("_id"->bson,"delete"->false)))(any[ExecutionContext])
+      there was one(f.sensorDaoMock).update(org.mockito.Matchers.eq(query),org.mockito.Matchers.eq(Json.obj("$set"->Json.obj("firstUse"->date))),any[GetLastError],org.mockito.Matchers.eq(false),org.mockito.Matchers.eq(true))(any[Writes[JsObject]],any[ExecutionContext])
+      there was one(f.cardDaoMock).update(org.mockito.Matchers.eq(query2),org.mockito.Matchers.eq(Json.obj("$set"->Json.obj("firstUse"->date))),any[GetLastError],org.mockito.Matchers.eq(false),org.mockito.Matchers.eq(true))(any[Writes[JsObject]],any[ExecutionContext])
+    }
+
+    "return a lastError with an error if module not found" in new WithApplication{
+      val f=fixture
+      val lastError=LastError(false,None,None,Some("Module not found"),None,0,false)
+
+      f.moduleDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("_id"->bson,"delete"->false)))(any[ExecutionContext]) returns future{None}
+
+      val res=f.controller.updateFirstUseDate(bson,date)
+      val r=Await.result(res,Duration.Inf)
+
+      r must equalTo(lastError)
+
+      there was one(f.moduleDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("_id"->bson,"delete"->false)))(any[ExecutionContext])
     }
   }
 }
