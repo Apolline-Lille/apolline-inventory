@@ -14,6 +14,8 @@
             <div class="col-sm-11 col-sm-offset-1">
               <div class="row"> <span class="bold">@Messages("inventary.typeSensor.fabricant")</span> : @{types.fabricant} </div>
               <div class="row"> <span class="bold">@Messages("inventary.typeSensor.nbSignaux")</span> : @{types.nbSignaux} (@{mesure.nom}) </div>
+              <div class="row"> <span class="bold">@Messages("inventary.typeSensor.signalMin")</span> : @types.min @mesure.unite</div>
+              <div class="row"> <span class="bold">@Messages("inventary.typeSensor.signalMax")</span> : @types.max @mesure.unite</div>
               <div class="row"> <span class="bold">@Messages("inventary.typeSensor.espece")</span> : @{types.espece.mkString(", ")} </div>
               <div class="row"> <span class="bold">@Messages("inventary.typeSensor.stock")</span> : @stockUsed.head._2 / @{listSensor.size} </div>
             </div>

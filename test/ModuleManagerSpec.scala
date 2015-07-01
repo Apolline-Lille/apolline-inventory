@@ -292,7 +292,7 @@ class ModuleManagerSpec extends Specification with Mockito {
       val f=fixture
       val matcher=Json.obj("delete"->false,"_id"->Json.obj("$in"->JsArray(Seq(BSONObjectIDFormat.writes(bson)))))
       val matcher2=Json.obj("delete"->false,"_id"->Json.obj("$in"->JsArray(Seq(BSONObjectIDFormat.writes(bson2)))))
-      val typeSensors=TypeSensor(bson2,"typeSensor","modeleSensor",bson3,"fab",1,List("esp1"),false)
+      val typeSensors=TypeSensor(bson2,"typeSensor","modeleSensor",bson3,"fab",1,List("esp1"),2f,3f,false)
       val typeMesure=TypeMesure(bson3,"tension","volt")
       val sensor=Sensor(bson, "Id", bson2, Some(date), date2, Some(date2), true, Some("un com"))
       val typeCards=TypeCards(bson2,"modeleCards","typeCards",false)
@@ -330,6 +330,8 @@ class ModuleManagerSpec extends Specification with Mockito {
       content must contain("<h5 class=\"bold\">typeSensor / modeleSensor</h5>")
       content must contain("<div class=\"row\"> <span class=\"bold\">Fabricant</span> : fab</div>")
       content must contain("<div class=\"row\"> <span class=\"bold\">Nombre de signaux</span> : 1 (tension)</div>")
+      content must contain("<span class=\"bold\">Signal minimum</span> : 2.0 volt")
+      content must contain("<span class=\"bold\">Signal maximum</span> : 3.0 volt")
       content must contain("<div class=\"row\"> <span class=\"bold\">Espèces</span> : esp1</div>")
       content must contain("<td>Id</td>")
       content must contain("<td>Hors service<br/>Terrain</td>")
@@ -644,7 +646,7 @@ class ModuleManagerSpec extends Specification with Mockito {
       f.moduleDaoMock.fold(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->Json.obj("$ne"->bson))),any[JsObject],org.mockito.Matchers.eq(module.capteurs))(any[(List[BSONObjectID],Module)=>List[BSONObjectID]])(any[ExecutionContext]) returns future{List[BSONObjectID](bson4)}
       f.sensorsDaoMock.fold(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->Json.obj("$nin"->listSensors))),org.mockito.Matchers.eq(Json.obj()),org.mockito.Matchers.eq(HashSet[JsValue]()))(any[(HashSet[JsValue],Sensor)=>HashSet[JsValue]])(any[ExecutionContext]) returns future{HashSet[JsValue]()}
       f.typeSensorManagerMock.getInventaryTypeSensor(any[JsObject],anyString)(any[(List[TypeSensor],List[TypeMesure],List[BSONDocument],List[(BSONObjectID,Int)],List[BSONDocument])=>Result]) answers { (params, _) => params match {
-        case Array(_,_, p: ((List[TypeSensor],List[TypeMesure],List[BSONDocument],List[(BSONObjectID,Int)],List[BSONDocument])=>Result))=>future{p.apply(List[TypeSensor](TypeSensor(bson, "type1", "modele1", bson2, "fab1", 1, List[String]("esp1", "esp2"))),List[TypeMesure](TypeMesure(bson2, "mesure1", "unite1")),List[BSONDocument](BSONDocument("_id" -> bson, "count" -> 5)),List((bson,3)),List[BSONDocument]())}
+        case Array(_,_, p: ((List[TypeSensor],List[TypeMesure],List[BSONDocument],List[(BSONObjectID,Int)],List[BSONDocument])=>Result))=>future{p.apply(List[TypeSensor](TypeSensor(bson, "type1", "modele1", bson2, "fab1", 1, List("esp1", "esp2"),2f,3f)),List[TypeMesure](TypeMesure(bson2, "mesure1", "unite1")),List[BSONDocument](BSONDocument("_id" -> bson, "count" -> 5)),List((bson,3)),List[BSONDocument]())}
       }}
 
       val r = f.controller.formTypeSensors().apply(FakeRequest(GET, "/inventary/modules/form/typeSensors").withSession("user" -> """{"login":"test"}""","module"->Module.toStrings(module)))
@@ -658,6 +660,8 @@ class ModuleManagerSpec extends Specification with Mockito {
       content must matchRegex("<span class=\"bold\">\\s*Fabricant\\s*</span>\\s*:\\s*fab1")
       content must matchRegex("<span class=\"bold\">\\s*Nombre de signaux\\s*</span>\\s*:\\s*1\\s*\\(\\s*mesure1\\s*\\)")
       content must matchRegex("<span class=\"bold\">\\s*Espèces\\s*</span>\\s*:\\s*esp1, esp2")
+      content must contain("<span class=\"bold\">Signal minimum</span> : 2.0 unite1")
+      content must contain("<span class=\"bold\">Signal maximum</span> : 3.0 unite1")
       content must matchRegex("<span class=\"bold\">\\s*Stock\\s*</span>\\s*:\\s*2 / 5")
 
       there was one(f.moduleDaoMock).fold(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->Json.obj("$ne"->bson))),any[JsObject],org.mockito.Matchers.eq(module.capteurs))(any[(List[BSONObjectID],Module)=>List[BSONObjectID]])(any[ExecutionContext])
@@ -668,8 +672,8 @@ class ModuleManagerSpec extends Specification with Mockito {
     "send 200 on OK with 2 results" in new WithApplication {
       val f=fixture
       val listTypeSensor=List[TypeSensor](
-        TypeSensor(bson, "type1", "modele1", bson2, "fab1", 1, List[String]("esp1", "esp2")),
-        TypeSensor(bson3, "type2", "modele2", bson4, "fab2", 2, List[String]("esp3", "esp4"))
+        TypeSensor(bson, "type1", "modele1", bson2, "fab1", 1, List("esp1", "esp2"),2f,3f),
+        TypeSensor(bson3, "type2", "modele2", bson4, "fab2", 2, List("esp3", "esp4"),4f,5f)
       )
       val listTypeMesure=List[TypeMesure](TypeMesure(bson2, "mesure1", "unite1"), TypeMesure(bson4, "mesure2", "unite2"))
       val countSensor=List[BSONDocument](BSONDocument("_id" -> bson, "count" -> 5), BSONDocument("_id" -> bson3, "count" -> 3))
@@ -693,6 +697,8 @@ class ModuleManagerSpec extends Specification with Mockito {
       content must matchRegex("<span class=\"bold\">\\s*Fabricant\\s*</span>\\s*:\\s*fab1")
       content must matchRegex("<span class=\"bold\">\\s*Nombre de signaux\\s*</span>\\s*:\\s*1\\s*\\(\\s*mesure1\\s*\\)")
       content must matchRegex("<span class=\"bold\">\\s*Espèces\\s*</span>\\s*:\\s*esp1, esp2")
+      content must contain("<span class=\"bold\">Signal minimum</span> : 2.0 unite1")
+      content must contain("<span class=\"bold\">Signal maximum</span> : 3.0 unite1")
       content must matchRegex("<span class=\"bold\">\\s*Stock\\s*</span>\\s*:\\s*2 / 5")
 
       content must contain("type2")
@@ -700,6 +706,8 @@ class ModuleManagerSpec extends Specification with Mockito {
       content must matchRegex("<span class=\"bold\">\\s*Fabricant\\s*</span>\\s*:\\s*fab2")
       content must matchRegex("<span class=\"bold\">\\s*Nombre de signaux\\s*</span>\\s*:\\s*2\\s*\\(\\s*mesure2\\s*\\)")
       content must matchRegex("<span class=\"bold\">\\s*Espèces\\s*</span>\\s*:\\s*esp3, esp4")
+      content must contain("<span class=\"bold\">Signal minimum</span> : 4.0 unite2")
+      content must contain("<span class=\"bold\">Signal maximum</span> : 5.0 unite2")
       content must matchRegex("<span class=\"bold\">\\s*Stock\\s*</span>\\s*:\\s*1 / 3")
 
       there was one(f.moduleDaoMock).fold(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->Json.obj("$ne"->bson))),any[JsObject],org.mockito.Matchers.eq(module.capteurs))(any[(List[BSONObjectID],Module)=>List[BSONObjectID]])(any[ExecutionContext])
@@ -716,7 +724,7 @@ class ModuleManagerSpec extends Specification with Mockito {
 
       f.moduleDaoMock.fold(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->Json.obj("$ne"->bson))),any[JsObject],org.mockito.Matchers.eq(module.capteurs))(any[(List[BSONObjectID],Module)=>List[BSONObjectID]])(any[ExecutionContext]) returns future{List[BSONObjectID](bson4)}
       f.sensorsManagerMock.getInventarySensor(any[JsObject],any[JsObject],any[BSONObjectID],any[Result])(any[(TypeSensor,TypeMesure,List[Sensor],List[(BSONObjectID,Int)],Map[BSONObjectID,String])=>Result]) answers { (params, _) => params match {
-        case Array(_,_,_,_, p: ((TypeSensor,TypeMesure,List[Sensor],List[(BSONObjectID,Int)],Map[BSONObjectID,String])=>Result))=>future{p.apply(TypeSensor(bson,"type1","modele1",bson2,"fab1",1,List[String]("esp1","esp2")),TypeMesure(bson2, "mesure1", "unite1"),List[Sensor](),List((bson,0)),Map())}
+        case Array(_,_,_,_, p: ((TypeSensor,TypeMesure,List[Sensor],List[(BSONObjectID,Int)],Map[BSONObjectID,String])=>Result))=>future{p.apply(TypeSensor(bson,"type1","modele1",bson2,"fab1",1,List("esp1","esp2"),2f,3f),TypeMesure(bson2, "mesure1", "unite1"),List[Sensor](),List((bson,0)),Map())}
       }}
 
       val r = f.controller.formSensors(bson.stringify).apply(FakeRequest(GET, "/inventary/modules/form/sensors/"+bson.stringify).withSession("user" -> """{"login":"test"}""","module"->Module.toStrings(module)))
@@ -729,6 +737,8 @@ class ModuleManagerSpec extends Specification with Mockito {
       content must matchRegex("<span class=\"bold\">\\s*Fabricant\\s*</span>\\s*:\\s*fab1")
       content must matchRegex("<span class=\"bold\">\\s*Nombre de signaux\\s*</span>\\s*:\\s*1\\s*\\(\\s*mesure1\\s*\\)")
       content must matchRegex("<span class=\"bold\">\\s*Espèces\\s*</span>\\s*:\\s*esp1, esp2")
+      content must contain("<span class=\"bold\">Signal minimum</span> : 2.0 unite1")
+      content must contain("<span class=\"bold\">Signal maximum</span> : 3.0 unite1")
       content must matchRegex("<span class=\"bold\">\\s*Stock\\s*</span>\\s*:\\s*0 / 0")
 
       there was one(f.moduleDaoMock).fold(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->Json.obj("$ne"->bson))),any[JsObject],org.mockito.Matchers.eq(module.capteurs))(any[(List[BSONObjectID],Module)=>List[BSONObjectID]])(any[ExecutionContext])
@@ -737,7 +747,7 @@ class ModuleManagerSpec extends Specification with Mockito {
 
     "send 200 on OK with 1 result" in new WithApplication {
       val f=fixture
-      val typeSensor=TypeSensor(bson,"type1","modele1",bson2,"fab1",1,List[String]("esp1","esp2"))
+      val typeSensor=TypeSensor(bson,"type1","modele1",bson2,"fab1",1,List("esp1","esp2"),2f,3f)
       val typeMesure=TypeMesure(bson2, "mesure1", "unite1")
       val sensors=List[Sensor](Sensor(bson3, "Id", bson, None, date, None, false, None))
       val module=Module(bson,"id","types",date,List(bson2),List(bson3),Some("un com"))
@@ -764,7 +774,7 @@ class ModuleManagerSpec extends Specification with Mockito {
 
     "send 200 on OK with 2 results" in new WithApplication {
       val f=fixture
-      val typeSensor=TypeSensor(bson,"type1","modele1",bson2,"fab1",1,List[String]("esp1","esp2"))
+      val typeSensor=TypeSensor(bson,"type1","modele1",bson2,"fab1",1,List("esp1","esp2"),2f,3f)
       val typeMesure=TypeMesure(bson2, "mesure1", "unite1")
       val sensors=List[Sensor](Sensor(bson3, "Id", bson, None, date, None, false, None),Sensor(bson4, "Id2", bson, Some(date), date, Some(date), true, Some("un com")))
       val module=Module(bson,"id","types",date,List(bson2),List(bson3),Some("un com"))
@@ -793,7 +803,7 @@ class ModuleManagerSpec extends Specification with Mockito {
 
     "send bad request with list of sensors if form submit without data" in new WithApplication{
       val f=fixture
-      val typeSensor=TypeSensor(bson,"type1","modele1",bson2,"fab1",1,List[String]("esp1","esp2"))
+      val typeSensor=TypeSensor(bson,"type1","modele1",bson2,"fab1",1,List("esp1","esp2"),2f,3f)
       val typeMesure=TypeMesure(bson2, "mesure1", "unite1")
       val sensors=List[Sensor](Sensor(bson3, "Id", bson, None, date, None, false, None))
       val controller=new ModuleManagerTest{
@@ -1075,7 +1085,7 @@ class ModuleManagerSpec extends Specification with Mockito {
       val f=fixture
       val matcher=Json.obj("delete"->false,"_id"->Json.obj("$in"->JsArray(Seq(BSONObjectIDFormat.writes(bson)))))
       val matcher2=Json.obj("delete"->false,"_id"->Json.obj("$in"->JsArray(Seq(BSONObjectIDFormat.writes(bson2)))))
-      val typeSensors=TypeSensor(bson2,"typeSensor","modeleSensor",bson3,"fab",1,List("esp1"),false)
+      val typeSensors=TypeSensor(bson2,"typeSensor","modeleSensor",bson3,"fab",1,List("esp1"),2f,3f,false)
       val typeMesure=TypeMesure(bson3,"tension","volt")
       val sensor=Sensor(bson, "Id", bson2, Some(date), date2, Some(date2), true, Some("un com"))
       val typeCards=TypeCards(bson2,"modeleCards","typeCards",false)
@@ -1113,6 +1123,8 @@ class ModuleManagerSpec extends Specification with Mockito {
       content must contain("<h5 class=\"bold\">typeSensor / modeleSensor</h5>")
       content must contain("<div class=\"row\"> <span class=\"bold\">Fabricant</span> : fab</div>")
       content must contain("<div class=\"row\"> <span class=\"bold\">Nombre de signaux</span> : 1 (tension)</div>")
+      content must contain("<span class=\"bold\">Signal minimum</span> : 2.0 volt")
+      content must contain("<span class=\"bold\">Signal maximum</span> : 3.0 volt")
       content must contain("<div class=\"row\"> <span class=\"bold\">Espèces</span> : esp1</div>")
       content must contain("<td>Id</td>")
       content must contain("<td>Hors service</td>")
@@ -1134,7 +1146,7 @@ class ModuleManagerSpec extends Specification with Mockito {
       val bson5=BSONObjectID.generate
       val matcher=Json.obj("delete"->false,"_id"->Json.obj("$in"->JsArray(Seq(BSONObjectIDFormat.writes(bson)))))
       val matcher2=Json.obj("delete"->false,"_id"->Json.obj("$in"->JsArray(Seq(BSONObjectIDFormat.writes(bson2)))))
-      val typeSensors=TypeSensor(bson2,"typeSensor","modeleSensor",bson3,"fab",1,List("esp1"),false)
+      val typeSensors=TypeSensor(bson2,"typeSensor","modeleSensor",bson3,"fab",1,List("esp1"),2f,3f,false)
       val typeMesure=TypeMesure(bson3,"tension","volt")
       val sensor=Sensor(bson, "Id", bson2, Some(date), date2, Some(date2), true, Some("un com"))
       val typeCards=TypeCards(bson2,"modeleCards","typeCards",false)
@@ -1731,7 +1743,7 @@ class ModuleManagerSpec extends Specification with Mockito {
       val f=fixture
       val matcher=Json.obj("delete"->false,"_id"->Json.obj("$in"->JsArray(Seq(BSONObjectIDFormat.writes(bson)))))
       val matcher2=Json.obj("delete"->false,"_id"->Json.obj("$in"->JsArray(Seq(BSONObjectIDFormat.writes(bson2)))))
-      val typeSensors=TypeSensor(bson2,"type","modele",bson3,"fab",1,List("esp1"),false)
+      val typeSensors=TypeSensor(bson2,"type","modele",bson3,"fab",1,List("esp1"),2f,3f,false)
       val typeMesure=TypeMesure(bson3,"tension","volt")
       val sensor=mock[Sensor]
       val module=Module(bson4,"id","types",new Date,List(),List(bson),None)
@@ -1756,7 +1768,7 @@ class ModuleManagerSpec extends Specification with Mockito {
       val bson5=BSONObjectID.generate
       val matcher=Json.obj("delete"->false,"_id"->Json.obj("$in"->JsArray(Seq(BSONObjectIDFormat.writes(bson)))))
       val matcher2=Json.obj("delete"->false,"_id"->Json.obj("$in"->JsArray(Seq(BSONObjectIDFormat.writes(bson2)))))
-      val typeSensors=TypeSensor(bson2,"type","modele",bson3,"fab",1,List("esp1"),false)
+      val typeSensors=TypeSensor(bson2,"type","modele",bson3,"fab",1,List("esp1"),2f,3f,false)
       val typeMesure=TypeMesure(bson3,"tension","volt")
       val sensor=mock[Sensor]
       val module=Module(bson4,"id","types",new Date,List(),List(bson,bson5),None)

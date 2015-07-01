@@ -54,7 +54,7 @@ class SensorManagerSpec extends Specification with Mockito{
       override val moduleDao:ModuleDao=moduleDaoMock
       override val typeSensorManager:TypeSensorManagerLike = typeSensorController
     }
-    val typeSensor=TypeSensor(bson,"type1","modele1",bson2,"fab1",1,List[String]("esp1","esp2"))
+    val typeSensor=TypeSensor(bson,"type1","modele1",bson2,"fab1",1,List("esp1","esp2"),2f,3f)
 
     def applyFoundFunction() {
       typeSensorController.doIfTypeSensorFound(org.mockito.Matchers.eq(bson))(any[Unit => Future[Result]])(any[Unit => Future[Result]]) answers { (params, _) => params match {
@@ -220,6 +220,8 @@ class SensorManagerSpec extends Specification with Mockito{
       content must matchRegex("<span class=\"bold\">\\s*Fabricant\\s*</span>\\s*:\\s*fab1")
       content must matchRegex("<span class=\"bold\">\\s*Nombre de signaux\\s*</span>\\s*:\\s*1\\s*\\(\\s*mesure1\\s*\\)")
       content must matchRegex("<span class=\"bold\">\\s*Espèces\\s*</span>\\s*:\\s*esp1, esp2")
+      content must contain("<span class=\"bold\">Signal minimum</span> : 2.0 unite1")
+      content must contain("<span class=\"bold\">Signal maximum</span> : 3.0 unite1")
       content must matchRegex("<span class=\"bold\">\\s*Stock\\s*</span>\\s*:\\s*0 / 0")
 
       there was one(f.sensorDaoMock).findAll(any[JsObject], org.mockito.Matchers.eq(Json.obj("acquisition" -> -1)))(any[ExecutionContext])

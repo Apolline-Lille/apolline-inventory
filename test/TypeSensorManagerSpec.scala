@@ -167,7 +167,7 @@ class TypeSensorManagerSpec extends Specification with Mockito{
 
     "send 200 on OK with 1 result" in new WithApplication {
       val f = fixture
-      val typeSensor=List[TypeSensor](TypeSensor(bson, "type1", "modele1", bson2, "fab1", 1, List[String]("esp1", "esp2")))
+      val typeSensor=List(TypeSensor(bson, "type1", "modele1", bson2, "fab1", 1, List("esp1", "esp2"),2f,3f))
 
       f.sensorDaoMock.countByType() returns future {
         Stream[BSONDocument](BSONDocument("_id" -> bson, "count" -> 5))
@@ -197,6 +197,8 @@ class TypeSensorManagerSpec extends Specification with Mockito{
       content must matchRegex("<span class=\"bold\">\\s*Fabricant\\s*</span>\\s*:\\s*fab1")
       content must matchRegex("<span class=\"bold\">\\s*Nombre de signaux\\s*</span>\\s*:\\s*1\\s*\\(\\s*mesure1\\s*\\)")
       content must matchRegex("<span class=\"bold\">\\s*Espèces\\s*</span>\\s*:\\s*esp1, esp2")
+      content must contain("<span class=\"bold\">Signal minimum</span> : 2.0 unite1")
+      content must contain("<span class=\"bold\">Signal maximum</span> : 3.0 unite1")
       content must matchRegex("<span class=\"bold\">\\s*Stock\\s*</span>\\s*:\\s*2 / 5")
 
       there was one(f.sensorDaoMock).countByType()
@@ -208,9 +210,9 @@ class TypeSensorManagerSpec extends Specification with Mockito{
 
     "send 200 on OK with 2 results" in new WithApplication {
       val f = fixture
-      val typeSensor=List[TypeSensor](
-        TypeSensor(bson, "type1", "modele1", bson2, "fab1", 1, List[String]("esp1", "esp2")),
-        TypeSensor(bson3, "type2", "modele2", bson4, "fab2", 2, List[String]("esp3", "esp4"))
+      val typeSensor=List(
+        TypeSensor(bson, "type1", "modele1", bson2, "fab1", 1, List("esp1", "esp2"),2f,3f),
+        TypeSensor(bson3, "type2", "modele2", bson4, "fab2", 2, List("esp3", "esp4"),4f,5f)
       )
 
       f.sensorDaoMock.countByType() returns future {
@@ -242,6 +244,8 @@ class TypeSensorManagerSpec extends Specification with Mockito{
       content must matchRegex("<span class=\"bold\">\\s*Fabricant\\s*</span>\\s*:\\s*fab1")
       content must matchRegex("<span class=\"bold\">\\s*Nombre de signaux\\s*</span>\\s*:\\s*1\\s*\\(\\s*mesure1\\s*\\)")
       content must matchRegex("<span class=\"bold\">\\s*Espèces\\s*</span>\\s*:\\s*esp1, esp2")
+      content must contain("<span class=\"bold\">Signal minimum</span> : 2.0 unite1")
+      content must contain("<span class=\"bold\">Signal maximum</span> : 3.0 unite1")
       content must matchRegex("<span class=\"bold\">\\s*Stock\\s*</span>\\s*:\\s*2 / 5")
 
       content must contain("type2")
@@ -249,6 +253,8 @@ class TypeSensorManagerSpec extends Specification with Mockito{
       content must matchRegex("<span class=\"bold\">\\s*Fabricant\\s*</span>\\s*:\\s*fab2")
       content must matchRegex("<span class=\"bold\">\\s*Nombre de signaux\\s*</span>\\s*:\\s*2\\s*\\(\\s*mesure2\\s*\\)")
       content must matchRegex("<span class=\"bold\">\\s*Espèces\\s*</span>\\s*:\\s*esp3, esp4")
+      content must contain("<span class=\"bold\">Signal minimum</span> : 4.0 unite2")
+      content must contain("<span class=\"bold\">Signal maximum</span> : 5.0 unite2")
       content must matchRegex("<span class=\"bold\">\\s*Stock\\s*</span>\\s*:\\s*0 / 0")
 
       there was one(f.sensorDaoMock).countByType()
@@ -420,6 +426,8 @@ class TypeSensorManagerSpec extends Specification with Mockito{
       content must contain("<input id=\"espece\" name=\"espece[]\" class=\"form-control\" list=\"list_espece\" type=\"text\" autocomplete=\"off\" value=\"\"/>")
       content must contain("<input id=\"fabricant\" name=\"fabricant\" class=\"form-control\" list=\"list_fabricant\" type=\"text\" autocomplete=\"off\" value=\"\"/>")
       content must contain("<input id=\"nbSignaux\" name=\"nbSignaux\" class=\"form-control\" type=\"number\" autocomplete=\"off\" value=\"\"/>")
+      content must contain("<input type=\"text\" id=\"min\" name=\"min\" value=\"\" class=\"form-control\"/>")
+      content must contain("<input type=\"text\" id=\"max\" name=\"max\" value=\"\" class=\"form-control\"/>")
       content must contain("<input id=\"mesure\" name=\"mesure\" class=\"form-control\" list=\"list_mesure\" type=\"text\" autocomplete=\"off\" value=\"\"/>")
       content must contain("<input id=\"unite\" name=\"unite\" class=\"form-control\" list=\"list_unite\" type=\"text\" autocomplete=\"off\" value=\"\"/>")
 
@@ -491,7 +499,7 @@ class TypeSensorManagerSpec extends Specification with Mockito{
       contentType(r) must beSome.which(_ == "text/html")
       val content = contentAsString(r)
       content must contain("<title>Inventaire des capteurs</title>")
-      content must contains("<span class=\"control-label errors\">This field is required</span>", 7)
+      content must contains("<span class=\"control-label errors\">This field is required</span>", 9)
 
       f.verifyCallListData
     }
@@ -511,7 +519,7 @@ class TypeSensorManagerSpec extends Specification with Mockito{
       contentType(r) must beSome.which(_ == "text/html")
       val content = contentAsString(r)
       content must contain("<title>Inventaire des capteurs</title>")
-      content must contains("<span class=\"control-label errors\">This field is required</span>", 6)
+      content must contains("<span class=\"control-label errors\">This field is required</span>", 8)
       content must contains("<span class=\"control-label errors\">Numeric value expected</span>", 1)
 
       f.verifyCallListData
@@ -532,14 +540,36 @@ class TypeSensorManagerSpec extends Specification with Mockito{
       contentType(r) must beSome.which(_ == "text/html")
       val content = contentAsString(r)
       content must contain("<title>Inventaire des capteurs</title>")
-      content must contains("<span class=\"control-label errors\">This field is required</span>", 6)
+      content must contains("<span class=\"control-label errors\">This field is required</span>", 8)
       content must contains("<span class=\"control-label errors\">Must be greater or equal to 1</span>", 1)
 
       f.verifyCallListData
     }
 
+    "send bad_request with form and min or max signal not valid float" in new WithApplication {
+      val formData = Json.parse( """{"min":"a","max":"a"}""")
+      val route = mock[Call]
+      val function = mock[(TypeSensorForm, List[String], TypeMesure) => Future[Result]]
+      val function2 = mock[TypeSensorForm => JsObject]
+      val f = fixture
+
+      f.listDataEmptyStream
+
+      val r = f.controller.submitForm("error", route)(function2)(function)(FakeRequest(POST, "url").withJsonBody(formData).withSession("user" -> """{"login":"test"}"""))
+
+      status(r) must equalTo(BAD_REQUEST)
+      contentType(r) must beSome.which(_ == "text/html")
+      val content = contentAsString(r)
+      println(content)
+      content must contain("<title>Inventaire des capteurs</title>")
+      content must contains("<span class=\"control-label errors\">This field is required</span>", 7)
+      content must contains("<span class=\"control-label errors\">Real number value expected</span>", 2)
+
+      f.verifyCallListData
+    }
+
     "send Bad_Request for empty list especes" in new WithApplication {
-      val formData = Json.parse( """{"model":"mod","types":"typ","espece":[],"fabricant":"fab","nbSignaux":"1","mesure":"mes","unite":"u"}""")
+      val formData = Json.parse( """{"model":"mod","types":"typ","espece":[],"fabricant":"fab","nbSignaux":"1","mesure":"mes","unite":"u","min":"2.0","max":"3.0"}""")
       val route = mock[Call]
       val function = mock[(TypeSensorForm, List[String], TypeMesure) => Future[Result]]
       val function2 = mock[TypeSensorForm => JsObject]
@@ -582,7 +612,7 @@ class TypeSensorManagerSpec extends Specification with Mockito{
       val fix=fixture
       val throwable=mock[Throwable]
 
-      fix.typeSensorDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{Some(TypeSensor(bson,"type1","modele1",bson2,"fab1",1,List[String]("esp1","esp2")))}
+      fix.typeSensorDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{Some(TypeSensor(bson,"type1","modele1",bson2,"fab1",1,List("esp1","esp2"),2f,3f))}
       fix.typeSensorDaoMock.updateById(any[BSONObjectID],any[TypeSensor],any[GetLastError])(any[Writes[TypeSensor]],any[ExecutionContext]) returns futureMock
       futureMock.map(any[LastError=>LastError])(any[ExecutionContext]) returns futureMock
       futureMock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers (vals => future{vals.asInstanceOf[PartialFunction[Throwable,Result]](throwable)})
@@ -614,7 +644,7 @@ class TypeSensorManagerSpec extends Specification with Mockito{
       val fix=fixture
       val lastError=mock[LastError]
 
-      fix.typeSensorDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{Some(TypeSensor(bson,"type1","modele1",bson2,"fab1",1,List[String]("esp1","esp2")))}
+      fix.typeSensorDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{Some(TypeSensor(bson,"type1","modele1",bson2,"fab1",1,List("esp1","esp2"),2f,3f))}
       fix.typeSensorDaoMock.updateById(any[BSONObjectID],any[TypeSensor],any[GetLastError])(any[Writes[TypeSensor]],any[ExecutionContext]) returns future{lastError}
 
       val r = fix.controller.updateWithDeleteColumn(Json.obj(),true)
@@ -630,7 +660,7 @@ class TypeSensorManagerSpec extends Specification with Mockito{
   "When method actionWhenFormValid is called, TypeSensorManager" should{
     "send Bad_Request for existing type" in new WithApplication {
       val espece=List("esp1","esp2")
-      val formData = TypeSensorForm("mod","typ",espece,"fab",1,"mes","u")
+      val formData = TypeSensorForm("mod","typ",espece,"fab",1,"mes","u",2f,3f)
       val route=mock[Call]
       val function=mock[(TypeSensorForm,List[String],TypeMesure)=>Future[Result]]
       val function2=mock[TypeSensorForm=>JsObject]
@@ -655,7 +685,7 @@ class TypeSensorManagerSpec extends Specification with Mockito{
 
     "send Bad_Request for existing type but delete" in new WithApplication {
       val espece=List("esp1","esp2")
-      val formData = TypeSensorForm("mod","typ",espece,"fab",1,"mes","u")
+      val formData = TypeSensorForm("mod","typ",espece,"fab",1,"mes","u",2f,3f)
       val route=mock[Call]
       val function=mock[(TypeSensorForm,List[String],TypeMesure)=>Future[Result]]
       val function2=mock[TypeSensorForm=>JsObject]
@@ -681,7 +711,7 @@ class TypeSensorManagerSpec extends Specification with Mockito{
 
     "send 500 Internal error if mongoDB error when find all sensor type" in new WithApplication {
       val espece=List("esp1","esp2")
-      val formData = TypeSensorForm("mod","typ",espece,"fab",1,"mes","u")
+      val formData = TypeSensorForm("mod","typ",espece,"fab",1,"mes","u",2f,3f)
       val route=mock[Call]
       val function=mock[(TypeSensorForm,List[String],TypeMesure)=>Future[Result]]
       val function2=mock[TypeSensorForm=>JsObject]
@@ -706,7 +736,7 @@ class TypeSensorManagerSpec extends Specification with Mockito{
 
     "send 500 Internal error if mongoDB error when find mesure" in new WithApplication {
       val espece=List("esp1","esp2")
-      val formData = TypeSensorForm("mod","typ",espece,"fab",1,"mes","u")
+      val formData = TypeSensorForm("mod","typ",espece,"fab",1,"mes","u",2f,3f)
       val route=mock[Call]
       val function=mock[(TypeSensorForm,List[String],TypeMesure)=>Future[Result]]
       val function2=mock[TypeSensorForm=>JsObject]
@@ -749,6 +779,8 @@ class TypeSensorManagerSpec extends Specification with Mockito{
       content must contain("<input id=\"espece\" name=\"espece[]\" class=\"form-control\" list=\"list_espece\" type=\"text\" autocomplete=\"off\" value=\"\"/>")
       content must contain("<input id=\"fabricant\" name=\"fabricant\" class=\"form-control\" list=\"list_fabricant\" type=\"text\" autocomplete=\"off\" value=\"\"/>")
       content must contain("<input id=\"nbSignaux\" name=\"nbSignaux\" class=\"form-control\" type=\"number\" autocomplete=\"off\" value=\"\"/>")
+      content must contain("<input type=\"text\" id=\"min\" name=\"min\" value=\"\" class=\"form-control\"/>")
+      content must contain("<input type=\"text\" id=\"max\" name=\"max\" value=\"\" class=\"form-control\"/>")
       content must contain("<input id=\"mesure\" name=\"mesure\" class=\"form-control\" list=\"list_mesure\" type=\"text\" autocomplete=\"off\" value=\"\"/>")
       content must contain("<input id=\"unite\" name=\"unite\" class=\"form-control\" list=\"list_unite\" type=\"text\" autocomplete=\"off\" value=\"\"/>")
 
@@ -756,7 +788,7 @@ class TypeSensorManagerSpec extends Specification with Mockito{
     }
 
     "send redirect after insert type mesure and type sensor" in new WithApplication {
-      val formData = Json.parse("""{"model":"mod","types":"typ","espece":["esp"],"fabricant":"fab","nbSignaux":"1","mesure":"mes","unite":"u"}""")
+      val formData = Json.parse("""{"model":"mod","types":"typ","espece":["esp"],"fabricant":"fab","nbSignaux":"1","mesure":"mes","unite":"u","min":"2.0","max":"3.0"}""")
       val lastError=mock[LastError]
       val f=fixture
 
@@ -776,7 +808,7 @@ class TypeSensorManagerSpec extends Specification with Mockito{
     }
 
     "send redirect after insert type sensor" in new WithApplication {
-      val formData = Json.parse("""{"model":"mod","types":"typ","espece":["esp"],"fabricant":"fab","nbSignaux":"1","mesure":"mes","unite":"u"}""")
+      val formData = Json.parse("""{"model":"mod","types":"typ","espece":["esp"],"fabricant":"fab","nbSignaux":"1","mesure":"mes","unite":"u","min":"2.0","max":"3.0"}""")
       val lastError=mock[LastError]
       val f=fixture
 
@@ -794,10 +826,10 @@ class TypeSensorManagerSpec extends Specification with Mockito{
     }
 
     "send redirect after reactivat type sensor" in new WithApplication {
-      val formData = Json.parse("""{"model":"mod","types":"typ","espece":["esp"],"fabricant":"fab","nbSignaux":"1","mesure":"mes","unite":"u","send":"Réactiver"}""")
+      val formData = Json.parse("""{"model":"mod","types":"typ","espece":["esp"],"fabricant":"fab","nbSignaux":"1","mesure":"mes","unite":"u","send":"Réactiver","min":"2.0","max":"3.0"}""")
       val lastError=mock[LastError]
       val f=fixture
-      val typeSensor=TypeSensor(bson,"type1","modele1",bson2,"fab1",1,List[String]("esp1","esp2"),true)
+      val typeSensor=TypeSensor(bson,"type1","modele1",bson2,"fab1",1,List("esp1","esp2"),2f,3f,true)
 
       f.typeSensorDaoMock.findAll(any[JsObject],any[JsObject])(any[ExecutionContext]) returns future{List(typeSensor)}
       f.typeMesureDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{Some(TypeMesure(bson,"non","u"))}
@@ -815,7 +847,7 @@ class TypeSensorManagerSpec extends Specification with Mockito{
     }
 
     "send 500 internal error if mongoDB error when insert sensor type" in new WithApplication {
-      val formData = Json.parse("""{"model":"mod","types":"typ","espece":["esp"],"fabricant":"fab","nbSignaux":"1","mesure":"mes","unite":"u"}""")
+      val formData = Json.parse("""{"model":"mod","types":"typ","espece":["esp"],"fabricant":"fab","nbSignaux":"1","mesure":"mes","unite":"u","min":"2.0","max":"3.0"}""")
       val futureMock=mock[Future[LastError]]
       val throwable=mock[Throwable]
       val f=fixture
@@ -840,7 +872,7 @@ class TypeSensorManagerSpec extends Specification with Mockito{
 
   "When user is on the resource /inventary/sensors/:id/update , TypeSensorManager" should {
     "send 200 on OK with a form" in new WithApplication {
-      val typeSensor=Some(TypeSensor(bson,"type","mod",bson2,"fab",1,List[String]("esp1"),false))
+      val typeSensor=Some(TypeSensor(bson,"type","mod",bson2,"fab",1,List("esp1"),2f,3f,false))
       val typeMesure=Some(TypeMesure(bson2,"Tension","Volt"))
 
       val fix=fixture
@@ -861,6 +893,8 @@ class TypeSensorManagerSpec extends Specification with Mockito{
       content must contain("<input id=\"espece\" name=\"espece[]\" class=\"form-control\" list=\"list_espece\" type=\"text\" autocomplete=\"off\" value=\"esp1\"/>")
       content must contain("<input id=\"fabricant\" name=\"fabricant\" class=\"form-control\" list=\"list_fabricant\" type=\"text\" autocomplete=\"off\" value=\"fab\"/>")
       content must contain("<input id=\"nbSignaux\" name=\"nbSignaux\" class=\"form-control\" type=\"number\" autocomplete=\"off\" value=\"1\"/>")
+      content must contain("<input type=\"text\" id=\"min\" name=\"min\" value=\"2.0\" class=\"form-control\"/>")
+      content must contain("<input type=\"text\" id=\"max\" name=\"max\" value=\"3.0\" class=\"form-control\"/>")
       content must contain("<input id=\"mesure\" name=\"mesure\" class=\"form-control\" list=\"list_mesure\" type=\"text\" autocomplete=\"off\" value=\"Tension\"/>")
       content must contain("<input id=\"unite\" name=\"unite\" class=\"form-control\" list=\"list_unite\" type=\"text\" autocomplete=\"off\" value=\"Volt\"/>")
 
@@ -884,7 +918,7 @@ class TypeSensorManagerSpec extends Specification with Mockito{
     }
 
     "send Redirect for type mesure not found" in new WithApplication {
-      val typeSensor=Some(TypeSensor(bson,"type","mod",bson2,"fab",1,List[String]("esp1"),false))
+      val typeSensor=Some(TypeSensor(bson,"type","mod",bson2,"fab",1,List[String]("esp1"),2f,3f,false))
 
       val fix=fixture
 
@@ -923,7 +957,7 @@ class TypeSensorManagerSpec extends Specification with Mockito{
 
     "send 500 Internal error if mongoDB error when find mesure type" in new WithApplication {
       val future_Mock=mock[Future[Option[TypeMesure]]]
-      val typeSensor=Some(TypeSensor(bson,"type","mod",bson2,"fab",1,List[String]("esp1"),false))
+      val typeSensor=Some(TypeSensor(bson,"type","mod",bson2,"fab",1,List("esp1"),2f,3f,false))
       val throwable=mock[Throwable]
 
       val fix = fixture
@@ -944,7 +978,7 @@ class TypeSensorManagerSpec extends Specification with Mockito{
     }
 
     "send redirect after insert type mesure and update type sensor" in new WithApplication {
-      val formData = Json.parse("""{"model":"mod","types":"typ","espece":["esp"],"fabricant":"fab","nbSignaux":"1","mesure":"mes","unite":"u"}""")
+      val formData = Json.parse("""{"model":"mod","types":"typ","espece":["esp"],"fabricant":"fab","nbSignaux":"1","mesure":"mes","unite":"u","min":"2.0","max":"3.0"}""")
       val fix=fixture
       val lastError=mock[LastError]
 
@@ -970,11 +1004,11 @@ class TypeSensorManagerSpec extends Specification with Mockito{
     }
 
     "send redirect after update type sensor" in new WithApplication {
-      val formData = Json.parse("""{"model":"mod","types":"typ","espece":["esp"],"fabricant":"fab","nbSignaux":"1","mesure":"mes","unite":"u","send":"Ignorer"}""")
+      val formData = Json.parse("""{"model":"mod","types":"typ","espece":["esp"],"fabricant":"fab","nbSignaux":"1","mesure":"mes","unite":"u","send":"Ignorer","min":"2.0","max":"3.0"}""")
       val lastError=mock[LastError]
       val fix=fixture
 
-      fix.typeSensorDaoMock.findAll(any[JsObject],any[JsObject])(any[ExecutionContext]) returns future{List(TypeSensor(bson,"type","mod",bson2,"fab",1,List[String]("esp1"),true))}
+      fix.typeSensorDaoMock.findAll(any[JsObject],any[JsObject])(any[ExecutionContext]) returns future{List(TypeSensor(bson,"type","mod",bson2,"fab",1,List("esp1"),2f,3f,true))}
       fix.typeMesureDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{Some(TypeMesure(bson,"non","u"))}
       fix.typeSensorDaoMock.updateById(any[BSONObjectID],any[TypeSensor],any[GetLastError])(any[Writes[TypeSensor]],any[ExecutionContext]) returns future{lastError}
 
@@ -988,8 +1022,8 @@ class TypeSensorManagerSpec extends Specification with Mockito{
       there was one(fix.typeSensorDaoMock).updateById(any[BSONObjectID],any[TypeSensor],any[GetLastError])(any[Writes[TypeSensor]],any[ExecutionContext])
     }
 
-    "send 500 internal error if mongoDB error wehn update sensor type" in new WithApplication {
-      val formData = Json.parse("""{"model":"mod","types":"typ","espece":["esp"],"fabricant":"fab","nbSignaux":"1","mesure":"mes","unite":"u"}""")
+    "send 500 internal error if mongoDB error when update sensor type" in new WithApplication {
+      val formData = Json.parse("""{"model":"mod","types":"typ","espece":["esp"],"fabricant":"fab","nbSignaux":"1","mesure":"mes","unite":"u","min":"2.0","max":"3.0"}""")
       val futureMock=mock[Future[LastError]]
       val fix=fixture
       val throwable=mock[Throwable]
@@ -1049,7 +1083,7 @@ class TypeSensorManagerSpec extends Specification with Mockito{
       val fix=fixture
       val lastError=mock[LastError]
 
-      fix.typeSensorDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{Some(TypeSensor(bson,"type1","modele1",bson2,"fab1",1,List[String]("esp1","esp2")))}
+      fix.typeSensorDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{Some(TypeSensor(bson,"type1","modele1",bson2,"fab1",1,List("esp1","esp2"),2f,3f))}
       fix.sensorDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{None}
       fix.typeSensorDaoMock.updateById(any[BSONObjectID],any[TypeSensor],any[GetLastError])(any[Writes[TypeSensor]],any[ExecutionContext]) returns future{lastError}
 
@@ -1070,7 +1104,7 @@ class TypeSensorManagerSpec extends Specification with Mockito{
       val func1=mock[Unit=>Future[Result]]
       val func2=mock[Unit=>Future[Result]]
 
-      fix.typeSensorDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{Some(TypeSensor(bson,"type","mod",bson2,"fab",1,List[String]("esp1"),false))}
+      fix.typeSensorDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{Some(TypeSensor(bson,"type","mod",bson2,"fab",1,List("esp1"),2f,3f,false))}
       func1.apply(any[Unit]) returns future{Results.Ok("func found")}
 
       val req=FakeRequest(GET, "url")

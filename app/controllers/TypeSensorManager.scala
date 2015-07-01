@@ -2,6 +2,7 @@ package controllers
 
 import com.wordnik.swagger.annotations._
 import models._
+import play.api.data.format.Formats._
 import play.api.i18n.Messages
 import play.api.libs.json.{JsArray, JsObject, Json}
 import play.api.mvc._
@@ -36,6 +37,8 @@ case class TypeSensorForm(
    nbSignaux:Int,
    fabricant:String,
    unite:String,
+   min:Float,
+   max:Float,
    send:Option[String]=None
  )
 
@@ -58,6 +61,8 @@ trait TypeSensorManagerLike extends Controller{
       "nbSignaux"->number(min=1),
       "fabricant"->nonEmptyText,
       "unite"->nonEmptyText,
+      "min"->of(floatFormat),
+      "max"->of(floatFormat),
       "send"->optional(text)
     )(TypeSensorForm.apply)(TypeSensorForm.unapply)
   )
@@ -184,7 +189,9 @@ trait TypeSensorManagerLike extends Controller{
                     typeMesure.nom,
                     typeSensor.nbSignaux,
                     typeSensor.fabricant,
-                    typeMesure.unite
+                    typeMesure.unite,
+                    typeSensor.min,
+                    typeSensor.max
                   )
 
                   //Display the form for update sensor type
@@ -244,7 +251,9 @@ trait TypeSensorManagerLike extends Controller{
             mesure=mesure._id,
             fabricant=typeData.fabricant,
             nbSignaux=typeData.nbSignaux,
-            espece=especes
+            espece=especes,
+            min=typeData.min,
+            max=typeData.max
           )).map(
               //Redirect to the inventary if sensor type was insert
               e => Redirect(routes.TypeSensorManager.inventary())
@@ -305,7 +314,9 @@ trait TypeSensorManagerLike extends Controller{
               mesure = mesure._id,
               fabricant = typeData.fabricant,
               nbSignaux = typeData.nbSignaux,
-              espece = especes
+              espece = especes,
+              min=typeData.min,
+              max=typeData.max
             )).map(
               //Redirect to the inventary if sensor type was update
               e => Redirect(routes.TypeSensorManager.inventary())

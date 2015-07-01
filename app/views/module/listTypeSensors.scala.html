@@ -33,11 +33,15 @@
                     <div class="row"> <span class="bold">@Messages("inventary.typeSensor.fabricant")</span> : @{
                       types.fabricant
                     } </div>
-                    <div class="row"> <span class="bold">@Messages("inventary.typeSensor.nbSignaux")</span> : @{
-                      types.nbSignaux
-                    } (@{
-                      listMesure.filter(m => m._id == types.mesure).head.nom
-                    }) </div>
+                    @defining(listMesure.filter(m => m._id == types.mesure).head) { mesure =>
+                      <div class="row"> <span class="bold">@Messages("inventary.typeSensor.nbSignaux")</span> : @{
+                        types.nbSignaux
+                      } (@{
+                        mesure.nom
+                      }) </div>
+                      <div class="row"><span class="bold">@Messages("inventary.typeSensor.signalMin")</span> : @types.min @mesure.unite</div>
+                      <div class="row"><span class="bold">@Messages("inventary.typeSensor.signalMax")</span> : @types.max @mesure.unite</div>
+                    }
                     <div class="row"> <span class="bold">@Messages("inventary.typeSensor.espece")</span> : @{
                       types.espece.mkString(", ")
                     } </div>
