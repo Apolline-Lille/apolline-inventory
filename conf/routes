@@ -24,7 +24,7 @@ GET         /register                                          controllers.UserM
 POST        /register                                          controllers.UserManager.addUserSubmit
 
 #Sensor page
-GET         /inventary/sensors                                 controllers.TypeSensorManager.inventary(sort:String ?= "",stock:String ?= "")
+GET         /inventary/sensors                                 controllers.TypeSensorManager.inventary(types:String ?= "",stock:String ?= "")
 GET         /inventary/sensors/type                            controllers.TypeSensorManager.typePage
 POST        /inventary/sensors/type                            controllers.TypeSensorManager.typeInsert
 GET         /inventary/sensors/:id                             controllers.SensorManager.inventary(id:String,sort:String ?= "id",sens:Int ?= 1)
@@ -39,7 +39,7 @@ GET         /inventary/sensors/:id/:id2/delete                 controllers.Senso
 GET         /inventary/sensors/:id/:id2/clone                  controllers.SensorManager.sensorClonePage(id:String,id2:String)
 
 #Cards page
-GET         /inventary/cards                                   controllers.TypeCardsManager.inventary(sort:String ?= "", stock:String ?= "")
+GET         /inventary/cards                                   controllers.TypeCardsManager.inventary(types:String ?= "",modele:String ?="", stock:String ?= "")
 GET         /inventary/cards/type                              controllers.TypeCardsManager.typePage
 POST        /inventary/cards/type                              controllers.TypeCardsManager.typeInsert
 GET         /inventary/cards/:id/update                        controllers.TypeCardsManager.typeUpdatePage(id:String)

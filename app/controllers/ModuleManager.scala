@@ -323,7 +323,7 @@ trait ModuleManagerLike extends Controller {
 
                 //Find the list of type cards
                 val selector = Json.obj("delete" -> false, "_id" -> Json.obj("$in" -> JsArray(idType.toSeq)))
-                typeCardsManager.getInventaryTypeCards(selector, filtreType) {
+                typeCardsManager.getInventaryTypeCards(selector, filtreType,"") {
                   (types, filtre, count,countUsed) => Ok(views.html.module.listTypeCards(filtreType, types, count,countUsed, filtre))
                 }
 

@@ -101,3 +101,8 @@ form dl{
         display:inline-block;
     }
 }
+
+.search_lateral{
+    margin-top: 10px;
+    margin-bottom: 10px;
+}
