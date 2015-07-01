@@ -805,4 +805,103 @@ class TypeCardsManagerSpec extends Specification with Mockito {
       there was one(fix.typeCardsDaoMock).updateById(any[BSONObjectID],any[TypeCards],any[GetLastError])(any[Writes[TypeCards]],any[ExecutionContext])
     }
   }
+
+  "When method doIfTypeCardsFound is called, TypeCardsManager" should{
+    "call function notFound if type cards not found" in new WithApplication{
+      val fix=fixture
+      val found=mock[Unit=>Future[Result]]
+      val notFound=mock[Unit=>Future[Result]]
+
+      fix.typeCardsDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("_id"->bson,"delete"->false)))(any[ExecutionContext]) returns future{None}
+      notFound.apply(any[Unit]) returns future{Results.Ok("exec notFound")}
+
+      val r=fix.controller.doIfTypeCardsFound(bson)(found)(notFound)
+
+      status(r) must equalTo(OK)
+      contentAsString(r) must equalTo("exec notFound")
+
+      there was one(fix.typeCardsDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("_id"->bson,"delete"->false)))(any[ExecutionContext])
+      there was one(notFound).apply(any[Unit])
+      there was no(found).apply(any[Unit])
+    }
+
+    "call function found if type cards found" in new WithApplication{
+      val fix=fixture
+      val found=mock[Unit=>Future[Result]]
+      val notFound=mock[Unit=>Future[Result]]
+      val typeCards=mock[TypeCards]
+
+      fix.typeCardsDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("_id"->bson,"delete"->false)))(any[ExecutionContext]) returns future{Some(typeCards)}
+      found.apply(any[Unit]) returns future{Results.Ok("exec found")}
+
+      val r=fix.controller.doIfTypeCardsFound(bson)(found)(notFound)
+
+      status(r) must equalTo(OK)
+      contentAsString(r) must equalTo("exec found")
+
+      there was one(fix.typeCardsDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("_id"->bson,"delete"->false)))(any[ExecutionContext])
+      there was no(notFound).apply(any[Unit])
+      there was one(found).apply(any[Unit])
+    }
+
+    "send internal server error if have mongoDB error when find type cards" in new WithApplication{
+      val fix=fixture
+      val found=mock[Unit=>Future[Result]]
+      val notFound=mock[Unit=>Future[Result]]
+      val lastError=mock[Future[Option[TypeCards]]]
+      val throwable=mock[Throwable]
+
+      fix.typeCardsDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("_id"->bson,"delete"->false)))(any[ExecutionContext]) returns lastError
+      lastError.flatMap(any[Option[TypeCards]=>Future[Option[TypeCards]]])(any[ExecutionContext]) returns lastError
+      lastError.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers {value=>future{value.asInstanceOf[PartialFunction[Throwable,Result]](throwable)}}
+
+      val r=fix.controller.doIfTypeCardsFound(bson)(found)(notFound)
+
+      status(r) must equalTo(INTERNAL_SERVER_ERROR)
+
+      there was one(fix.typeCardsDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("_id"->bson,"delete"->false)))(any[ExecutionContext])
+      there was no(notFound).apply(any[Unit])
+      there was no(found).apply(any[Unit])
+      there was one(lastError).flatMap(any[Option[TypeCards]=>Future[Option[TypeCards]]])(any[ExecutionContext])
+      there was one(lastError).recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext])
+    }
+  }
+
+  "When method filtreStock is called, TypeCardsManager" should{
+    "return true if the value is greater than 0 and filter is equal to yes" in new WithApplication{
+      val fix=fixture
+
+      fix.controller.filtreStock("yes")(1) must beTrue
+    }
+
+    "return false if the value is less or equal than 0 and filter is equal to yes" in new WithApplication{
+      val fix=fixture
+
+      fix.controller.filtreStock("yes")(0) must beFalse
+    }
+
+    "return true if the value is equal to 0 and filter is equal to no" in new WithApplication{
+      val fix=fixture
+
+      fix.controller.filtreStock("no")(0) must beTrue
+    }
+
+    "return false if the value is not equal to 0 and filter is equal to no" in new WithApplication{
+      val fix=fixture
+
+      fix.controller.filtreStock("no")(1) must beFalse
+    }
+
+    "return true if the value is greater or equal than 0 and filter is not equal to yes or no" in new WithApplication{
+      val fix=fixture
+
+      fix.controller.filtreStock("yesNo")(0) must beTrue
+    }
+
+    "return false if the value is less than 0 and filter is not equal to yes or no" in new WithApplication{
+      val fix=fixture
+
+      fix.controller.filtreStock("yesNo")(-1) must beFalse
+    }
+  }
 }
