@@ -309,7 +309,7 @@ trait ModuleManagerLike extends Controller {
   @ApiImplicitParams(Array(
     new ApiImplicitParam(value = "Name of type cards used for filter type cards",name="filtre", dataType = "String", paramType = "query")
   ))
-  def formTypeCards(filtreType:String="") = Action.async{
+  def formTypeCards(filtreType:String="",filtreModele:String="") = Action.async{
     implicit request =>
       //Verify if user is connect
       UserManager.doIfconnectAsync(request) {
@@ -323,8 +323,8 @@ trait ModuleManagerLike extends Controller {
 
                 //Find the list of type cards
                 val selector = Json.obj("delete" -> false, "_id" -> Json.obj("$in" -> JsArray(idType.toSeq)))
-                typeCardsManager.getInventaryTypeCards(selector, filtreType,"") {
-                  (types, filtre, count,countUsed) => Ok(views.html.module.listTypeCards(filtreType, types, count,countUsed, filtre))
+                typeCardsManager.getInventaryTypeCards(selector, filtreType,filtreModele) {
+                  (types, filtre, count,countUsed) => Ok(views.html.module.listTypeCards(filtreType,filtreModele, types, count,countUsed, filtre))
                 }
 
               }
@@ -387,7 +387,7 @@ trait ModuleManagerLike extends Controller {
   @ApiImplicitParams(Array(
     new ApiImplicitParam(value = "Name of type cards used for filter type sensors",name="filtre", dataType = "String", paramType = "query")
   ))
-  def formTypeSensors(filtreType:String="")=Action.async{
+  def formTypeSensors(filtreType:String="",filtreModele:String="")=Action.async{
     implicit request=>
       //Verify if user is connect
       UserManager.doIfconnectAsync(request) {
@@ -400,8 +400,8 @@ trait ModuleManagerLike extends Controller {
               idType =>
 
                 //Find the list of type sensors
-                typeSensorManager.getInventaryTypeSensor(Json.obj("delete" -> false, "_id" -> Json.obj("$in" -> JsArray(idType.toSeq))), filtreType,"") {
-                  (typeSensor, typeMesure, stock,stockUsed, nomType) => Ok(views.html.module.listTypeSensors(filtreType, typeSensor, typeMesure, stock,stockUsed, nomType))
+                typeSensorManager.getInventaryTypeSensor(Json.obj("delete" -> false, "_id" -> Json.obj("$in" -> JsArray(idType.toSeq))), filtreType,filtreModele) {
+                  (typeSensor, typeMesure, stock,stockUsed, nomType) => Ok(views.html.module.listTypeSensors(filtreType,filtreModele, typeSensor, typeMesure, stock,stockUsed, nomType))
                 }
 
             ).recover({ case e => InternalServerError("error") })

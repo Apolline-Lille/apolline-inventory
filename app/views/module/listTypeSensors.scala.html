@@ -1,4 +1,4 @@
-@(sort:String,listType:List[TypeSensor],listMesure:List[TypeMesure],stock:List[reactivemongo.bson.BSONDocument],stockUsed:List[(reactivemongo.bson.BSONObjectID,Int)],filtre:List[reactivemongo.bson.BSONDocument])(implicit request: Request[AnyContent])
+@(sort:String,modele:String,listType:List[TypeSensor],listMesure:List[TypeMesure],stock:List[reactivemongo.bson.BSONDocument],stockUsed:List[(reactivemongo.bson.BSONObjectID,Int)],filtre:List[reactivemongo.bson.BSONDocument])(implicit request: Request[AnyContent])
 
 @import reactivemongo.bson.BSONObjectID
 
@@ -64,16 +64,25 @@
           <span class="bold">@Messages("inventary.typeSensor.type")</span>
           <ul class="nav nav-pills nav-stacked">
             <li role="presentation" @if(sort.isEmpty) {
-              class="active"}><a href="@routes.ModuleManager.formTypeSensors("")" style="padding:0px 15px !important">
+              class="active"}><a href="@routes.ModuleManager.formTypeSensors("",modele)" style="padding:0px 15px !important">
             @Messages("global.all")</a></li>
             @for(types <- filtre) {
               @defining(types.getAs[String]("_id").get) { nomType =>
                 <li role="presentation" @if(sort.equals(nomType)) {
-                  class="active"}><a href="@routes.ModuleManager.formTypeSensors(nomType)" style="padding:0px 15px !important">@nomType</a></li>
+                  class="active"}><a href="@routes.ModuleManager.formTypeSensors(nomType,modele)" style="padding:0px 15px !important">@nomType</a></li>
               }
             }
           </ul>
         }
+        <div class="search_lateral">
+        @helper.form(action=routes.ModuleManager.formTypeSensors()){
+          <div class="input-group">
+            <div class="input-group-addon"><span class="glyphicon glyphicon-search"></span></div>
+            <input type="search" name="modele" class="form-control" value="@modele" placeholder="@Messages("inventary.typeSensor.model")"/>
+            <input type="hidden" name="types" value="@sort"/>
+          </div>
+        }
+        </div>
       </nav>
     </section>
   </div>

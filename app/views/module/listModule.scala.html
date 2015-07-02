@@ -38,12 +38,12 @@
           <span class="bold">@Messages("inventary.module.types")</span>
           <ul class="nav nav-pills nav-stacked">
             <li role="presentation" @if(filtre.isEmpty) {
-              class="active"}><a href="@routes.ModuleManager.inventary("")" style="padding:0px 15px !important">
+              class="active"}><a href="@routes.ModuleManager.inventary("",filtreId)" style="padding:0px 15px !important">
             @Messages("global.all")</a></li>
             @for(types <- listType) {
               @defining(types.getAs[String]("_id").get) { nomType =>
                 <li role="presentation" @if(filtre.equals(nomType)) {
-                  class="active"}><a href="@routes.ModuleManager.inventary(nomType)" style="padding:0px 15px !important">@nomType</a></li>
+                  class="active"}><a href="@routes.ModuleManager.inventary(nomType,filtreId)" style="padding:0px 15px !important">@nomType</a></li>
               }
             }
           </ul>
