@@ -82,7 +82,7 @@ GET         /campaigns/campaign/:id                            controllers.Condi
 GET         /campaigns/campaign/:id/form                       controllers.ConditionsManager.formGeneral(id)
 GET         /campaigns/campaign/:id/form/update                 controllers.ConditionsManager.formGeneralUpdateInput(id)
 POST        /campaigns/campaign/:id/form                       controllers.ConditionsManager.addGeneralInformation(id)
-GET         /campaigns/campaign/:id/form/module                controllers.ConditionsManager.formModule(id,filtre ?= "")
+GET         /campaigns/campaign/:id/form/module                controllers.ConditionsManager.formModule(id,filtre ?= "",filtreId:String ?= "")
 POST        /campaigns/campaign/:id/form/module                controllers.ConditionsManager.addSelectedModule(id)
 GET         /campaigns/campaign/:id/form/localisation          controllers.ConditionsManager.formLocalisation(id)
 POST        /campaigns/campaign/:id/form/localisation          controllers.ConditionsManager.addLocalisation(id)

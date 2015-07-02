@@ -704,17 +704,17 @@ class ConditionsManagerSpec extends Specification with Mockito {
         case Array(_,p:(Campagne=>Future[Result]),_) => p.apply(camp)
       }}
 
-      f.moduleManagerMock.getInventaryModule(org.mockito.Matchers.eq(""))(any[(List[Module],List[BSONDocument])=>Result]) answers {(params,_)=>params match{
-        case Array(_,p:((List[Module],List[BSONDocument])=>Result)) => future{p.apply(List(),List())}
+      f.moduleManagerMock.getInventaryModule(org.mockito.Matchers.eq(""),org.mockito.Matchers.eq(""))(any[(List[Module],List[BSONDocument])=>Result]) answers {(params,_)=>params match{
+        case Array(_,_,p:((List[Module],List[BSONDocument])=>Result)) => future{p.apply(List(),List())}
       }}
 
-      val r=f.controller.formModule(bson.stringify,"").apply(FakeRequest(GET,"/campaigns/campaign/"+bson.stringify+"/form/module").withSession("user" -> """{"login":"test"}"""))
+      val r=f.controller.formModule(bson.stringify,"","").apply(FakeRequest(GET,"/campaigns/campaign/"+bson.stringify+"/form/module").withSession("user" -> """{"login":"test"}"""))
 
       status(r) must equalTo(OK)
       contentAsString(r) must contain("<h3 style=\"text-align:center\">Aucun résultat trouvé</h3>")
 
       there was one(f.campaignManagerMock).doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]])
-      there was one(f.moduleManagerMock).getInventaryModule(org.mockito.Matchers.eq(""))(any[(List[Module],List[BSONDocument])=>Result])
+      there was one(f.moduleManagerMock).getInventaryModule(org.mockito.Matchers.eq(""),org.mockito.Matchers.eq(""))(any[(List[Module],List[BSONDocument])=>Result])
     }
 
     "send 200 Ok page with 1 result" in new WithApplication {
@@ -728,11 +728,11 @@ class ConditionsManagerSpec extends Specification with Mockito {
         case Array(_,p:(Campagne=>Future[Result]),_) => p.apply(camp)
       }}
 
-      f.moduleManagerMock.getInventaryModule(org.mockito.Matchers.eq(""))(any[(List[Module],List[BSONDocument])=>Result]) answers {(params,_)=>params match{
-        case Array(_,p:((List[Module],List[BSONDocument])=>Result)) => future{p.apply(modules,List())}
+      f.moduleManagerMock.getInventaryModule(org.mockito.Matchers.eq(""),org.mockito.Matchers.eq(""))(any[(List[Module],List[BSONDocument])=>Result]) answers {(params,_)=>params match{
+        case Array(_,_,p:((List[Module],List[BSONDocument])=>Result)) => future{p.apply(modules,List())}
       }}
 
-      val r=f.controller.formModule(bson.stringify,"").apply(FakeRequest(GET,"/campaigns/campaign/"+bson.stringify+"/form/module").withSession("user" -> """{"login":"test"}"""))
+      val r=f.controller.formModule(bson.stringify,"","").apply(FakeRequest(GET,"/campaigns/campaign/"+bson.stringify+"/form/module").withSession("user" -> """{"login":"test"}"""))
 
       status(r) must equalTo(OK)
       val content = contentAsString(r)
@@ -744,7 +744,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
       content must contain("<div class=\"row\"><span class=\"bold\">Capteurs</span> : 1</div>")
 
       there was one(f.campaignManagerMock).doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]])
-      there was one(f.moduleManagerMock).getInventaryModule(org.mockito.Matchers.eq(""))(any[(List[Module],List[BSONDocument])=>Result])
+      there was one(f.moduleManagerMock).getInventaryModule(org.mockito.Matchers.eq(""),org.mockito.Matchers.eq(""))(any[(List[Module],List[BSONDocument])=>Result])
     }
 
     "send 200 Ok page with 2 result" in new WithApplication {
@@ -759,11 +759,11 @@ class ConditionsManagerSpec extends Specification with Mockito {
         case Array(_,p:(Campagne=>Future[Result]),_) => p.apply(camp)
       }}
 
-      f.moduleManagerMock.getInventaryModule(org.mockito.Matchers.eq(""))(any[(List[Module],List[BSONDocument])=>Result]) answers {(params,_)=>params match{
-        case Array(_,p:((List[Module],List[BSONDocument])=>Result)) => future{p.apply(modules,List())}
+      f.moduleManagerMock.getInventaryModule(org.mockito.Matchers.eq(""),org.mockito.Matchers.eq(""))(any[(List[Module],List[BSONDocument])=>Result]) answers {(params,_)=>params match{
+        case Array(_,_,p:((List[Module],List[BSONDocument])=>Result)) => future{p.apply(modules,List())}
       }}
 
-      val r=f.controller.formModule(bson.stringify,"").apply(FakeRequest(GET,"/campaigns/campaign/"+bson.stringify+"/form/module").withSession("user" -> """{"login":"test"}"""))
+      val r=f.controller.formModule(bson.stringify,"","").apply(FakeRequest(GET,"/campaigns/campaign/"+bson.stringify+"/form/module").withSession("user" -> """{"login":"test"}"""))
 
       status(r) must equalTo(OK)
       val content = contentAsString(r)
@@ -780,7 +780,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
       content must contain("<div class=\"row\"><span class=\"bold\">Capteurs</span> : 3</div>")
 
       there was one(f.campaignManagerMock).doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]])
-      there was one(f.moduleManagerMock).getInventaryModule(org.mockito.Matchers.eq(""))(any[(List[Module],List[BSONDocument])=>Result])
+      there was one(f.moduleManagerMock).getInventaryModule(org.mockito.Matchers.eq(""),org.mockito.Matchers.eq(""))(any[(List[Module],List[BSONDocument])=>Result])
     }
 
     "send redirect if campaign not found" in new WithApplication {
@@ -790,7 +790,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
         case Array(_,_,p:(Unit=>Future[Result])) => p.apply()
       }}
 
-      val r=f.controller.formModule(bson.stringify,"").apply(FakeRequest(GET,"/campaigns/campaign/"+bson.stringify+"/form/module").withSession("user" -> """{"login":"test"}"""))
+      val r=f.controller.formModule(bson.stringify,"","").apply(FakeRequest(GET,"/campaigns/campaign/"+bson.stringify+"/form/module").withSession("user" -> """{"login":"test"}"""))
 
       status(r) must equalTo(SEE_OTHER)
       header("Location",r) must beSome("/campaigns")
@@ -824,8 +824,8 @@ class ConditionsManagerSpec extends Specification with Mockito {
         case Array(_,p:(Campagne=>Future[Result]),_) => p.apply(camp)
       }}
 
-      f.moduleManagerMock.getInventaryModule(org.mockito.Matchers.eq(""))(any[(List[Module],List[BSONDocument])=>Result]) answers {(params,_)=>params match{
-        case Array(_,p:((List[Module],List[BSONDocument])=>Result)) => future{p.apply(modules,List())}
+      f.moduleManagerMock.getInventaryModule(org.mockito.Matchers.eq(""),org.mockito.Matchers.eq(""))(any[(List[Module],List[BSONDocument])=>Result]) answers {(params,_)=>params match{
+        case Array(_,_,p:((List[Module],List[BSONDocument])=>Result)) => future{p.apply(modules,List())}
       }}
 
       val r=f.controller.addSelectedModule(bson.stringify).apply(FakeRequest(POST,"/campaigns/campaign/"+bson.stringify+"/form/module").withSession("user" -> """{"login":"test"}"""))
@@ -840,7 +840,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
       content must contain("<div class=\"row\"><span class=\"bold\">Capteurs</span> : 1</div>")
 
       there was one(f.campaignManagerMock).doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]])
-      there was one(f.moduleManagerMock).getInventaryModule(org.mockito.Matchers.eq(""))(any[(List[Module],List[BSONDocument])=>Result])
+      there was one(f.moduleManagerMock).getInventaryModule(org.mockito.Matchers.eq(""),org.mockito.Matchers.eq(""))(any[(List[Module],List[BSONDocument])=>Result])
     }
 
     "send bad request with the list of modules if module not found" in new WithApplication{
@@ -855,8 +855,8 @@ class ConditionsManagerSpec extends Specification with Mockito {
         case Array(_,p:(Campagne=>Future[Result]),_) => p.apply(camp)
       }}
 
-      f.moduleManagerMock.getInventaryModule(org.mockito.Matchers.eq(""))(any[(List[Module],List[BSONDocument])=>Result]) answers {(params,_)=>params match{
-        case Array(_,p:((List[Module],List[BSONDocument])=>Result)) => future{p.apply(modules,List())}
+      f.moduleManagerMock.getInventaryModule(org.mockito.Matchers.eq(""),org.mockito.Matchers.eq(""))(any[(List[Module],List[BSONDocument])=>Result]) answers {(params,_)=>params match{
+        case Array(_,_,p:((List[Module],List[BSONDocument])=>Result)) => future{p.apply(modules,List())}
       }}
 
       f.moduleDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("_id"->bson2,"delete"->false)))(any[ExecutionContext]) returns future{None}
@@ -874,7 +874,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
       content must contain("<div class=\"row\"><span class=\"bold\">Capteurs</span> : 1</div>")
 
       there was one(f.campaignManagerMock).doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]])
-      there was one(f.moduleManagerMock).getInventaryModule(org.mockito.Matchers.eq(""))(any[(List[Module],List[BSONDocument])=>Result])
+      there was one(f.moduleManagerMock).getInventaryModule(org.mockito.Matchers.eq(""),org.mockito.Matchers.eq(""))(any[(List[Module],List[BSONDocument])=>Result])
       there was one(f.moduleDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("_id"->bson2,"delete"->false)))(any[ExecutionContext])
     }
 

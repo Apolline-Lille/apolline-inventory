@@ -352,7 +352,7 @@ trait ConditionsManagerLike extends Controller{
     new ApiImplicitParam(name="id",value="Campaign id",required=true,dataType="String",paramType="path"),
     new ApiImplicitParam(name="filtre",value="Module type for filter module",required=true,dataType="String",paramType="query")
   ))
-  def formModule(id:String,filtre:String)=Action.async{
+  def formModule(id:String,filtre:String="",filtreId:String="")=Action.async{
     implicit request=>
       //Verify if user is connect
       UserManager.doIfconnectAsync(request) {
@@ -364,8 +364,8 @@ trait ConditionsManagerLike extends Controller{
           campaign=>
 
             //Display module inventary
-            moduleManager.getInventaryModule(filtre) {
-              (modules, listType) => Ok(views.html.campaign.listModule(modules, listType, filtre,id, printStateForm("module",campaign.types, id)))
+            moduleManager.getInventaryModule(filtre,filtreId) {
+              (modules, listType) => Ok(views.html.campaign.listModule(modules, listType, filtre,filtreId,id, printStateForm("module",campaign.types, id)))
             }
         }{
           //If campaign not found
@@ -551,8 +551,8 @@ trait ConditionsManagerLike extends Controller{
 
             formSelect.bindFromRequest.fold(
               //If form have error, display the modules list
-              formWithErrors =>moduleManager.getInventaryModule("") {
-                (modules, listType) => BadRequest(views.html.campaign.listModule(modules, listType, "",id, printStateForm("module",campaign.types, id)))
+              formWithErrors =>moduleManager.getInventaryModule("","") {
+                (modules, listType) => BadRequest(views.html.campaign.listModule(modules, listType, "","",id, printStateForm("module",campaign.types, id)))
               },
               data =>
                 //Find the module
@@ -563,8 +563,8 @@ trait ConditionsManagerLike extends Controller{
                     case Some(_)=>future{redirectToNextFormPage(id,campaign.types,findCondition + ("module"->Json.toJson(data.id)))}
 
                     //If module is not found, display the modules list
-                    case None=>moduleManager.getInventaryModule("") {
-                      (modules, listType) => BadRequest(views.html.campaign.listModule(modules, listType, "",id, printStateForm("module",campaign.types, id)))
+                    case None=>moduleManager.getInventaryModule("","") {
+                      (modules, listType) => BadRequest(views.html.campaign.listModule(modules, listType, "","",id, printStateForm("module",campaign.types, id)))
                     }
                   }
                 )
