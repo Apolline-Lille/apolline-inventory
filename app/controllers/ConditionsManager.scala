@@ -1359,19 +1359,22 @@ trait ConditionsManagerLike extends Controller{
     //If have image
     case h::t=> {
       //Find the image extension
-      val extension=h.filename.split("\\.").last
+      h.filename.split("\\.").lastOption match{
+        case Some(extension) =>{
+          //Create an uniq name
+          val filename = UUID.randomUUID().toString+"."+extension
 
-      //Create an uniq name
-      val filename = UUID.randomUUID().toString+"."+extension
+          //Find the location
+          val r=app.path
 
-      //Find the location
-      val r=app.path
+          //Move the file
+          h.ref.moveTo(new File((r+"/public/images/campaign/tmp/"+filename)))
 
-      //Move the file
-      h.ref.moveTo(new File((r+"/public/images/campaign/tmp/"+filename)))
-
-      //Insert other image
-      filename::insertImage(t)
+          //Insert other image
+          filename::insertImage(t)
+        }
+        case None => insertImage(t)
+      }
     }
   }
 

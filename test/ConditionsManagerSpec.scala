@@ -19,7 +19,6 @@ import reactivemongo.bson.{BSONDocument, BSONObjectID}
 import reactivemongo.core.commands.{GetLastError, LastError}
 import reactivemongo.extensions.BSONFormats.BSONObjectIDFormat
 
-import scala.concurrent.ExecutionContext
 import scala.concurrent._
 import scala.concurrent.duration.Duration
 
@@ -1060,14 +1059,18 @@ class ConditionsManagerSpec extends Specification with Mockito {
 
       val cond=session(r).get("condition")
       cond must not beNone
-      val loc=(Json.parse(cond.get)\"localisation").asOpt[Localisation]
-      loc must not(beNone)
-      loc.get.nom must equalTo("unNom")
-      loc.get.lat must beSome(2.3f)
-      loc.get.lon must beSome(3.5f)
-      loc.get.commentaire must beSome("un com")
-      loc.get.photo.size must equalTo(1)
-      loc.get.photo.head must matchRegex("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.jpg")
+      val locOpt=(Json.parse(cond.get)\"localisation").asOpt[Localisation]
+      locOpt match{
+        case Some(loc)=>{
+          loc.nom must equalTo("unNom")
+          loc.lat must beSome(2.3f)
+          loc.lon must beSome(3.5f)
+          loc.commentaire must beSome("un com")
+          loc.photo.size must equalTo(1)
+          loc.photo(0) must matchRegex("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.jpg")
+        }
+        case _=>locOpt must not(beNone)
+      }
 
       there was one(file).filename
       there was one(f.appMock).path
@@ -1108,15 +1111,19 @@ class ConditionsManagerSpec extends Specification with Mockito {
 
       val cond=session(r).get("condition")
       cond must not beNone
-      val loc=(Json.parse(cond.get)\"localisation").asOpt[Localisation]
-      loc must not(beNone)
-      loc.get.nom must equalTo("unNom")
-      loc.get.lat must beSome(2.3f)
-      loc.get.lon must beSome(3.5f)
-      loc.get.commentaire must beSome("un com")
-      loc.get.photo.size must equalTo(2)
-      loc.get.photo(0) must matchRegex("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.jpg")
-      loc.get.photo(1) must equalTo("img.jpg")
+      val locOpt=(Json.parse(cond.get)\"localisation").asOpt[Localisation]
+      locOpt match{
+        case Some(loc)=>{
+          loc.nom must equalTo("unNom")
+          loc.lat must beSome(2.3f)
+          loc.lon must beSome(3.5f)
+          loc.commentaire must beSome("un com")
+          loc.photo.size must equalTo(2)
+          loc.photo(0) must matchRegex("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.jpg")
+          loc.photo(1) must equalTo("img.jpg")
+        }
+        case _=>locOpt must not(beNone)
+      }
 
       there was one(file).filename
       there was one(f.appMock).path
@@ -2310,7 +2317,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
       file.exists returns true
       file.delete returns true
 
-      var r=f.controller.removeImage("tmp/","img.jpg",loc)
+      val r=f.controller.removeImage("tmp/","img.jpg",loc)
 
       r must equalTo(loc.copy(photo=List()))
 
@@ -2329,7 +2336,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
       f.tempFileBuilderMock.createFile(org.mockito.Matchers.eq("/route/public/images/campaign/tmp/img.jpg")) returns file
       file.exists returns false
 
-      var r=f.controller.removeImage("tmp/","img.jpg",loc)
+      val r=f.controller.removeImage("tmp/","img.jpg",loc)
 
       r must equalTo(loc.copy(photo=List()))
 
@@ -2349,7 +2356,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
       file.exists returns true
       file.delete returns false
 
-      var r=f.controller.removeImage("tmp/","img.jpg",loc)
+      val r=f.controller.removeImage("tmp/","img.jpg",loc)
 
       r must equalTo(loc)
 
