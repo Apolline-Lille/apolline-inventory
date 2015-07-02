@@ -125,15 +125,15 @@ trait ModuleManagerLike extends Controller {
   @ApiImplicitParams(Array(
     new ApiImplicitParam(name="filtre",value="Value used for filter modules depending on their type",dataType="String",paramType="query")
   ))
-  def inventary(filtre:String="") = Action.async {
+  def inventary(filtre:String="",id:String="") = Action.async {
     implicit request =>
       //Verify if user is connect
       UserManager.doIfconnectAsync(request) {
         //Display inventary of module
-        getInventaryModule(filtre) {
+        getInventaryModule(filtre,id) {
           (modules, listType) =>
             //Print the list of module
-            Ok(views.html.module.listModule(modules, listType, filtre))
+            Ok(views.html.module.listModule(modules, listType, filtre,id))
         }
       }
   }
@@ -823,9 +823,14 @@ trait ModuleManagerLike extends Controller {
    * @param view Function for print the inventary
    * @return A result with the modules inventary
    */
-  def getInventaryModule(filtre:String)(view:(List[Module],List[BSONDocument])=>Result)={
+  def getInventaryModule(filtre:String,filtreId:String)(view:(List[Module],List[BSONDocument])=>Result)={
     //Create the query
-    val selector=if(filtre.isEmpty) Json.obj("delete"->false) else { Json.obj("delete"->false,"types"->filtre) }
+    val selector=(filtre,filtreId) match {
+      case ("","")=>Json.obj("delete"->false)
+      case (_,"")=> Json.obj("delete"->false,"types"->filtre)
+      case ("",_)=>Json.obj("delete"->false,"id"->Json.obj("$regex"->(".*"+filtreId+".*")))
+      case _ =>Json.obj("delete"->false,"types"->filtre,"id"->Json.obj("$regex"->(".*"+filtreId+".*")))
+    }
 
     //Find modules
     moduleDao.findAll(selector).flatMap(

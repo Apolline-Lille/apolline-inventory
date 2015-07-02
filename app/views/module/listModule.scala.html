@@ -1,4 +1,4 @@
-@(modules:List[Module],listType:List[reactivemongo.bson.BSONDocument],filtre:String)(implicit request: Request[AnyContent])
+@(modules:List[Module],listType:List[reactivemongo.bson.BSONDocument],filtre:String,filtreId:String)(implicit request: Request[AnyContent])
 
 @main(Messages("inventary.module.title")){
   <script src="@routes.Assets.at("/public","javascripts/modal-delete.js")" type="text/javascript" defer></script>
@@ -48,6 +48,15 @@
             }
           </ul>
         }
+        <div class="search_lateral">
+        @helper.form(action=routes.ModuleManager.inventary()){
+          <div class="input-group">
+            <div class="input-group-addon"><span class="glyphicon glyphicon-search"></span></div>
+            <input type="search" name="filtreId" class="form-control" value="@filtreId" placeholder="@Messages("inventary.module.id")"/>
+            <input type="hidden" name="filtre" value="@filtre"/>
+          </div>
+        }
+        </div>
         <a href="@routes.ModuleManager.formGeneralAdd()" class="btn btn-success">
           <span class="glyphicon glyphicon-plus"></span>
           @Messages("inventary.module.addModule")

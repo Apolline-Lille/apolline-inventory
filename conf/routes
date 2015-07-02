@@ -54,7 +54,7 @@ GET         /inventary/cards/:id/:id2/delete                   controllers.Cards
 GET         /inventary/cards/:id/:id2/clone                    controllers.CardsManager.cardClonePage(id:String,id2:String)
 
 #Module page
-GET         /inventary/modules                                 controllers.ModuleManager.inventary(filtre:String ?= "")
+GET         /inventary/modules                                 controllers.ModuleManager.inventary(filtre:String ?= "",filtreId:String ?= "")
 GET         /inventary/modules/form                            controllers.ModuleManager.formGeneralAdd()
 POST        /inventary/modules/form                            controllers.ModuleManager.addInformation()
 GET         /inventary/modules/form/update                     controllers.ModuleManager.formUpdate()

@@ -11,7 +11,7 @@ import play.api.data.Form
 import play.api.libs.json._
 import play.api.mvc.{Call, Results, Action, Result}
 import play.api.test.Helpers._
-import play.api.test.{FakeRequest, WithApplication}
+import play.api.test.{FakeApplication, FakeRequest, WithApplication}
 import reactivemongo.bson.{BSONDocument, BSONObjectID}
 import reactivemongo.core.commands.{LastError, GetLastError}
 import play.modules.reactivemongo.json.BSONFormats.BSONObjectIDFormat
@@ -70,7 +70,7 @@ class ModuleManagerSpec extends Specification with Mockito {
   val date=new Date(115, 3, 22)
   val date2=new Date(115,3,23)
 
-  "When user is not connected, ModuleManager" should {
+  "When user is not connected, ModuleManager" should{
     "redirect to login for resource /inventary/modules" in new WithApplication {
       route(FakeRequest(GET, "/inventary/modules")).map(
         r => {
@@ -1314,7 +1314,7 @@ class ModuleManagerSpec extends Specification with Mockito {
       f.moduleDaoMock.findListType() returns future{Stream[BSONDocument]()}
       view.apply(org.mockito.Matchers.eq(List[Module]()),org.mockito.Matchers.eq(List[BSONDocument]())) returns Results.Ok("apply func")
 
-      val r=f.controller.getInventaryModule("")(view)
+      val r=f.controller.getInventaryModule("","")(view)
 
       status(r) must equalTo(OK)
       contentAsString(r) must equalTo("apply func")
@@ -1324,7 +1324,7 @@ class ModuleManagerSpec extends Specification with Mockito {
       view.apply(org.mockito.Matchers.eq(List[Module]()),org.mockito.Matchers.eq(List[BSONDocument]())) returns Results.Ok("apply func")
     }
 
-    "apply view function and consider the filtre" in new WithApplication{
+    "apply view function and consider the type filtre" in new WithApplication{
       val f=fixture
       val view=mock[(List[Module],List[BSONDocument])=>Result]
 
@@ -1332,12 +1332,48 @@ class ModuleManagerSpec extends Specification with Mockito {
       f.moduleDaoMock.findListType() returns future{Stream[BSONDocument]()}
       view.apply(org.mockito.Matchers.eq(List[Module]()),org.mockito.Matchers.eq(List[BSONDocument]())) returns Results.Ok("apply func")
 
-      val r=f.controller.getInventaryModule("filtre")(view)
+      val r=f.controller.getInventaryModule("filtre","")(view)
 
       status(r) must equalTo(OK)
       contentAsString(r) must equalTo("apply func")
 
       there was one(f.moduleDaoMock).findAll(org.mockito.Matchers.eq(Json.obj("delete"->false,"types"->"filtre")),any[JsObject])(any[ExecutionContext])
+      there was one(f.moduleDaoMock).findListType()
+      view.apply(org.mockito.Matchers.eq(List[Module]()),org.mockito.Matchers.eq(List[BSONDocument]())) returns Results.Ok("apply func")
+    }
+
+    "apply view function and consider the id filtre" in new WithApplication{
+      val f=fixture
+      val view=mock[(List[Module],List[BSONDocument])=>Result]
+
+      f.moduleDaoMock.findAll(org.mockito.Matchers.eq(Json.obj("delete"->false,"id"->Json.obj("$regex"->".*id.*"))),any[JsObject])(any[ExecutionContext]) returns future{List[Module]()}
+      f.moduleDaoMock.findListType() returns future{Stream[BSONDocument]()}
+      view.apply(org.mockito.Matchers.eq(List[Module]()),org.mockito.Matchers.eq(List[BSONDocument]())) returns Results.Ok("apply func")
+
+      val r=f.controller.getInventaryModule("","id")(view)
+
+      status(r) must equalTo(OK)
+      contentAsString(r) must equalTo("apply func")
+
+      there was one(f.moduleDaoMock).findAll(org.mockito.Matchers.eq(Json.obj("delete"->false,"id"->Json.obj("$regex"->".*id.*"))),any[JsObject])(any[ExecutionContext])
+      there was one(f.moduleDaoMock).findListType()
+      view.apply(org.mockito.Matchers.eq(List[Module]()),org.mockito.Matchers.eq(List[BSONDocument]())) returns Results.Ok("apply func")
+    }
+
+    "apply view function and consider filtres" in new WithApplication{
+      val f=fixture
+      val view=mock[(List[Module],List[BSONDocument])=>Result]
+
+      f.moduleDaoMock.findAll(org.mockito.Matchers.eq(Json.obj("delete"->false,"types"->"filtre","id"->Json.obj("$regex"->".*id.*"))),any[JsObject])(any[ExecutionContext]) returns future{List[Module]()}
+      f.moduleDaoMock.findListType() returns future{Stream[BSONDocument]()}
+      view.apply(org.mockito.Matchers.eq(List[Module]()),org.mockito.Matchers.eq(List[BSONDocument]())) returns Results.Ok("apply func")
+
+      val r=f.controller.getInventaryModule("filtre","id")(view)
+
+      status(r) must equalTo(OK)
+      contentAsString(r) must equalTo("apply func")
+
+      there was one(f.moduleDaoMock).findAll(org.mockito.Matchers.eq(Json.obj("delete"->false,"types"->"filtre","id"->Json.obj("$regex"->".*id.*"))),any[JsObject])(any[ExecutionContext])
       there was one(f.moduleDaoMock).findListType()
       view.apply(org.mockito.Matchers.eq(List[Module]()),org.mockito.Matchers.eq(List[BSONDocument]())) returns Results.Ok("apply func")
     }
