@@ -400,7 +400,7 @@ trait ModuleManagerLike extends Controller {
               idType =>
 
                 //Find the list of type sensors
-                typeSensorManager.getInventaryTypeSensor(Json.obj("delete" -> false, "_id" -> Json.obj("$in" -> JsArray(idType.toSeq))), filtreType) {
+                typeSensorManager.getInventaryTypeSensor(Json.obj("delete" -> false, "_id" -> Json.obj("$in" -> JsArray(idType.toSeq))), filtreType,"") {
                   (typeSensor, typeMesure, stock,stockUsed, nomType) => Ok(views.html.module.listTypeSensors(filtreType, typeSensor, typeMesure, stock,stockUsed, nomType))
                 }
 

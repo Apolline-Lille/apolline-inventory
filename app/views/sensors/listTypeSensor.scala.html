@@ -1,4 +1,4 @@
-@(filtreSto:String,sort:String,funcFiltre:Int=>Boolean,listType:List[TypeSensor],listMesure:List[TypeMesure],stock:List[reactivemongo.bson.BSONDocument],stockUsed:List[(reactivemongo.bson.BSONObjectID,Int)],filtre:List[reactivemongo.bson.BSONDocument])(implicit request: Request[AnyContent])
+@(filtreSto:String,sort:String,modele:String,funcFiltre:Int=>Boolean,listType:List[TypeSensor],listMesure:List[TypeMesure],stock:List[reactivemongo.bson.BSONDocument],stockUsed:List[(reactivemongo.bson.BSONObjectID,Int)],filtre:List[reactivemongo.bson.BSONDocument])(implicit request: Request[AnyContent])
 @import reactivemongo.bson.BSONObjectID
 
 @main(Messages("inventary.typeSensor.title")){
@@ -68,22 +68,32 @@
           <span class="bold">@Messages("inventary.typeSensor.type")</span>
           <ul class="nav nav-pills nav-stacked">
             <li role="presentation" @if(sort.isEmpty) {
-              class="active"}><a href="@routes.TypeSensorManager.inventary("",filtreSto)" style="padding:0px 15px !important">
+              class="active"}><a href="@routes.TypeSensorManager.inventary("",modele,filtreSto)" style="padding:0px 15px !important">
             @Messages("global.all")</a></li>
             @for(types <- filtre) {
               @defining(types.getAs[String]("_id").get) { nomType =>
                 <li role="presentation" @if(sort.equals(nomType)) {
-                  class="active"}><a href="@routes.TypeSensorManager.inventary(nomType,filtreSto)" style="padding:0px 15px !important">@nomType</a></li>
+                  class="active"}><a href="@routes.TypeSensorManager.inventary(nomType,modele,filtreSto)" style="padding:0px 15px !important">@nomType</a></li>
               }
             }
           </ul>
         }
         <span class="bold">@Messages("inventary.typeSensor.stock")</span>
         <ul class="nav nav-pills nav-stacked">
-          <li role="presentation" @if(filtreSto.isEmpty){class="active"}><a href="@routes.TypeSensorManager.inventary(sort)" style="padding : 0px 15px !important">@Messages("global.all")</a></li>
-          <li role="presentation" @if(filtreSto.equals("yes")){class="active"}><a href="@routes.TypeSensorManager.inventary(sort,"yes")" style="padding : 0px 15px !important">@Messages("global.dispo")</a></li>
-          <li role="presentation" @if(filtreSto.equals("no")){class="active"}><a href="@routes.TypeSensorManager.inventary(sort,"no")" style="padding : 0px 15px !important">@Messages("global.used")</a></li>
+          <li role="presentation" @if(filtreSto.isEmpty){class="active"}><a href="@routes.TypeSensorManager.inventary(sort,modele)" style="padding : 0px 15px !important">@Messages("global.all")</a></li>
+          <li role="presentation" @if(filtreSto.equals("yes")){class="active"}><a href="@routes.TypeSensorManager.inventary(sort,modele,"yes")" style="padding : 0px 15px !important">@Messages("global.dispo")</a></li>
+          <li role="presentation" @if(filtreSto.equals("no")){class="active"}><a href="@routes.TypeSensorManager.inventary(sort,modele,"no")" style="padding : 0px 15px !important">@Messages("global.used")</a></li>
         </ul>
+        <div class="search_lateral">
+        @helper.form(action=routes.TypeSensorManager.inventary()){
+          <div class="input-group">
+            <div class="input-group-addon"><span class="glyphicon glyphicon-search"></span></div>
+            <input type="search" name="modele" class="form-control" value="@modele" placeholder="@Messages("inventary.typeSensor.model")"/>
+            <input type="hidden" name="types" value="@sort"/>
+            <input type="hidden" name="stock" value="@filtreSto"/>
+          </div>
+        }
+        </div>
         <a href="@routes.TypeSensorManager.typePage" class="btn btn-success">
           <span class="glyphicon glyphicon-plus"></span>
           @Messages("inventary.typeSensor.addType")

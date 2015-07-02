@@ -102,14 +102,14 @@ trait TypeSensorManagerLike extends Controller{
   @ApiImplicitParams(Array(
     new ApiImplicitParam(value = "Sensor type name for filter all sensors type",name="sort", dataType = "String", paramType = "query")
   ))
-  def inventary(sort:String="",filtreSto:String="")=Action.async{
+  def inventary(types:String="",modele:String="",filtreSto:String="")=Action.async{
     implicit request =>
       //Verify if user is connect
       UserManager.doIfconnectAsync(request) {
-        getInventaryTypeSensor(Json.obj("delete"->false),sort){
+        getInventaryTypeSensor(Json.obj("delete"->false),types,modele){
           (typeSensor,typeMesure,stock,stockUsed,nomType)=>
               //Display the HTML page
-              Ok(views.html.sensors.listTypeSensor(filtreSto, sort, filtreStock(filtreSto), typeSensor, typeMesure, stock, stockUsed, nomType))
+              Ok(views.html.sensors.listTypeSensor(filtreSto, types, modele, filtreStock(filtreSto), typeSensor, typeMesure, stock, stockUsed, nomType))
         }
       }
   }
@@ -381,8 +381,13 @@ trait TypeSensorManagerLike extends Controller{
    * @param f Function for print the list of type sensors
    * @return
    */
-  def getInventaryTypeSensor(selector:JsObject,filtreType:String)(f:(List[TypeSensor],List[TypeMesure],List[BSONDocument],List[(BSONObjectID,Int)],List[BSONDocument])=>Result)={
-    val selectorAll=if(filtreType.isEmpty){selector}else{selector ++ Json.obj("nomType"->filtreType)}
+  def getInventaryTypeSensor(selector:JsObject,filtreType:String,filtreModele:String)(f:(List[TypeSensor],List[TypeMesure],List[BSONDocument],List[(BSONObjectID,Int)],List[BSONDocument])=>Result)={
+    val selectorAll=(filtreType,filtreModele) match{
+      case ("","")=>selector
+      case (_,"")=>selector ++ Json.obj("nomType"->filtreType)
+      case ("",_)=>selector ++ Json.obj("modele"->Json.obj("$regex"->(".*"+filtreModele+".*")))
+      case _ =>selector ++ Json.obj("nomType"->filtreType,"modele"->Json.obj("$regex"->(".*"+filtreModele+".*")))
+    }
 
     //Find sensors quantity for all type
     val future_stock=sensorDao.countByType()

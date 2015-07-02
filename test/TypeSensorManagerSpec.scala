@@ -12,6 +12,7 @@ import play.api.libs.json.{Writes, Json, JsObject}
 import play.api.mvc._
 import play.api.test._
 import play.api.test.Helpers._
+import play.modules.reactivemongo.json.BSONFormats.BSONObjectIDFormat
 import reactivemongo.bson.{BSONDocument, BSONObjectID}
 import reactivemongo.core.commands.{GetLastError, LastError}
 
@@ -268,27 +269,102 @@ class TypeSensorManagerSpec extends Specification with Mockito{
 
   "When method getInventaryTypeSensor is called, TypeSensorManager" should{
 
-    "Call function for print result" in new WithApplication {
+    "Call function for print result without filter" in new WithApplication {
       val f = fixture
       val func=mock[(List[TypeSensor],List[TypeMesure],List[BSONDocument],List[(BSONObjectID,Int)],List[BSONDocument])=>Result]
 
       f.sensorDaoMock.countByType() returns future {Stream[BSONDocument]()}
-      f.typeSensorDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns future {List[TypeSensor]()}
+      f.typeSensorDaoMock.findAll(org.mockito.Matchers.eq(Json.obj("_id"->bson)), any[JsObject])(any[ExecutionContext]) returns future {List[TypeSensor]()}
       f.typeMesureDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns future {List[TypeMesure]()}
-      f.typeSensorDaoMock.findAllType(any[BSONDocument]) returns future {Stream[BSONDocument]()}
+      f.typeSensorDaoMock.findAllType(BSONDocument("_id"->bson)) returns future {Stream[BSONDocument]()}
       f.sensorDaoMock.countUsedSensors(org.mockito.Matchers.eq(List())) returns future{List()}
       func.apply(any[List[TypeSensor]],any[List[TypeMesure]],any[List[BSONDocument]],any[List[(BSONObjectID,Int)]],any[List[BSONDocument]]) returns Results.Ok("call function")
 
       val req=FakeRequest(GET, "/inventary/sensors").withSession("user" -> """{"login":"test"}""")
-      val action = Action.async{f.controller.getInventaryTypeSensor(Json.obj(),"")(func)}
+      val action = Action.async{f.controller.getInventaryTypeSensor(Json.obj("_id"->bson),"","")(func)}
       val r=call(action,req)
       status(r) must equalTo(OK)
       contentAsString(r) must equalTo("call function")
 
       there was one(f.sensorDaoMock).countByType()
-      there was one(f.typeSensorDaoMock).findAll(any[JsObject], any[JsObject])(any[ExecutionContext])
+      there was one(f.typeSensorDaoMock).findAll(org.mockito.Matchers.eq(Json.obj("_id"->bson)), any[JsObject])(any[ExecutionContext])
       there was one(f.typeMesureDaoMock).findAll(any[JsObject], any[JsObject])(any[ExecutionContext])
-      there was one(f.typeSensorDaoMock).findAllType(any[BSONDocument])
+      there was one(f.typeSensorDaoMock).findAllType(org.mockito.Matchers.eq(BSONDocument("_id"->bson)))
+      there was one(f.sensorDaoMock).countUsedSensors(org.mockito.Matchers.eq(List()))
+      there was one(func).apply(any[List[TypeSensor]],any[List[TypeMesure]],any[List[BSONDocument]],any[List[(BSONObjectID,Int)]],any[List[BSONDocument]])
+    }
+
+    "Call function for print result with type filter" in new WithApplication {
+      val f = fixture
+      val func=mock[(List[TypeSensor],List[TypeMesure],List[BSONDocument],List[(BSONObjectID,Int)],List[BSONDocument])=>Result]
+
+      f.sensorDaoMock.countByType() returns future {Stream[BSONDocument]()}
+      f.typeSensorDaoMock.findAll(org.mockito.Matchers.eq(Json.obj("_id"->bson,"nomType"->"typ")), any[JsObject])(any[ExecutionContext]) returns future {List[TypeSensor]()}
+      f.typeMesureDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns future {List[TypeMesure]()}
+      f.typeSensorDaoMock.findAllType(org.mockito.Matchers.eq(BSONDocument("_id"->bson))) returns future {Stream[BSONDocument]()}
+      f.sensorDaoMock.countUsedSensors(org.mockito.Matchers.eq(List())) returns future{List()}
+      func.apply(any[List[TypeSensor]],any[List[TypeMesure]],any[List[BSONDocument]],any[List[(BSONObjectID,Int)]],any[List[BSONDocument]]) returns Results.Ok("call function")
+
+      val req=FakeRequest(GET, "/inventary/sensors").withSession("user" -> """{"login":"test"}""")
+      val action = Action.async{f.controller.getInventaryTypeSensor(Json.obj("_id"->bson),"typ","")(func)}
+      val r=call(action,req)
+      status(r) must equalTo(OK)
+      contentAsString(r) must equalTo("call function")
+
+      there was one(f.sensorDaoMock).countByType()
+      there was one(f.typeSensorDaoMock).findAll(org.mockito.Matchers.eq(Json.obj("_id"->bson,"nomType"->"typ")), any[JsObject])(any[ExecutionContext])
+      there was one(f.typeMesureDaoMock).findAll(any[JsObject], any[JsObject])(any[ExecutionContext])
+      there was one(f.typeSensorDaoMock).findAllType(org.mockito.Matchers.eq(BSONDocument("_id"->bson)))
+      there was one(f.sensorDaoMock).countUsedSensors(org.mockito.Matchers.eq(List()))
+      there was one(func).apply(any[List[TypeSensor]],any[List[TypeMesure]],any[List[BSONDocument]],any[List[(BSONObjectID,Int)]],any[List[BSONDocument]])
+    }
+
+    "Call function for print result with modele filter" in new WithApplication {
+      val f = fixture
+      val func=mock[(List[TypeSensor],List[TypeMesure],List[BSONDocument],List[(BSONObjectID,Int)],List[BSONDocument])=>Result]
+
+      f.sensorDaoMock.countByType() returns future {Stream[BSONDocument]()}
+      f.typeSensorDaoMock.findAll(org.mockito.Matchers.eq(Json.obj("_id"->bson,"modele"->Json.obj("$regex"->".*mod.*"))), any[JsObject])(any[ExecutionContext]) returns future {List[TypeSensor]()}
+      f.typeMesureDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns future {List[TypeMesure]()}
+      f.typeSensorDaoMock.findAllType(org.mockito.Matchers.eq(BSONDocument("_id"->bson))) returns future {Stream[BSONDocument]()}
+      f.sensorDaoMock.countUsedSensors(org.mockito.Matchers.eq(List())) returns future{List()}
+      func.apply(any[List[TypeSensor]],any[List[TypeMesure]],any[List[BSONDocument]],any[List[(BSONObjectID,Int)]],any[List[BSONDocument]]) returns Results.Ok("call function")
+
+      val req=FakeRequest(GET, "/inventary/sensors").withSession("user" -> """{"login":"test"}""")
+      val action = Action.async{f.controller.getInventaryTypeSensor(Json.obj("_id"->bson),"","mod")(func)}
+      val r=call(action,req)
+      status(r) must equalTo(OK)
+      contentAsString(r) must equalTo("call function")
+
+      there was one(f.sensorDaoMock).countByType()
+      there was one(f.typeSensorDaoMock).findAll(org.mockito.Matchers.eq(Json.obj("_id"->bson,"modele"->Json.obj("$regex"->".*mod.*"))), any[JsObject])(any[ExecutionContext])
+      there was one(f.typeMesureDaoMock).findAll(any[JsObject], any[JsObject])(any[ExecutionContext])
+      there was one(f.typeSensorDaoMock).findAllType(org.mockito.Matchers.eq(BSONDocument("_id"->bson)))
+      there was one(f.sensorDaoMock).countUsedSensors(org.mockito.Matchers.eq(List()))
+      there was one(func).apply(any[List[TypeSensor]],any[List[TypeMesure]],any[List[BSONDocument]],any[List[(BSONObjectID,Int)]],any[List[BSONDocument]])
+    }
+
+    "Call function for print result with type and modele filter" in new WithApplication {
+      val f = fixture
+      val func=mock[(List[TypeSensor],List[TypeMesure],List[BSONDocument],List[(BSONObjectID,Int)],List[BSONDocument])=>Result]
+
+      f.sensorDaoMock.countByType() returns future {Stream[BSONDocument]()}
+      f.typeSensorDaoMock.findAll(org.mockito.Matchers.eq(Json.obj("_id"->bson,"nomType"->"typ","modele"->Json.obj("$regex"->".*mod.*"))), any[JsObject])(any[ExecutionContext]) returns future {List[TypeSensor]()}
+      f.typeMesureDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns future {List[TypeMesure]()}
+      f.typeSensorDaoMock.findAllType(org.mockito.Matchers.eq(BSONDocument("_id"->bson))) returns future {Stream[BSONDocument]()}
+      f.sensorDaoMock.countUsedSensors(org.mockito.Matchers.eq(List())) returns future{List()}
+      func.apply(any[List[TypeSensor]],any[List[TypeMesure]],any[List[BSONDocument]],any[List[(BSONObjectID,Int)]],any[List[BSONDocument]]) returns Results.Ok("call function")
+
+      val req=FakeRequest(GET, "/inventary/sensors").withSession("user" -> """{"login":"test"}""")
+      val action = Action.async{f.controller.getInventaryTypeSensor(Json.obj("_id"->bson),"typ","mod")(func)}
+      val r=call(action,req)
+      status(r) must equalTo(OK)
+      contentAsString(r) must equalTo("call function")
+
+      there was one(f.sensorDaoMock).countByType()
+      there was one(f.typeSensorDaoMock).findAll(org.mockito.Matchers.eq(Json.obj("_id"->bson,"nomType"->"typ","modele"->Json.obj("$regex"->".*mod.*"))), any[JsObject])(any[ExecutionContext])
+      there was one(f.typeMesureDaoMock).findAll(any[JsObject], any[JsObject])(any[ExecutionContext])
+      there was one(f.typeSensorDaoMock).findAllType(org.mockito.Matchers.eq(BSONDocument("_id"->bson)))
       there was one(f.sensorDaoMock).countUsedSensors(org.mockito.Matchers.eq(List()))
       there was one(func).apply(any[List[TypeSensor]],any[List[TypeMesure]],any[List[BSONDocument]],any[List[(BSONObjectID,Int)]],any[List[BSONDocument]])
     }
@@ -307,7 +383,7 @@ class TypeSensorManagerSpec extends Specification with Mockito{
       f.typeSensorDaoMock.findAllType(any[BSONDocument]) returns future{Stream[BSONDocument]()}
 
       val req=FakeRequest(GET, "/inventary/sensors").withSession("user" -> """{"login":"test"}""")
-      val action = Action.async{f.controller.getInventaryTypeSensor(Json.obj(),"")(func)}
+      val action = Action.async{f.controller.getInventaryTypeSensor(Json.obj(),"","")(func)}
       val r=call(action,req)
 
       status(r) must equalTo(INTERNAL_SERVER_ERROR)
@@ -335,7 +411,7 @@ class TypeSensorManagerSpec extends Specification with Mockito{
       f.typeSensorDaoMock.findAllType(any[BSONDocument]) returns future{Stream[BSONDocument]()}
 
       val req=FakeRequest(GET, "/inventary/sensors").withSession("user" -> """{"login":"test"}""")
-      val action = Action.async{f.controller.getInventaryTypeSensor(Json.obj(),"")(func)}
+      val action = Action.async{f.controller.getInventaryTypeSensor(Json.obj(),"","")(func)}
       val r=call(action,req)
 
       status(r) must equalTo(INTERNAL_SERVER_ERROR)
@@ -363,7 +439,7 @@ class TypeSensorManagerSpec extends Specification with Mockito{
       f.typeSensorDaoMock.findAllType(any[BSONDocument]) returns future{Stream[BSONDocument]()}
 
       val req=FakeRequest(GET, "/inventary/sensors").withSession("user" -> """{"login":"test"}""")
-      val action = Action.async{f.controller.getInventaryTypeSensor(Json.obj(),"")(func)}
+      val action = Action.async{f.controller.getInventaryTypeSensor(Json.obj(),"","")(func)}
       val r=call(action,req)
 
       status(r) must equalTo(INTERNAL_SERVER_ERROR)
@@ -391,7 +467,7 @@ class TypeSensorManagerSpec extends Specification with Mockito{
       futureMock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers (value => future{value.asInstanceOf[PartialFunction[Throwable,Result]](throwable)})
 
       val req=FakeRequest(GET, "/inventary/sensors").withSession("user" -> """{"login":"test"}""")
-      val action = Action.async{f.controller.getInventaryTypeSensor(Json.obj(),"")(func)}
+      val action = Action.async{f.controller.getInventaryTypeSensor(Json.obj(),"","")(func)}
       val r=call(action,req)
 
       status(r) must equalTo(INTERNAL_SERVER_ERROR)
