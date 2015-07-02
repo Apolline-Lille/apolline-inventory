@@ -580,6 +580,26 @@ class TypeSensorManagerSpec extends Specification with Mockito{
       f.verifyCallListData
     }
 
+    "send bad_request with form for empty field with good specie" in new WithApplication {
+      val formData = Json.parse( """{"espece":["a","b"]}""")
+      val route = mock[Call]
+      val function = mock[(TypeSensorForm, List[String], TypeMesure) => Future[Result]]
+      val function2 = mock[TypeSensorForm => JsObject]
+      val f = fixture
+
+      f.listDataEmptyStream
+
+      val r = f.controller.submitForm("error", route)(function2)(function)(FakeRequest(POST, "url").withJsonBody(formData).withSession("user" -> """{"login":"test"}"""))
+
+      status(r) must equalTo(BAD_REQUEST)
+      contentType(r) must beSome.which(_ == "text/html")
+      val content = contentAsString(r)
+      content must contain("<title>Inventaire des capteurs</title>")
+      content must contains("<span class=\"control-label errors\">This field is required</span>", 8)
+
+      f.verifyCallListData
+    }
+
     "send bad_request with form and signal not an integer" in new WithApplication {
       val formData = Json.parse( """{"nbSignaux":"a"}""")
       val route = mock[Call]
@@ -636,7 +656,6 @@ class TypeSensorManagerSpec extends Specification with Mockito{
       status(r) must equalTo(BAD_REQUEST)
       contentType(r) must beSome.which(_ == "text/html")
       val content = contentAsString(r)
-      println(content)
       content must contain("<title>Inventaire des capteurs</title>")
       content must contains("<span class=\"control-label errors\">This field is required</span>", 7)
       content must contains("<span class=\"control-label errors\">Real number value expected</span>", 2)
@@ -1235,6 +1254,44 @@ class TypeSensorManagerSpec extends Specification with Mockito{
       there was one(fix.typeSensorDaoMock).findOne(any[JsObject])(any[ExecutionContext])
       there was one(futureMock).flatMap(any[Option[TypeSensor]=>Future[Option[TypeSensor]]])(any[ExecutionContext])
       there was one(futureMock).recover(any[PartialFunction[Throwable,Future[Result]]])(any[ExecutionContext])
+    }
+  }
+
+  "When method filtreStock is called, TypeSensorManager" should{
+    "return true if the value is greater than 0 and filter is equal to yes" in new WithApplication{
+      val fix=fixture
+
+      fix.controller.filtreStock("yes")(1) must beTrue
+    }
+
+    "return false if the value is less or equal than 0 and filter is equal to yes" in new WithApplication{
+      val fix=fixture
+
+      fix.controller.filtreStock("yes")(0) must beFalse
+    }
+
+    "return true if the value is equal to 0 and filter is equal to no" in new WithApplication{
+      val fix=fixture
+
+      fix.controller.filtreStock("no")(0) must beTrue
+    }
+
+    "return false if the value is not equal to 0 and filter is equal to no" in new WithApplication{
+      val fix=fixture
+
+      fix.controller.filtreStock("no")(1) must beFalse
+    }
+
+    "return true if the value is greater or equal than 0 and filter is not equal to yes or no" in new WithApplication{
+      val fix=fixture
+
+      fix.controller.filtreStock("yesNo")(0) must beTrue
+    }
+
+    "return false if the value is less than 0 and filter is not equal to yes or no" in new WithApplication{
+      val fix=fixture
+
+      fix.controller.filtreStock("yesNo")(-1) must beFalse
     }
   }
 }

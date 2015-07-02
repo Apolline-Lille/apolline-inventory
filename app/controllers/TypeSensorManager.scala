@@ -4,7 +4,7 @@ import com.wordnik.swagger.annotations._
 import models._
 import play.api.data.format.Formats._
 import play.api.i18n.Messages
-import play.api.libs.json.{JsArray, JsObject, Json}
+import play.api.libs.json.{JsSuccess, JsArray, JsObject, Json}
 import play.api.mvc._
 import play.api.data._
 import play.api.data.Forms._
@@ -394,7 +394,10 @@ trait TypeSensorManagerLike extends Controller{
     //Find all signal
     val future_mesure=typeMesureDao.findAll()
     //Find all sensors type name for the filter
-    val future_nomType=typeSensorDao.findAllType(BSONFormats.toBSON(selector).get.asInstanceOf[BSONDocument])
+    val future_nomType=BSONFormats.toBSON(selector) match{
+      case JsSuccess(v,_)=>typeSensorDao.findAllType(v.asInstanceOf[BSONDocument])
+      case _=>future{Stream[BSONDocument]()}
+    }
 
     //Get value defined on future
     typeSensorDao.findAll(selectorAll).flatMap(typeSensor=>
@@ -428,12 +431,12 @@ trait TypeSensorManagerLike extends Controller{
 
         //If form contains errors
         formWithErrors => {
-          val especes = formWithErrors.data.getOrElse("espece[]",List[String]()).asInstanceOf[List[String]].filter(p => p.length > 0)
+          val especes = formWithErrors.data.filter(p=>p._1.startsWith("espece") && p._2.nonEmpty)
 
           //If don't have valid specie
-          especes match {
+          especes.size match {
             //print form with prefilled data and a bad request
-            case List() => printForm(Results.BadRequest,formWithErrors.withError("espece",Messages("global.error.required")),r)
+            case 0 => printForm(Results.BadRequest,formWithErrors.withError("espece",Messages("global.error.required")),r)
             //the form is redisplay with error descriptions
             case _ => printForm(Results.BadRequest, formWithErrors, r)
           }
@@ -492,10 +495,9 @@ trait TypeSensorManagerLike extends Controller{
   def actionWhenFormValid(errorMessage:String,r:Call,typeData:TypeSensorForm,especes:List[String],verif:TypeSensorForm=>JsObject,f:(TypeSensorForm,List[String],TypeMesure)=>Future[Result])(implicit request:Request[AnyContent])={
     //Find the sensor type
     typeSensorDao.findAll(verif(typeData)).flatMap(
-      types=>{
-        //If sensor type not found
-        if(types.size==0 || List(Some("Réactiver"),Some("Ignorer")).contains(typeData.send)){
-
+      types=>(typeData.send,types) match{
+          //If type not found or click on reactivat or ignore button
+        case (Some("Réactiver"),_) | (Some("Ignorer"),_) | (_,Nil) =>
           //Find the signal
           typeMesureDao.findOne(Json.obj("nom" -> typeData.mesure)).flatMap(
             mesure => mesure match {
@@ -509,13 +511,12 @@ trait TypeSensorManagerLike extends Controller{
             //Send Internal Server Error if have mongoDB error
             case e => InternalServerError("error")
           })
-        }
-        else if(types.filter(p => !(p.delete) ).size>0){
-          printForm(Results.BadRequest, form.withGlobalError(Messages("inventary.typeSensor.error.typeExist")).fill(typeData), r)
-        }
-        else{
-          printForm(Results.BadRequest, form.withGlobalError(errorMessage).fill(typeData), r)
-        }
+
+          //If type exist and delete
+        case _ if types.filter(p => !(p.delete) ).size>0 =>printForm(Results.BadRequest, form.withGlobalError(Messages("inventary.typeSensor.error.typeExist")).fill(typeData), r)
+
+          //If type exist and not delete
+        case _ => printForm(Results.BadRequest, form.withGlobalError(errorMessage).fill(typeData), r)
       }
     ).recover({
       //Send Internal Server Error if have mongoDB error
