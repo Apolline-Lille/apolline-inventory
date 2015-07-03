@@ -1,11 +1,12 @@
-@(mod:Module,typesCards:List[TypeCards],cards:List[Cards],listFirmware:List[Firmware],typeSensors:List[TypeSensor],typeMesure:List[TypeMesure],sensors:List[Sensor])(implicit request:Request[AnyContent])
+@(mod:Module,typesCards:List[TypeCards],cards:List[Cards],listFirmware:List[Firmware],typeSensors:List[TypeSensor],typeMesure:List[TypeMesure],sensors:List[Sensor],previous:String)(implicit request:Request[AnyContent])
 
 @main(Messages("inventary.module.title")) {
   @navigation("inventary")
   <div class="container">
     @inventary("module")
     <section>
-      <article>
+      <article class="col-sm-12">
+        <a href="@previous#@mod._id.stringify"><span class="glyphicon glyphicon-arrow-left"></span> Retour</a>
         <div class="col-sm-12">
           <h4>@mod.types / @mod.id</h4>
         </div>

@@ -8,7 +8,7 @@
     @inventary("capteur")
     <section>
       <article>
-        <a href="@routes.SensorManager.inventary(id)">Retour</a>
+        <a href="@routes.SensorManager.inventary(id)"><span class="glyphicon glyphicon-arrow-left"></span> Retour</a>
         @helper.form(action=routeSubmit){
           @for(error<-form.globalErrors){
             <div class="alert alert-danger" role="alert">@error.message</div>

@@ -1,4 +1,4 @@
-@(types:TypeCards,listCards:List[Cards],listFirmware:List[Firmware],stockUsed:List[(reactivemongo.bson.BSONObjectID,Int)],trie:String,sens:Int)(implicit request: Request[AnyContent])
+@(types:TypeCards,listCards:List[Cards],listFirmware:List[Firmware],stockUsed:List[(reactivemongo.bson.BSONObjectID,Int)],trie:String,sens:Int,previous:String)(implicit request: Request[AnyContent])
 
 @main(Messages("inventary.typeCards.title")){
   <script src="@routes.Assets.at("/public","javascripts/modal-delete.js")" type="text/javascript" defer></script>
@@ -7,6 +7,7 @@
     @inventary("card")
     <section>
       <article class="col-sm-10">
+        <a href="@previous#@types._id.stringify"><span class="glyphicon glyphicon-arrow-left"></span> Retour</a>
         <div class="row">
           <div class="col-sm-12">
             <h4>@{types.types} / @{types.modele}</h4>

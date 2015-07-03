@@ -12,7 +12,7 @@
     @inventary("card")
     <section>
       <article>
-        <a href="@routes.TypeCardsManager.inventary()">Retour</a>
+        <a href="@routes.TypeCardsManager.inventary()"><span class="glyphicon glyphicon-arrow-left"></span> Retour</a>
         @helper.form(action=route){
           @for(error<-form.globalErrors){
             <div class="alert alert-danger" role="alert">@Html(error.message)</div>

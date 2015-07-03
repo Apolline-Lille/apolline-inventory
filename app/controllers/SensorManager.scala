@@ -5,6 +5,7 @@ import java.util.Date
 
 import com.wordnik.swagger.annotations._
 import models._
+import play.api.Play
 import play.api.data.Form
 import play.api.data.Forms._
 import play.api.i18n.Messages
@@ -18,6 +19,7 @@ import reactivemongo.core.commands.LastError
 import scala.concurrent._
 import scala.concurrent.duration.Duration
 
+import play.api.Play.current
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
 
 import scala.util.{Failure, Success}
@@ -69,6 +71,8 @@ trait SensorManagerLike extends Controller{
    */
   val typeSensorManager:TypeSensorManagerLike=TypeSensorManager
 
+  val config=Play.configuration
+
   /**
    * Value contains the configuration of the form
    */
@@ -108,8 +112,9 @@ trait SensorManagerLike extends Controller{
     implicit request =>
       //Verify if user is connect
       UserManager.doIfconnectAsync(request) {
+        val previous=previousPage
         getInventarySensor(Json.obj("delete"->false,"types"->BSONObjectID(id)),Json.obj(sort->sens),BSONObjectID(id),Redirect(routes.TypeSensorManager.inventary())){
-          (typeSensor,typeMesure,listSensor,sensorUsed)=>Ok(views.html.sensors.listSensor(typeSensor,typeMesure,listSensor,sensorUsed,sort,sens))
+          (typeSensor,typeMesure,listSensor,sensorUsed)=>Ok(views.html.sensors.listSensor(typeSensor,typeMesure,listSensor,sensorUsed,sort,sens,previous)).withSession(request.session + ("previous"->previous))
         }
       }
   }
@@ -666,6 +671,56 @@ trait SensorManagerLike extends Controller{
   def format(d:Date):String={
     val format=new SimpleDateFormat("dd/MM/YYYY")
     format.format(d)
+  }
+
+  /**
+   * Get the address of the previous page for the sensors inventary
+   * @param request Request received
+   * @return A string represent the address
+   */
+  def previousPage(implicit request:Request[AnyContent]): String ={
+    //Find the hostname in the application.conf
+    config.getString("hostname") match{
+
+      //hostname found
+      case Some(hostname)=>getPreviousPage(hostname,request.headers.get("Referer"))
+
+      //hostname not found
+      case None=>throw new Exception("hostname is not defined")
+    }
+  }
+
+  /**
+   * Get the address of the previous page for the sensors inventary
+   * @param hostname The hostname
+   * @param urlOrigin The url
+   * @param request Request received
+   * @return A String represent the address
+   */
+  def getPreviousPage(hostname:String,urlOrigin:Option[String])(implicit request:Request[AnyContent]): String=urlOrigin match{
+
+    //url found and start with the hostname
+    case Some(url) if url.startsWith(hostname)=> {
+
+      //get the address without hostname
+      val shortUrl=url.replace(hostname,"/")
+
+      val pattern="/inventary/sensors[^/]*".r
+
+      shortUrl match{
+        //if url match with the pattern, return the url
+        case pattern() => url
+
+        //if url start with /inventary/sensors, get the address in session
+        case _ if shortUrl.startsWith("/inventary/sensors/") => getPreviousPage(hostname,request.session.get("previous"))
+
+        //Else return the address for the inventary type cards
+        case _ => routes.TypeSensorManager.inventary().toString
+      }
+    }
+
+    //Else return the address for the inventary type sensors
+    case _=>routes.TypeSensorManager.inventary().toString
   }
 }
 

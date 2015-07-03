@@ -5,6 +5,7 @@ import java.util.Date
 
 import com.wordnik.swagger.annotations._
 import models._
+import play.api.Play
 import play.api.data.Form
 import play.api.data.Forms._
 import play.api.i18n.Messages
@@ -15,6 +16,7 @@ import reactivemongo.bson.BSONObjectID
 import scala.collection.immutable.HashSet
 import scala.concurrent._
 
+import play.api.Play.current
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
 
 /**
@@ -87,6 +89,8 @@ trait ModuleManagerLike extends Controller {
   val firmwareDao:FirmwareDao = FirmwareDaoObj
 
   val typeMesureDao:TypeMesureDao = TypeMesureDaoObj
+
+  val config=Play.configuration
 
   val selectElement=Form[SelectInfo](
     mapping(
@@ -183,8 +187,9 @@ trait ModuleManagerLike extends Controller {
                       data => data match {
                         case (typesCards, cards,firmware) =>
 
+                          val previous=previousPage
                           //Print module information
-                          Ok(views.html.module.moreInfo(module,typesCards,cards,firmware,typeSensors,typeMesure,sensors))
+                          Ok(views.html.module.moreInfo(module,typesCards,cards,firmware,typeSensors,typeMesure,sensors,previous)).withSession(request.session + ("previous"->previous))
                       }
                     )
                 }
@@ -1053,6 +1058,53 @@ trait ModuleManagerLike extends Controller {
         status(views.html.module.formModule(form,listType.toList)).withSession(session)
 
     ).recover({case _ => InternalServerError("error")})
+  }
+
+  /**
+   * Get the address of the previous page for the sensors inventary
+   * @param request Request received
+   * @return A string represent the address
+   */
+  def previousPage(implicit request:Request[AnyContent]): String ={
+    //Find the hostname in the application.conf
+    config.getString("hostname") match{
+
+      //hostname found
+      case Some(hostname)=>getPreviousPage(hostname,request.headers.get("Referer"))
+
+      //hostname not found
+      case None=>throw new Exception("hostname is not defined")
+    }
+  }
+
+  /**
+   * Get the address of the previous page for the module inventary
+   * @param hostname The hostname
+   * @param urlOrigin The url
+   * @param request Request received
+   * @return A String represent the address
+   */
+  def getPreviousPage(hostname:String,urlOrigin:Option[String])(implicit request:Request[AnyContent]): String=urlOrigin match{
+
+    //url found and start with the hostname
+    case Some(url) if url.startsWith(hostname)=> {
+
+      //get the address without hostname
+      val shortUrl=url.replace(hostname,"/")
+
+      val pattern="/inventary/modules[^/]*".r
+
+      shortUrl match{
+        //if url match with the pattern, return the url
+        case pattern() => url
+
+        //Else return the address for the inventary type cards
+        case _ => routes.ModuleManager.inventary().toString
+      }
+    }
+
+    //Else return the address for the inventary type sensors
+    case _=>routes.ModuleManager.inventary().toString
   }
 }
 

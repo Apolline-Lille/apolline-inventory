@@ -16,7 +16,7 @@
     @inventary("capteur")
     <section>
       <article>
-        <a href="@routes.TypeSensorManager.inventary()">Retour</a>
+        <a href="@routes.TypeSensorManager.inventary()"><span class="glyphicon glyphicon-arrow-left"></span> Retour</a>
         @helper.form(action=route){
           @for(error<-form.globalErrors){
             <div class="alert alert-danger" role="alert">@{new Html(error.message)}</div>
