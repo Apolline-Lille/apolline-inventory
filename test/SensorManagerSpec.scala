@@ -8,6 +8,7 @@ import org.specs2.matcher.{MatchResult, Expectable, Matcher}
 import org.specs2.mock.Mockito
 import org.specs2.mutable.Specification
 import org.specs2.runner.JUnitRunner
+import play.api.Configuration
 import play.api.data.Form
 import play.api.mvc._
 import play.api.test.Helpers._
@@ -46,11 +47,13 @@ class SensorManagerSpec extends Specification with Mockito{
     val typeMesureDaoMock = mock[TypeMesureDao]
     val sensorDaoMock = mock[SensorDao]
     val typeSensorController=mock[TypeSensorManagerLike]
+    val configMock=mock[Configuration]
     val controller = new SensorManagerTest {
       override val typeSensorDao: TypeSensorDao = typeSensorDaoMock
       override val typeMesureDao: TypeMesureDao = typeMesureDaoMock
       override val sensorDao: SensorDao = sensorDaoMock
       override val typeSensorManager:TypeSensorManagerLike = typeSensorController
+      override val config=configMock
     }
     val typeSensor=TypeSensor(bson,"type1","modele1",bson2,"fab1",1,List[String]("esp1","esp2"))
 
@@ -160,6 +163,8 @@ class SensorManagerSpec extends Specification with Mockito{
       val list_sensor = List[Sensor](
         Sensor(bson3, "Id", bson, None, date, None, false, None)
       )
+
+      f.configMock.getString(org.mockito.Matchers.eq("hostname"),any[Option[Set[String]]]) returns Some("http://hostname/")
       f.sensorDaoMock.findAll(any[JsObject], org.mockito.Matchers.eq(Json.obj("acquisition" -> -1)))(any[ExecutionContext]) returns future {
         list_sensor
       }
@@ -185,12 +190,16 @@ class SensorManagerSpec extends Specification with Mockito{
       there was one(f.typeMesureDaoMock).findById(org.mockito.Matchers.eq(bson2))(any[ExecutionContext])
       there was one(f.typeSensorDaoMock).findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext])
       there was one(f.sensorDaoMock).countUsedSensors(org.mockito.Matchers.eq(List(f.typeSensor)))
+      there was one(f.configMock).getString(org.mockito.Matchers.eq("hostname"),any[Option[Set[String]]])
     }
 
     "send 200 OK page with the message 'Aucun résultat trouvé', if not have sensors" in new WithApplication {
       val f = fixture
       val typeMesure = TypeMesure(bson2, "mesure1", "unite1")
       val list_sensor = List[Sensor]()
+      val url="http://hostname/inventary/sensors?types=typ"
+
+      f.configMock.getString(org.mockito.Matchers.eq("hostname"),any[Option[Set[String]]]) returns Some("http://hostname/")
 
       f.sensorDaoMock.findAll(any[JsObject], org.mockito.Matchers.eq(Json.obj("acquisition" -> -1)))(any[ExecutionContext]) returns future {
         list_sensor
@@ -203,7 +212,7 @@ class SensorManagerSpec extends Specification with Mockito{
       }
       f.sensorDaoMock.countUsedSensors(org.mockito.Matchers.eq(List(f.typeSensor))) returns future{List((bson,0))}
 
-      val r = f.controller.inventary(bson.stringify, "acquisition", -1).apply(FakeRequest(GET, "/inventary/sensors/" + bson.stringify).withSession("user" -> """{"login":"test"}"""))
+      val r = f.controller.inventary(bson.stringify, "acquisition", -1).apply(FakeRequest(GET, "/inventary/sensors/" + bson.stringify).withHeaders(("Referer"->url)).withSession("user" -> """{"login":"test"}"""))
 
       status(r) must equalTo(OK)
       contentType(r) must beSome.which(_ == "text/html")
@@ -215,11 +224,13 @@ class SensorManagerSpec extends Specification with Mockito{
       content must matchRegex("<span class=\"bold\">\\s*Nombre de signaux\\s*</span>\\s*:\\s*1\\s*\\(\\s*mesure1\\s*\\)")
       content must matchRegex("<span class=\"bold\">\\s*Espèces\\s*</span>\\s*:\\s*esp1, esp2")
       content must matchRegex("<span class=\"bold\">\\s*Stock\\s*</span>\\s*:\\s*0 / 0")
+      session(r).get("previous") must beSome(url)
 
       there was one(f.sensorDaoMock).findAll(any[JsObject], org.mockito.Matchers.eq(Json.obj("acquisition" -> -1)))(any[ExecutionContext])
       there was one(f.typeMesureDaoMock).findById(org.mockito.Matchers.eq(bson2))(any[ExecutionContext])
       there was one(f.typeSensorDaoMock).findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext])
       there was one(f.sensorDaoMock).countUsedSensors(org.mockito.Matchers.eq(List(f.typeSensor)))
+      there was one(f.configMock).getString(org.mockito.Matchers.eq("hostname"),any[Option[Set[String]]])
     }
 
     "send 200 OK page with 2 sensors" in new WithApplication {
@@ -230,6 +241,7 @@ class SensorManagerSpec extends Specification with Mockito{
         Sensor(bson4, "Id2", bson, Some(date), date, Some(date), true, Some("un com"))
       )
 
+      f.configMock.getString(org.mockito.Matchers.eq("hostname"),any[Option[Set[String]]]) returns Some("http://hostname/")
       f.sensorDaoMock.findAll(any[JsObject], org.mockito.Matchers.eq(Json.obj("acquisition" -> -1)))(any[ExecutionContext]) returns future {
         list_sensor
       }
@@ -258,6 +270,7 @@ class SensorManagerSpec extends Specification with Mockito{
       there was one(f.typeMesureDaoMock).findById(org.mockito.Matchers.eq(bson2))(any[ExecutionContext])
       there was one(f.typeSensorDaoMock).findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext])
       there was one(f.sensorDaoMock).countUsedSensors(org.mockito.Matchers.eq(List(f.typeSensor)))
+      there was one(f.configMock).getString(org.mockito.Matchers.eq("hostname"),any[Option[Set[String]]])
     }
   }
 
@@ -1095,6 +1108,85 @@ class SensorManagerSpec extends Specification with Mockito{
       there was one(f.typeSensorController).doIfTypeSensorFound(org.mockito.Matchers.eq(bson))(any[Unit=>Future[Result]])(any[Unit=>Future[Result]])
       there was one(f.sensorDaoMock).findOne(any[JsObject])(any[ExecutionContext])
       there was one(f.sensorDaoMock).updateById(org.mockito.Matchers.eq(bson2), org.mockito.Matchers.eq(sensorOut),any[GetLastError])(any[Writes[Sensor]],any[ExecutionContext])
+    }
+  }
+
+  "When method getPreviousPage is called, SensorManager" should{
+    "return the url if the url is found and match with the pattern" in new WithApplication{
+      val f=fixture
+      val url="http://hostname/inventary/sensors?types=typ"
+
+      val req=FakeRequest(GET,"url")
+      val r=f.controller.getPreviousPage("http://hostname/",Some(url))(req)
+
+      r must equalTo(url)
+    }
+
+    "return the url in session if the url is found and start with /inventary/sensors/" in new WithApplication{
+      val f=fixture
+      val url="http://hostname/inventary/sensors/"+bson.stringify
+      val urlSession="http://hostname/inventary/sensors"
+
+      val req=FakeRequest(GET,"url").withSession("previous"->urlSession)
+      val r=f.controller.getPreviousPage("http://hostname/",Some(url))(req)
+
+      r must equalTo(urlSession)
+    }
+
+    "return the url to /inventary/sensors if the url is found and not start with /inventary/sensors/" in new WithApplication{
+      val f=fixture
+      val url="http://hostname/inventary/cards/"+bson.stringify
+
+      val req=FakeRequest(GET,"url")
+      val r=f.controller.getPreviousPage("http://hostname/",Some(url))(req)
+
+      r must equalTo("/inventary/sensors")
+    }
+
+    "return the url to /inventary/sensors if the url is not found" in new WithApplication{
+      val f=fixture
+
+      val req=FakeRequest(GET,"url")
+      val r=f.controller.getPreviousPage("http://hostname/",None)(req)
+
+      r must equalTo("/inventary/sensors")
+    }
+
+    "return the url to /inventary/sensors if the url is not start with the host name" in new WithApplication{
+      val f=fixture
+      val url="http://hostname2/inventary/sensors"
+
+      val req=FakeRequest(GET,"url")
+      val r=f.controller.getPreviousPage("http://hostname/",Some(url))(req)
+
+      r must equalTo("/inventary/sensors")
+    }
+  }
+
+  "When method previousPage is called, SensorManager" should{
+    "return the url if the hostname and the url are found and the url match with the pattern" in new WithApplication{
+      val f=fixture
+      val url="http://hostname/inventary/sensors?types=typ"
+
+      f.configMock.getString(org.mockito.Matchers.eq("hostname"),any[Option[Set[String]]]) returns Some("http://hostname/")
+
+      val req=FakeRequest(GET,"url").withHeaders(("Referer"->url))
+      val r=f.controller.previousPage(req)
+
+      r must equalTo(url)
+
+      there was one(f.configMock).getString(org.mockito.Matchers.eq("hostname"),any[Option[Set[String]]])
+    }
+
+    "throw an exception if the hostname not found" in new WithApplication{
+      val f=fixture
+
+      f.configMock.getString(org.mockito.Matchers.eq("hostname"),any[Option[Set[String]]]) returns None
+
+      val req=FakeRequest(GET,"url")
+      f.controller.previousPage(req) must throwA[Exception]
+
+      there was one(f.configMock).getString(org.mockito.Matchers.eq("hostname"),any[Option[Set[String]]])
     }
   }
 }
