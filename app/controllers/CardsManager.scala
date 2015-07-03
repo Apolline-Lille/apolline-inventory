@@ -215,8 +215,8 @@ trait CardsManagerLike extends Controller{
           //Data prefilled into the form
           CardsForm(
             "",
-            card.acquisition,
-            card.firstUse,
+            new Date,
+            None,
             card.agregateur,
             card.apolline,
             firmware.nom,

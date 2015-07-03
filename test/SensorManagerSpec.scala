@@ -1014,9 +1014,9 @@ class SensorManagerSpec extends Specification with Mockito{
       content must contain("<title>Inventaire des capteurs</title>")
       content must contain("<form action=\"/inventary/sensors/"+bson.stringify+"/sensor\" method=\"POST\" >")
       content must contain("<input type=\"text\" id=\"id\" name=\"id\" value=\"\" class=\"form-control\"/>")
-      content must contain("<input type=\"date\" id=\"acquisition\" name=\"acquisition\" value=\"2015-04-22\" class=\"form-control\"/>")
+      content must matchRegex("<input type=\"date\" id=\"acquisition\" name=\"acquisition\" value=\"\\d{4}-\\d{2}-\\d{2}\" class=\"form-control\"/>")
       content must contain("<input type=\"date\" id=\"expiration\" name=\"expiration\" value=\"2015-04-22\" class=\"form-control\"/>")
-      content must contain("<input type=\"date\" id=\"firstUse\" name=\"firstUse\" value=\"2015-04-22\" class=\"form-control\"/>")
+      content must contain("<input type=\"date\" id=\"firstUse\" name=\"firstUse\" value=\"\" class=\"form-control\"/>")
       content must contain("<textarea id=\"commentaire\" name=\"commentaire\" class=\"form-control\">un com</textarea>")
 
       there was one(f.typeSensorController).doIfTypeSensorFound(org.mockito.Matchers.eq(bson))(any[Unit=>Future[Result]])(any[Unit=>Future[Result]])
