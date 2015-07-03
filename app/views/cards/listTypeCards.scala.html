@@ -22,7 +22,7 @@
               }) { sto =>
                 @defining(sto - stockUsed.filter(p=>p._1.equals(types._id)).head._2) { stoUnused =>
                   @if(funcFiltre(stoUnused)) {
-                    <div class="col-sm-12">
+                    <div class="col-sm-12" id="@types._id.stringify">
                       <h4><a href="@routes.TypeCardsManager.inventary(types.types)">@{
                         types.types
                       }</a> / <a href="@routes.CardsManager.inventary(types._id.stringify)">@{

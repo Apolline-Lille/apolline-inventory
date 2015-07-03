@@ -7,6 +7,7 @@ import org.specs2.matcher.{MatchResult, Expectable, Matcher}
 import org.specs2.mock.Mockito
 import org.specs2.mutable.Specification
 import org.specs2.runner.JUnitRunner
+import play.api.Configuration
 import play.api.data.Form
 import play.api.libs.json.{Writes, JsObject, Json}
 import play.api.mvc.{Call, Results, Action, Result}
@@ -45,11 +46,13 @@ class CardsManagerSpec extends Specification with Mockito {
     val cardDaoMock=mock[CardsDao]
     val firmwareDaoMock=mock[FirmwareDao]
     val typeCardsManagerMock=mock[TypeCardsManagerLike]
+    val configMock=mock[Configuration]
     val controller=new CardsManagerTest{
       override val typeCardsDao:TypeCardsDao=typeCardsDaoMock
       override val cardDao:CardsDao=cardDaoMock
       override val firmwareDao:FirmwareDao=firmwareDaoMock
       override val typeCardsManager:TypeCardsManagerLike=typeCardsManagerMock
+      override val config=configMock
     }
 
     def applyFoundFunction() {
@@ -110,6 +113,8 @@ class CardsManagerSpec extends Specification with Mockito {
       val list_card = List[Cards](
         Cards(bson2, "Id", bson, bson3, date, None, true, Some("v01"), true, None)
       )
+
+      f.configMock.getString(org.mockito.Matchers.eq("hostname"),any[Option[Set[String]]]) returns Some("http://hostname/")
       f.cardDaoMock.findAll(any[JsObject], org.mockito.Matchers.eq(Json.obj("acquisition" -> -1)))(any[ExecutionContext]) returns future {
         list_card
       }
@@ -139,11 +144,15 @@ class CardsManagerSpec extends Specification with Mockito {
       there was one(f.typeCardsDaoMock).findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext])
       there was one(f.firmwareDaoMock).findAll(any[JsObject], any[JsObject])(any[ExecutionContext])
       there was one(f.cardDaoMock).countUsedCards(org.mockito.Matchers.eq(List(typeCards)))
+      there was one(f.configMock).getString(org.mockito.Matchers.eq("hostname"),any[Option[Set[String]]])
     }
 
     "send 200 OK page with the message 'Aucun résultat trouvé', if not have cards" in new WithApplication {
       val f = fixture
       val typeCards=TypeCards(bson, "mod", "type")
+      val url="http://hostname/inventary/cards?types=typ"
+
+      f.configMock.getString(org.mockito.Matchers.eq("hostname"),any[Option[Set[String]]]) returns Some("http://hostname/")
 
       f.typeCardsDaoMock.findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext]) returns future {
         Some(typeCards)
@@ -156,7 +165,7 @@ class CardsManagerSpec extends Specification with Mockito {
       }
       f.cardDaoMock.countUsedCards(org.mockito.Matchers.eq(List(typeCards))) returns future{List((bson,0))}
 
-      val r = f.controller.inventary(bson.stringify).apply(FakeRequest(GET, "/inventary/cards/" + bson.stringify).withSession("user" -> """{"login":"test"}"""))
+      val r = f.controller.inventary(bson.stringify).apply(FakeRequest(GET, "/inventary/cards/" + bson.stringify).withHeaders(("Referer"->url)).withSession("user" -> """{"login":"test"}"""))
 
       status(r) must equalTo(OK)
       contentType(r) must beSome.which(_ == "text/html")
@@ -165,11 +174,13 @@ class CardsManagerSpec extends Specification with Mockito {
       content must matchRegex("type\\s*/\\s*mod")
       content must contain("<h3 style=\"text-align:center\">Aucun résultat trouvé</h3>")
       content must matchRegex("<span class=\"bold\">\\s*Stock\\s*</span>\\s*:\\s*0 / 0")
+      session(r).get("previous") must beSome(url)
 
       there was one(f.typeCardsDaoMock).findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext])
       there was one(f.cardDaoMock).findAll(any[JsObject], any[JsObject])(any[ExecutionContext])
       there was one(f.firmwareDaoMock).findAll(any[JsObject], any[JsObject])(any[ExecutionContext])
       there was one(f.cardDaoMock).countUsedCards(org.mockito.Matchers.eq(List(typeCards)))
+      there was one(f.configMock).getString(org.mockito.Matchers.eq("hostname"),any[Option[Set[String]]])
     }
 
     "send 200 OK page with 2 result" in new WithApplication {
@@ -179,6 +190,8 @@ class CardsManagerSpec extends Specification with Mockito {
         Cards(bson2, "Id", bson, bson3, date, None, true, Some("v01"), true, None),
         Cards(bson4, "Id2", bson, bson3, date, Some(date2), false, Some("v03"), false, None)
       )
+
+      f.configMock.getString(org.mockito.Matchers.eq("hostname"),any[Option[Set[String]]]) returns Some("http://hostname/")
       f.cardDaoMock.findAll(any[JsObject], org.mockito.Matchers.eq(Json.obj("acquisition" -> -1)))(any[ExecutionContext]) returns future {
         list_card
       }
@@ -214,6 +227,7 @@ class CardsManagerSpec extends Specification with Mockito {
       there was one(f.cardDaoMock).findAll(any[JsObject], org.mockito.Matchers.eq(Json.obj("acquisition" -> -1)))(any[ExecutionContext])
       there was one(f.typeCardsDaoMock).findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext])
       there was one(f.firmwareDaoMock).findAll(any[JsObject], any[JsObject])(any[ExecutionContext])
+      there was one(f.configMock).getString(org.mockito.Matchers.eq("hostname"),any[Option[Set[String]]])
     }
 
     "send redirect if card type not found" in new WithApplication {
@@ -222,6 +236,7 @@ class CardsManagerSpec extends Specification with Mockito {
       f.typeCardsDaoMock.findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext]) returns future {
         None
       }
+      f.configMock.getString(org.mockito.Matchers.eq("hostname"),any[Option[Set[String]]]) returns Some("http://hostname/")
 
       val r = f.controller.inventary(bson.stringify).apply(FakeRequest(GET, "/inventary/cards/" + bson.stringify).withSession("user" -> """{"login":"test"}"""))
 
@@ -229,6 +244,7 @@ class CardsManagerSpec extends Specification with Mockito {
       header("Location", r) must beSome("/inventary/cards")
 
       there was one(f.typeCardsDaoMock).findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext])
+      there was one(f.configMock).getString(org.mockito.Matchers.eq("hostname"),any[Option[Set[String]]])
     }
 
   }
@@ -1318,6 +1334,85 @@ class CardsManagerSpec extends Specification with Mockito {
       there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[Unit=>Future[Result]])(any[Unit=>Future[Result]])
       there was one(f.cardDaoMock).findOne(any[JsObject])(any[ExecutionContext])
       there was one(f.cardDaoMock).updateById(org.mockito.Matchers.eq(bson2), org.mockito.Matchers.eq(cardOut),any[GetLastError])(any[Writes[Cards]],any[ExecutionContext])
+    }
+  }
+
+  "When method getPreviousPage is called, CardsManager" should{
+    "return the url if the url is found and match with the pattern" in new WithApplication{
+      val f=fixture
+      val url="http://hostname/inventary/cards?types=typ"
+
+      val req=FakeRequest(GET,"url")
+      val r=f.controller.getPreviousPage("http://hostname/",Some(url))(req)
+
+      r must equalTo(url)
+    }
+
+    "return the url in session if the url is found and start with /inventary/cards/" in new WithApplication{
+      val f=fixture
+      val url="http://hostname/inventary/cards/"+bson.stringify
+      val urlSession="http://hostname/inventary/cards"
+
+      val req=FakeRequest(GET,"url").withSession("previous"->urlSession)
+      val r=f.controller.getPreviousPage("http://hostname/",Some(url))(req)
+
+      r must equalTo(urlSession)
+    }
+
+    "return the url to /inventary/cards if the url is found and not start with /inventary/cards/" in new WithApplication{
+      val f=fixture
+      val url="http://hostname/inventary/cards/"+bson.stringify
+
+      val req=FakeRequest(GET,"url")
+      val r=f.controller.getPreviousPage("http://hostname/",Some(url))(req)
+
+      r must equalTo("/inventary/cards")
+    }
+
+    "return the url to /inventary/cards if the url is not found" in new WithApplication{
+      val f=fixture
+
+      val req=FakeRequest(GET,"url")
+      val r=f.controller.getPreviousPage("http://hostname/",None)(req)
+
+      r must equalTo("/inventary/cards")
+    }
+
+    "return the url to /inventary/cards if the url is not start with the host name" in new WithApplication{
+      val f=fixture
+      val url="http://hostname2/inventary/cards"
+
+      val req=FakeRequest(GET,"url")
+      val r=f.controller.getPreviousPage("http://hostname/",Some(url))(req)
+
+      r must equalTo("/inventary/cards")
+    }
+  }
+
+  "When method previousPage is called, CardsManager" should{
+    "return the url if the hostname and the url are found and the url match with the pattern" in new WithApplication{
+      val f=fixture
+      val url="http://hostname/inventary/cards?types=typ"
+
+      f.configMock.getString(org.mockito.Matchers.eq("hostname"),any[Option[Set[String]]]) returns Some("http://hostname/")
+
+      val req=FakeRequest(GET,"url").withHeaders(("Referer"->url))
+      val r=f.controller.previousPage(req)
+
+      r must equalTo(url)
+
+      there was one(f.configMock).getString(org.mockito.Matchers.eq("hostname"),any[Option[Set[String]]])
+    }
+
+    "throw an exception if the hostname not found" in new WithApplication{
+      val f=fixture
+
+      f.configMock.getString(org.mockito.Matchers.eq("hostname"),any[Option[Set[String]]]) returns None
+
+      val req=FakeRequest(GET,"url")
+      f.controller.previousPage(req) must throwA[Exception]
+
+      there was one(f.configMock).getString(org.mockito.Matchers.eq("hostname"),any[Option[Set[String]]])
     }
   }
 }
