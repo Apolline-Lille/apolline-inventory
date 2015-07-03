@@ -209,9 +209,9 @@ trait SensorManagerLike extends Controller{
         //Data prefilled into the form
         SensorForm(
           "",
-          sensor.acquisition,
+          new Date,
           sensor.expiration,
-          sensor.firstUse,
+          None,
           sensor.hs,
           sensor.commentaire,
           ""
