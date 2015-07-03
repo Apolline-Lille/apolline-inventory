@@ -11,7 +11,7 @@
           <h3 style="text-align:center">@Messages("global.error.noResult")</h3>
         }else {
           @for(mod <- modules) {
-            <div class="row">
+            <div class="row" id="@mod._id.stringify">
               <div class="col-sm-12">
                 <h4>
                   <a href="@routes.ModuleManager.inventary(mod.types)">@mod.types</a>
