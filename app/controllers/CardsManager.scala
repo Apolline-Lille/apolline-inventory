@@ -184,13 +184,10 @@ trait CardsManagerLike extends Controller{
       //Verify if user is connect
       UserManager.doIfconnectAsync(request) {
         //Verify if card type found
-        typeCardsManager.doIfTypeCardsFound(BSONObjectID(id)) {_=>
+        typeCardsManager.doIfTypeCardsFound(BSONObjectID(id)) {typeCards=>
           //Print an empty form for add new card
-          printForm(Results.Ok,id,form.bind(Map("acquisition"->new SimpleDateFormat("YYYY-MM-dd").format(new Date))).discardingErrors,routes.CardsManager.cardInsert(id))
-        }{_=>
-          //Print an empty form with error type not found
-          printForm(Results.BadRequest,id,form.bind(Map("acquisition"->new SimpleDateFormat("YYYY-MM-dd").format(new Date))).discardingErrors.withGlobalError(Messages("inventary.typeCards.error.typeNotExist")),routes.SensorManager.sensorInsert(id))
-        }
+          printForm(Results.Ok,typeCards,form.bind(Map("acquisition"->new SimpleDateFormat("YYYY-MM-dd").format(new Date))).discardingErrors,routes.CardsManager.cardInsert(id))
+        }{_=>future{Redirect(routes.TypeCardsManager.inventary())}}
       }
   }
 
@@ -314,7 +311,7 @@ trait CardsManagerLike extends Controller{
         cardData=>Json.obj("id" -> cardData.id, "types" -> BSONFormats.BSONObjectIDFormat.writes(BSONObjectID(id)))
 
       }{
-        (cardData,firmware)=>
+        (typeCards,cardData,firmware)=>
           if(!cardData.send.equals("Réactiver")) {
             //Insert the card into the mongoDB database
             cardDao.insert(
@@ -338,7 +335,7 @@ trait CardsManagerLike extends Controller{
                   //Prepare prefilled data
                   val cardForm = cardData.copy(id = "")
                   //Print the form with prefilled data
-                  printForm(Results.Ok, id, form.fill(cardForm), routes.CardsManager.cardInsert(id))
+                  printForm(Results.Ok, typeCards, form.fill(cardForm), routes.CardsManager.cardInsert(id))
                 }
 
                 //If user click on an other button redirect her to the card inventary for the current card type
@@ -396,7 +393,7 @@ trait CardsManagerLike extends Controller{
 
       }{
         //Update the card
-        (cardData,firmware)=>{
+        (typeCards,cardData,firmware)=>{
           if(cardData.send.equals("Envoyer") || cardData.send.equals("Ignorer")) {
             //Update the card
             cardDao.updateById(
@@ -422,7 +419,7 @@ trait CardsManagerLike extends Controller{
               case e => InternalServerError("error")
             })
           }else{
-            printForm(Results.BadRequest, id, form.withGlobalError(msg).fill(cardData), routes.CardsManager.cardUpdate(idType,id))
+            printForm(Results.BadRequest, typeCards, form.withGlobalError(msg).fill(cardData), routes.CardsManager.cardUpdate(idType,id))
           }
         }
       }
@@ -506,13 +503,13 @@ trait CardsManagerLike extends Controller{
   /**
    * This method print a form with datalist
    * @param status Status of the response
-   * @param id Cards type id
+   * @param types Cards type
    * @param form Information contains in the form
    * @param r Route used when submit a form
    * @param request Request received
    * @return
    */
-  def printForm(status: Results.Status,id:String,form:Form[CardsForm],r:Call)(implicit request:Request[AnyContent]):Future[Result]={
+  def printForm(status: Results.Status,types:TypeCards,form:Form[CardsForm],r:Call)(implicit request:Request[AnyContent]):Future[Result]={
     //Find apolline version
     val futureAppoline=cardDao.findApolline()
 
@@ -523,7 +520,7 @@ trait CardsManagerLike extends Controller{
     firmwareDao.findVersionFirmware().flatMap(versionFirmware=>
       futureFirmware.flatMap(firmware=>
         futureAppoline.map(apolline=>
-          status(views.html.cards.formCards(form, id, r,apolline.toList,firmware.toList,versionFirmware.toList))
+          status(views.html.cards.formCards(form, types, r,apolline.toList,firmware.toList,versionFirmware.toList))
         ).recover({case _=>InternalServerError("error")})
       ).recover({case _=>InternalServerError("error")})
     ).recover({case _=>InternalServerError("error")})
@@ -578,17 +575,17 @@ trait CardsManagerLike extends Controller{
    *         Return Redirect if dedicated function is a success
    *         Return Internal server error if have mongoDB error
    */
-  def submitForm(errorMessage:String,id:String,routeSubmit:Call)(verif:CardsForm=>JsObject)(f:(CardsForm,BSONObjectID)=>Future[Result])(implicit request: Request[AnyContent]):Future[Result]={
+  def submitForm(errorMessage:String,id:String,routeSubmit:Call)(verif:CardsForm=>JsObject)(f:(TypeCards,CardsForm,BSONObjectID)=>Future[Result])(implicit request: Request[AnyContent]):Future[Result]={
     //Verify if user is connect
     UserManager.doIfconnectAsync(request) {
       //Verify if sensor type found
-      typeCardsManager.doIfTypeCardsFound(BSONObjectID(id)) {_=>
+      typeCardsManager.doIfTypeCardsFound(BSONObjectID(id)) {typeCards=>
         form.bindFromRequest.fold(
 
           //If form contains errors
           formWithErrors => {
             //the form is redisplay with error descriptions
-            printForm(Results.BadRequest,id,formWithErrors,routeSubmit)
+            printForm(Results.BadRequest,typeCards,formWithErrors,routeSubmit)
           },
 
           // Else if form no contains errors
@@ -598,14 +595,14 @@ trait CardsManagerLike extends Controller{
               //Find the card
               cardDao.findAll(verif(cardData)).flatMap(data=>{
                   if(data.size==0 || List("Réactiver","Ignorer").contains(cardData.send)) {
-                    insertFirmwareIfNotFound(cardData, f)
+                    insertFirmwareIfNotFound(typeCards,cardData, f)
                   }
                   else if(data.filter(p => !(p.delete) ).size>0) {
                     //print form with prefilled data and a bad request
-                    printForm(Results.BadRequest, id, form.withGlobalError(Messages("inventary.card.error.cardExist")).fill(cardData), routeSubmit)
+                    printForm(Results.BadRequest, typeCards, form.withGlobalError(Messages("inventary.card.error.cardExist")).fill(cardData), routeSubmit)
                   }
                   else {
-                    printForm(Results.BadRequest, id, form.withGlobalError(errorMessage).fill(cardData), routeSubmit)
+                    printForm(Results.BadRequest, typeCards, form.withGlobalError(errorMessage).fill(cardData), routeSubmit)
                   }
                 }
               ).recover({
@@ -613,11 +610,11 @@ trait CardsManagerLike extends Controller{
                 case e => InternalServerError("error")
               })
             }else{
-              printForm(Results.BadRequest, id, formDate.fill(cardData), routeSubmit)
+              printForm(Results.BadRequest, typeCards, formDate.fill(cardData), routeSubmit)
             }
           }
         )
-      } {_=> printForm(Results.BadRequest,id,form.withGlobalError(Messages("inventary.typeCards.error.typeNotExist")),routeSubmit)}
+      } {_=> future{Redirect(routes.TypeCardsManager.inventary())}}
     }
   }
 
@@ -636,7 +633,7 @@ trait CardsManagerLike extends Controller{
     //Verify if user is connect
     UserManager.doIfconnectAsync(request) {
       //Verify if card type found
-      typeCardsManager.doIfTypeCardsFound(BSONObjectID(id)) {_=>
+      typeCardsManager.doIfTypeCardsFound(BSONObjectID(id)) {typeCards=>
         //Find the card
         cardDao.findById(BSONObjectID(id2)).flatMap(
           cardOpt => cardOpt match {
@@ -657,14 +654,14 @@ trait CardsManagerLike extends Controller{
                   case Some(firmware) => {
                     //print the prefilled form with card information
                     val cardData = f(card, firmware)
-                    printForm(Results.Ok, id, form.fill(cardData), r)
+                    printForm(Results.Ok, typeCards, form.fill(cardData), r)
                   }
                 }
               ).recover({ case _ => InternalServerError("error")})
             }
           }
         ).recover({ case _ => InternalServerError("error")})
-      }{_=> printForm(Results.BadRequest,id,form.withGlobalError(Messages("inventary.typeCards.error.typeNotExist")),r)}
+      }{_=> future{Redirect(routes.TypeCardsManager.inventary())}}
     }
   }
 
@@ -674,7 +671,7 @@ trait CardsManagerLike extends Controller{
    * @param f Dedicated function
    * @return
    */
-  def insertFirmwareIfNotFound(cardData:CardsForm,f:(CardsForm,BSONObjectID)=>Future[Result]): Future[Result] ={
+  def insertFirmwareIfNotFound(typeCards:TypeCards,cardData:CardsForm,f:(TypeCards,CardsForm,BSONObjectID)=>Future[Result]): Future[Result] ={
     //Find the firmware
     firmwareDao.findOne(Json.obj("nom"->cardData.firmware,"version"->cardData.versionFirmware)).flatMap(
       data => data match{
@@ -683,11 +680,11 @@ trait CardsManagerLike extends Controller{
         case None=>{
           val firmware=Firmware(nom=cardData.firmware,version=cardData.versionFirmware)
           //Insert the firmware into the database then execute the card dedicated function
-          firmwareDao.insert(firmware).flatMap(_=>f(cardData,firmware._id)).recover({case _=> InternalServerError("error 1")})
+          firmwareDao.insert(firmware).flatMap(_=>f(typeCards,cardData,firmware._id)).recover({case _=> InternalServerError("error 1")})
         }
 
         //If the firmware found, execute the card dedicated function
-        case Some(firmware)=>f(cardData,firmware._id)
+        case Some(firmware)=>f(typeCards,cardData,firmware._id)
       }
     ).recover({case _=>InternalServerError("error")})
   }

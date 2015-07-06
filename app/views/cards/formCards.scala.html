@@ -1,4 +1,4 @@
-@(form:Form[CardsForm],id:String,routeSubmit:Call,apolline:List[reactivemongo.bson.BSONDocument],firmware:List[reactivemongo.bson.BSONDocument],vFirmware:List[reactivemongo.bson.BSONDocument])(implicit request: Request[AnyContent])
+@(form:Form[CardsForm],types:TypeCards,routeSubmit:Call,apolline:List[reactivemongo.bson.BSONDocument],firmware:List[reactivemongo.bson.BSONDocument],vFirmware:List[reactivemongo.bson.BSONDocument])(implicit request: Request[AnyContent])
 
 @import models.template.InlineInput.inlineInput
 
@@ -8,7 +8,12 @@
     @inventary("card")
     <section>
       <article>
-        <a href="@routes.CardsManager.inventary(id)"><span class="glyphicon glyphicon-arrow-left"></span> Retour</a>
+        <a href="@routes.CardsManager.inventary(types._id.stringify)"><span class="glyphicon glyphicon-arrow-left"></span> Retour</a>
+        <div class="row">
+          <div class="col-sm-12">
+            <h4>@{types.types} / @{types.modele}</h4>
+          </div>
+        </div>
         @helper.form(action=routeSubmit){
           @for(error<-form.globalErrors){
             <div class="alert alert-danger" role="alert">@Html(error.message)</div>
