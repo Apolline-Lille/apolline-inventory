@@ -1,0 +1,29 @@
+@(types:TypeCards,cards:Cards,firmware:Firmware)(implicit request: Request[AnyContent])
+
+@main(Messages("inventary.typeCards.title")){
+  @navigation("inventary")
+  <div class="container">
+    @inventary("card")
+    <section>
+      <article class="col-sm-12">
+        <a href="@routes.CardsManager.inventary(types._id.stringify)"><span class="glyphicon glyphicon-arrow-left"></span> Retour</a>
+        <div class="row">
+          <div class="col-sm-12">
+            <h4>@{types.types} / @{types.modele}</h4>
+          </div>
+          <div class="col-sm-11 col-sm-offset-1">
+            <div class="row"><span class="bold">@Messages("inventary.card.id")</span> : @cards.id</div>
+            <div class="row"><span class="bold">@Messages("inventary.card.acquisition")</span> : @SensorManager.format(cards.acquisition)</div>
+            <div class="row"><span class="bold">@Messages("inventary.card.firstUse")</span> : @if(cards.firstUse.nonEmpty){@SensorManager.format(cards.firstUse.get)}</div>
+            <div class="row"><span class="bold">@Messages("inventary.card.agregateur")</span> : @if(cards.agregateur){@Messages("global.yes")}else{@Messages("global.no")}</div>
+            <div class="row"><span class="bold">@Messages("inventary.card.firmware")</span> : @firmware.nom</div>
+            <div class="row"><span class="bold">@Messages("inventary.card.versionFirmware")</span> : @firmware.version</div>
+            <div class="row"><span class="bold">@Messages("inventary.card.apolline")</span> : @cards.apolline</div>
+            <div class="row"><span class="bold">@Messages("inventary.card.etat")</span> : @if(cards.hs){@Messages("inventary.card.hs")}</div>
+            <div class="row"><span class="bold">@Messages("inventary.card.commentaire")</span> : <br/>@cards.commentaire</div>
+          </div>
+        </div>
+      </article>
+    </section>
+  </div>
+}

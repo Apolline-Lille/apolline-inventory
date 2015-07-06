@@ -13,6 +13,7 @@ import play.api.libs.json.{Writes, JsObject, Json}
 import play.api.mvc.{Call, Results, Action, Result}
 import play.api.test.Helpers._
 import play.api.test.{FakeRequest, WithApplication}
+import play.modules.reactivemongo.json.BSONFormats.BSONObjectIDFormat
 import reactivemongo.bson.{BSONDocument, BSONObjectID}
 import reactivemongo.core.commands.{LastError, GetLastError}
 
@@ -56,13 +57,13 @@ class CardsManagerSpec extends Specification with Mockito {
     }
 
     def applyFoundFunction() {
-      typeCardsManagerMock.doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[Unit => Future[Result]])(any[Unit => Future[Result]]) answers { (params, _) => params match {
-        case Array(_, p: (Unit => Future[Result]), _) => p.apply()
+      typeCardsManagerMock.doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[TypeCards => Future[Result]])(any[Unit => Future[Result]]) answers { (params, _) => params match {
+        case Array(_, p: (TypeCards => Future[Result]), _) => p.apply(TypeCards(bson,"mod_TypeCards","typ_TypeCards"))
       }}
     }
 
     def applyNotFoundFunction() {
-      typeCardsManagerMock.doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[Unit => Future[Result]])(any[Unit => Future[Result]]) answers { (params, _) => params match {
+      typeCardsManagerMock.doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[TypeCards => Future[Result]])(any[Unit => Future[Result]]) answers { (params, _) => params match {
         case Array(_,_, p: (Unit => Future[Result])) => p.apply()
       }}
     }
@@ -247,6 +248,86 @@ class CardsManagerSpec extends Specification with Mockito {
       there was one(f.configMock).getString(org.mockito.Matchers.eq("hostname"),any[Option[Set[String]]])
     }
 
+  }
+
+  "WHen user is on resource /inventary/cards/:id/:id2/moreInformation, CardsManager" should{
+    "send 200 Ok page with all information about the card" in new WithApplication{
+      val f=fixture
+      val cards=Cards(bson2,"idCard",bson,bson3,date,Some(date2),true,Some("v01"),true,Some("un com"))
+      val firmware=Firmware(bson3,"firmware","v02")
+
+      f.applyFoundFunction()
+      f.cardDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->bson2)))(any[ExecutionContext]) returns future{Some(cards)}
+      f.firmwareDaoMock.findById(org.mockito.Matchers.eq(bson3))(any[ExecutionContext]) returns future{Some(firmware)}
+
+      val r=f.controller.moreInformation(bson.stringify,bson2.stringify).apply(FakeRequest(GET,"/inventary/cards/"+bson.stringify+"/"+bson2.stringify).withSession("user" -> """{"login":"test"}"""))
+
+      status(r) must equalTo(OK)
+      val content=contentAsString(r)
+      content must contain("<h4>typ_TypeCards / mod_TypeCards</h4>")
+      content must contain("<span class=\"bold\">Identifiant</span> : idCard")
+      content must contain("<span class=\"bold\">Date d&#x27;acquisition</span> : 22/04/2015")
+      content must contain("<span class=\"bold\">Date de première utilisation</span> : 23/04/2015")
+      content must contain("<span class=\"bold\">Agrégateur</span> : Oui")
+      content must contain("<span class=\"bold\">Firmware</span> : firmware")
+      content must contain("<span class=\"bold\">Version du firmware</span> : v02")
+      content must contain("<span class=\"bold\">Version d&#x27;apolline</span> : v01")
+      content must contain("<span class=\"bold\">Etat</span> : Hors service")
+      content must contain("<span class=\"bold\">Commentaire</span> : <br/>un com")
+
+      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[TypeCards=>Future[Result]])(any[Unit=>Future[Result]])
+      there was one(f.cardDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->bson2)))(any[ExecutionContext])
+      there was one(f.firmwareDaoMock).findById(org.mockito.Matchers.eq(bson3))(any[ExecutionContext])
+    }
+
+    "Send redirect if firmware not found" in new WithApplication{
+      val f=fixture
+      val cards=Cards(bson2,"idCard",bson,bson3,date,Some(date2),true,Some("v01"),true,Some("un com"))
+
+      f.applyFoundFunction()
+      f.cardDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->bson2)))(any[ExecutionContext]) returns future{Some(cards)}
+      f.firmwareDaoMock.findById(org.mockito.Matchers.eq(bson3))(any[ExecutionContext]) returns future{None}
+
+      val r=f.controller.moreInformation(bson.stringify,bson2.stringify).apply(FakeRequest(GET,"/inventary/cards/"+bson.stringify+"/"+bson2.stringify).withSession("user" -> """{"login":"test"}"""))
+
+      status(r) must equalTo(SEE_OTHER)
+      header("Location",r) must beSome("/inventary/cards/"+bson.stringify)
+
+      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[TypeCards=>Future[Result]])(any[Unit=>Future[Result]])
+      there was one(f.cardDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->bson2)))(any[ExecutionContext])
+      there was one(f.firmwareDaoMock).findById(org.mockito.Matchers.eq(bson3))(any[ExecutionContext])
+    }
+
+    "Send redirect if card not found" in new WithApplication{
+      val f=fixture
+
+      f.applyFoundFunction()
+      f.cardDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->bson2)))(any[ExecutionContext]) returns future{None}
+
+      val r=f.controller.moreInformation(bson.stringify,bson2.stringify).apply(FakeRequest(GET,"/inventary/cards/"+bson.stringify+"/"+bson2.stringify).withSession("user" -> """{"login":"test"}"""))
+
+      status(r) must equalTo(SEE_OTHER)
+      header("Location",r) must beSome("/inventary/cards/"+bson.stringify)
+
+      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[TypeCards=>Future[Result]])(any[Unit=>Future[Result]])
+      there was one(f.cardDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->bson2)))(any[ExecutionContext])
+      there was no(f.firmwareDaoMock).findById(org.mockito.Matchers.eq(bson3))(any[ExecutionContext])
+    }
+
+    "send redirect if type card not found" in new WithApplication{
+      val f=fixture
+
+      f.applyNotFoundFunction()
+
+      val r=f.controller.moreInformation(bson.stringify,bson2.stringify).apply(FakeRequest(GET,"/inventary/cards/"+bson.stringify+"/"+bson2.stringify).withSession("user" -> """{"login":"test"}"""))
+
+      status(r) must equalTo(SEE_OTHER)
+      header("Location",r) must beSome("/inventary/cards")
+
+      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[TypeCards=>Future[Result]])(any[Unit=>Future[Result]])
+      there was no(f.cardDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->bson2)))(any[ExecutionContext])
+      there was no(f.firmwareDaoMock).findById(org.mockito.Matchers.eq(bson3))(any[ExecutionContext])
+    }
   }
 
   "When method getinventaryCards is called, CardsManager" should{
@@ -479,7 +560,7 @@ class CardsManagerSpec extends Specification with Mockito {
       content must contain("<title>Inventaire des cartes</title>")
       content must contain("Ce type de carte n'existe pas")
 
-      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[Unit=>Future[Result]])(any[Unit=>Future[Result]])
+      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[TypeCards=>Future[Result]])(any[Unit=>Future[Result]])
       there was one(f.cardDaoMock).findApolline()
       there was one(f.firmwareDaoMock).findFirmware()
       there was one(f.firmwareDaoMock).findVersionFirmware()
@@ -518,7 +599,7 @@ class CardsManagerSpec extends Specification with Mockito {
       content must contain("<input type=\"checkbox\" id=\"hs\" name=\"hs\" value=\"true\" checked=\"checked\" />")
       content must contain("<textarea id=\"commentaire\" name=\"commentaire\" class=\"form-control\">un com</textarea>")
 
-      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[Unit=>Future[Result]])(any[Unit=>Future[Result]])
+      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[TypeCards=>Future[Result]])(any[Unit=>Future[Result]])
       there was one(f.cardDaoMock).findById(org.mockito.Matchers.eq(bson2))(any[ExecutionContext])
       there was one(f.firmwareDaoMock).findById(org.mockito.Matchers.eq(bson3))(any[ExecutionContext])
       there was one(func).apply(org.mockito.Matchers.eq(card),org.mockito.Matchers.eq(firmware))
@@ -542,7 +623,7 @@ class CardsManagerSpec extends Specification with Mockito {
       status(r) must equalTo(SEE_OTHER)
       header("Location",r) must beSome("/inventary/cards/"+bson.stringify)
 
-      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[Unit=>Future[Result]])(any[Unit=>Future[Result]])
+      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[TypeCards=>Future[Result]])(any[Unit=>Future[Result]])
       there was one(f.cardDaoMock).findById(org.mockito.Matchers.eq(bson2))(any[ExecutionContext])
     }
 
@@ -563,7 +644,7 @@ class CardsManagerSpec extends Specification with Mockito {
       status(r) must equalTo(SEE_OTHER)
       header("Location",r) must beSome("/inventary/cards/"+bson.stringify)
 
-      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[Unit=>Future[Result]])(any[Unit=>Future[Result]])
+      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[TypeCards=>Future[Result]])(any[Unit=>Future[Result]])
       there was one(f.cardDaoMock).findById(org.mockito.Matchers.eq(bson2))(any[ExecutionContext])
       there was one(f.firmwareDaoMock).findById(org.mockito.Matchers.eq(bson3))(any[ExecutionContext])
     }
@@ -586,7 +667,7 @@ class CardsManagerSpec extends Specification with Mockito {
 
       status(r) must equalTo(INTERNAL_SERVER_ERROR)
 
-      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[Unit=>Future[Result]])(any[Unit=>Future[Result]])
+      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[TypeCards=>Future[Result]])(any[Unit=>Future[Result]])
       there was one(f.cardDaoMock).findById(org.mockito.Matchers.eq(bson2))(any[ExecutionContext])
       there was one(futureMock).flatMap(any[Option[Cards]=>Future[Option[Cards]]])(any[ExecutionContext])
       there was one(futureMock).recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext])
@@ -612,7 +693,7 @@ class CardsManagerSpec extends Specification with Mockito {
 
       status(r) must equalTo(INTERNAL_SERVER_ERROR)
 
-      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[Unit=>Future[Result]])(any[Unit=>Future[Result]])
+      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[TypeCards=>Future[Result]])(any[Unit=>Future[Result]])
       there was one(f.cardDaoMock).findById(org.mockito.Matchers.eq(bson2))(any[ExecutionContext])
       there was one(f.firmwareDaoMock).findById(org.mockito.Matchers.eq(bson3))(any[ExecutionContext])
       there was one(futureMock).flatMap(any[Option[Firmware]=>Future[Option[Firmware]]])(any[ExecutionContext])
@@ -748,7 +829,7 @@ class CardsManagerSpec extends Specification with Mockito {
       content must contain("<title>Inventaire des cartes</title>")
       content must contain("Ce type de carte n'existe pas")
 
-      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[Unit=>Future[Result]])(any[Unit=>Future[Result]])
+      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[TypeCards=>Future[Result]])(any[Unit=>Future[Result]])
       there was one(f.cardDaoMock).findApolline()
       there was one(f.firmwareDaoMock).findFirmware()
       there was one(f.firmwareDaoMock).findVersionFirmware()
@@ -776,7 +857,7 @@ class CardsManagerSpec extends Specification with Mockito {
       content must contains("<span class=\"control-label errors\">This field is required</span>",4)
       content must not contain("<span class=\"control-label errors\">Valid date required</span>")
 
-      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[Unit=>Future[Result]])(any[Unit=>Future[Result]])
+      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[TypeCards=>Future[Result]])(any[Unit=>Future[Result]])
       there was one(f.cardDaoMock).findApolline()
       there was one(f.firmwareDaoMock).findFirmware()
       there was one(f.firmwareDaoMock).findVersionFirmware()
@@ -805,7 +886,7 @@ class CardsManagerSpec extends Specification with Mockito {
       content must not contain("<span class=\"control-label errors\">This field is required</span>")
       content must contains("<span class=\"control-label errors\">Valid date required</span>",2)
 
-      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[Unit=>Future[Result]])(any[Unit=>Future[Result]])
+      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[TypeCards=>Future[Result]])(any[Unit=>Future[Result]])
       there was one(f.cardDaoMock).findApolline()
       there was one(f.firmwareDaoMock).findFirmware()
       there was one(f.firmwareDaoMock).findVersionFirmware()
@@ -849,7 +930,7 @@ class CardsManagerSpec extends Specification with Mockito {
       content must not contain("<span class=\"control-label errors\">This field is required</span>")
       content must contain("<span class=\"control-label errors\">La date de première utilisation doit être supèrieur à la date d&#x27;acquisition</span>")
 
-      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[Unit=>Future[Result]])(any[Unit=>Future[Result]])
+      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[TypeCards=>Future[Result]])(any[Unit=>Future[Result]])
       there was one(f.cardDaoMock).findApolline()
       there was one(f.firmwareDaoMock).findFirmware()
       there was one(f.firmwareDaoMock).findVersionFirmware()
@@ -876,7 +957,7 @@ class CardsManagerSpec extends Specification with Mockito {
 
       status(r) must equalTo(INTERNAL_SERVER_ERROR)
 
-      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[Unit=>Future[Result]])(any[Unit=>Future[Result]])
+      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[TypeCards=>Future[Result]])(any[Unit=>Future[Result]])
       there was one(f.cardDaoMock).findAll(any[JsObject],any[JsObject])(any[ExecutionContext])
       there was one(funcVerif).apply(any[CardsForm])
       there was one(futureMock).flatMap(any[List[Cards]=>Future[List[Cards]]])(any[ExecutionContext])
@@ -907,7 +988,7 @@ class CardsManagerSpec extends Specification with Mockito {
       val content=contentAsString(r)
       content must contain("<div class=\"alert alert-danger\" role=\"alert\">Cette carte existe déjà</div>")
 
-      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[Unit=>Future[Result]])(any[Unit=>Future[Result]])
+      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[TypeCards=>Future[Result]])(any[Unit=>Future[Result]])
       there was one(f.cardDaoMock).findAll(any[JsObject],any[JsObject])(any[ExecutionContext])
       there was one(funcVerif).apply(any[CardsForm])
       there was one(f.cardDaoMock).findApolline()
@@ -945,7 +1026,7 @@ class CardsManagerSpec extends Specification with Mockito {
       there was one(f.cardDaoMock).findApolline()
       there was one(f.firmwareDaoMock).findFirmware()
       there was one(f.firmwareDaoMock).findVersionFirmware()
-      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[Unit => Future[Result]])(any[Unit => Future[Result]])
+      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[TypeCards => Future[Result]])(any[Unit => Future[Result]])
     }
 
     "send bad request with an empty form if card type not found" in new WithApplication {
@@ -977,7 +1058,7 @@ class CardsManagerSpec extends Specification with Mockito {
       there was one(f.cardDaoMock).findApolline()
       there was one(f.firmwareDaoMock).findFirmware()
       there was one(f.firmwareDaoMock).findVersionFirmware()
-      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[Unit => Future[Result]])(any[Unit => Future[Result]])
+      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[TypeCards => Future[Result]])(any[Unit => Future[Result]])
     }
 
     "send 500 internal error if have mongoDB error when insert card" in new WithApplication{
@@ -998,7 +1079,7 @@ class CardsManagerSpec extends Specification with Mockito {
 
       status(r) must equalTo(INTERNAL_SERVER_ERROR)
 
-      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[Unit=>Future[Result]])(any[Unit=>Future[Result]])
+      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[TypeCards=>Future[Result]])(any[Unit=>Future[Result]])
       there was one(f.cardDaoMock).findAll(any[JsObject],any[JsObject])(any[ExecutionContext])
       there was one(f.firmwareDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("nom"->"firm","version"->"v01")))(any[ExecutionContext])
       there was one(f.cardDaoMock).insert(any[Cards],any[GetLastError])(any[ExecutionContext])
@@ -1022,7 +1103,7 @@ class CardsManagerSpec extends Specification with Mockito {
       status(r) must equalTo(SEE_OTHER)
       header("Location",r) must equalTo(Some("/inventary/cards/"+bson.stringify))
 
-      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[Unit=>Future[Result]])(any[Unit=>Future[Result]])
+      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[TypeCards=>Future[Result]])(any[Unit=>Future[Result]])
       there was one(f.cardDaoMock).findAll(any[JsObject],any[JsObject])(any[ExecutionContext])
       there was one(f.firmwareDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("nom"->"firm","version"->"v01")))(any[ExecutionContext])
       there was one(f.cardDaoMock).insert(any[Cards],any[GetLastError])(any[ExecutionContext])
@@ -1043,16 +1124,10 @@ class CardsManagerSpec extends Specification with Mockito {
       val req=FakeRequest(POST,"/inventary/cards/"+bson.stringify+"/card").withJsonBody(data).withSession("user" -> """{"login":"test"}""")
       val r=f.controller.cardInsert(bson.stringify).apply(req)
 
-      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[Unit=>Future[Result]])(any[Unit=>Future[Result]])
-      there was one(f.cardDaoMock).findAll(any[JsObject],any[JsObject])(any[ExecutionContext])
-      there was one(f.firmwareDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("nom"->"firm","version"->"v01")))(any[ExecutionContext])
-      there was one(f.cardDaoMock).findOne(any[JsObject])(any[ExecutionContext])
-      there was one(f.cardDaoMock).updateById(org.mockito.Matchers.eq(bson2), any[Cards],any[GetLastError])(any[Writes[Cards]],any[ExecutionContext])
-
       status(r) must equalTo(SEE_OTHER)
       header("Location",r) must equalTo(Some("/inventary/cards/"+bson.stringify))
 
-      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[Unit=>Future[Result]])(any[Unit=>Future[Result]])
+      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[TypeCards=>Future[Result]])(any[Unit=>Future[Result]])
       there was one(f.cardDaoMock).findAll(any[JsObject],any[JsObject])(any[ExecutionContext])
       there was one(f.firmwareDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("nom"->"firm","version"->"v01")))(any[ExecutionContext])
       there was one(f.cardDaoMock).findOne(any[JsObject])(any[ExecutionContext])
@@ -1089,7 +1164,7 @@ class CardsManagerSpec extends Specification with Mockito {
       content must contain("<input type=\"checkbox\" id=\"hs\" name=\"hs\" value=\"true\"  />")
       content must contain("<textarea id=\"commentaire\" name=\"commentaire\" class=\"form-control\">un com</textarea>")
 
-      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[Unit=>Future[Result]])(any[Unit=>Future[Result]])
+      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[TypeCards=>Future[Result]])(any[Unit=>Future[Result]])
       there was one(f.cardDaoMock).findAll(any[JsObject],any[JsObject])(any[ExecutionContext])
       there was one(f.firmwareDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("nom"->"firm","version"->"v01")))(any[ExecutionContext])
       there was one(f.cardDaoMock).insert(any[Cards],any[GetLastError])(any[ExecutionContext])
@@ -1130,7 +1205,7 @@ class CardsManagerSpec extends Specification with Mockito {
       content must contain("<input type=\"checkbox\" id=\"hs\" name=\"hs\" value=\"true\" checked=\"checked\" />")
       content must contain("<textarea id=\"commentaire\" name=\"commentaire\" class=\"form-control\">un com</textarea>")
 
-      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[Unit=>Future[Result]])(any[Unit=>Future[Result]])
+      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[TypeCards=>Future[Result]])(any[Unit=>Future[Result]])
       there was one(f.cardDaoMock).findById(org.mockito.Matchers.eq(bson2))(any[ExecutionContext])
       there was one(f.firmwareDaoMock).findById(org.mockito.Matchers.eq(bson3))(any[ExecutionContext])
       there was one(f.cardDaoMock).findApolline()
@@ -1154,7 +1229,7 @@ class CardsManagerSpec extends Specification with Mockito {
       status(r) must equalTo(SEE_OTHER)
       header("Location",r) must equalTo(Some("/inventary/cards/"+bson.stringify))
 
-      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[Unit=>Future[Result]])(any[Unit=>Future[Result]])
+      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[TypeCards=>Future[Result]])(any[Unit=>Future[Result]])
       there was one(f.cardDaoMock).findAll(any[JsObject],any[JsObject])(any[ExecutionContext])
       there was one(f.firmwareDaoMock).findOne(any[JsObject])(any[ExecutionContext])
       there was one(f.cardDaoMock).updateById(org.mockito.Matchers.eq(bson2), any[Cards],any[GetLastError])(any[Writes[Cards]],any[ExecutionContext])
@@ -1178,7 +1253,7 @@ class CardsManagerSpec extends Specification with Mockito {
 
       status(r) must equalTo(INTERNAL_SERVER_ERROR)
 
-      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[Unit=>Future[Result]])(any[Unit=>Future[Result]])
+      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[TypeCards=>Future[Result]])(any[Unit=>Future[Result]])
       there was one(f.cardDaoMock).findAll(any[JsObject],any[JsObject])(any[ExecutionContext])
       there was one(f.firmwareDaoMock).findOne(any[JsObject])(any[ExecutionContext])
       there was one(f.cardDaoMock).updateById(org.mockito.Matchers.eq(bson2), any[Cards],any[GetLastError])(any[Writes[Cards]],any[ExecutionContext])
@@ -1218,7 +1293,7 @@ class CardsManagerSpec extends Specification with Mockito {
       content must contain("<input type=\"checkbox\" id=\"hs\" name=\"hs\" value=\"true\" checked=\"checked\" />")
       content must contain("<textarea id=\"commentaire\" name=\"commentaire\" class=\"form-control\">un com</textarea>")
 
-      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[Unit=>Future[Result]])(any[Unit=>Future[Result]])
+      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[TypeCards=>Future[Result]])(any[Unit=>Future[Result]])
       there was one(f.cardDaoMock).findById(org.mockito.Matchers.eq(bson2))(any[ExecutionContext])
       there was one(f.firmwareDaoMock).findById(org.mockito.Matchers.eq(bson3))(any[ExecutionContext])
       there was one(f.cardDaoMock).findApolline()
@@ -1312,7 +1387,7 @@ class CardsManagerSpec extends Specification with Mockito {
       status(r) must equalTo(SEE_OTHER)
       header("Location",r) must equalTo(Some("/inventary/cards"))
 
-      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[Unit=>Future[Result]])(any[Unit=>Future[Result]])
+      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[TypeCards=>Future[Result]])(any[Unit=>Future[Result]])
     }
 
     "send redirect after delete card" in new WithApplication{
@@ -1331,7 +1406,7 @@ class CardsManagerSpec extends Specification with Mockito {
       status(r) must equalTo(SEE_OTHER)
       header("Location",r) must equalTo(Some("/inventary/cards/"+bson.stringify))
 
-      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[Unit=>Future[Result]])(any[Unit=>Future[Result]])
+      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[TypeCards=>Future[Result]])(any[Unit=>Future[Result]])
       there was one(f.cardDaoMock).findOne(any[JsObject])(any[ExecutionContext])
       there was one(f.cardDaoMock).updateById(org.mockito.Matchers.eq(bson2), org.mockito.Matchers.eq(cardOut),any[GetLastError])(any[Writes[Cards]],any[ExecutionContext])
     }

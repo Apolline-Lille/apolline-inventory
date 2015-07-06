@@ -120,6 +120,47 @@ trait SensorManagerLike extends Controller{
   }
 
   /**
+   * This method is call when the user is on the page /inventary/sensors/:id. It list sensors available for a particular type
+   * @return Return Ok Action when the user is on the page /inventary/sensors/:id with the list of sensors
+   *         Return Redirect Action when the user is not log in
+   *         Return Internal Server Error Action when have mongoDB error
+   */
+  @ApiOperation(
+    nickname = "inventary",
+    value = "Get the html page for list sensors",
+    notes = "Get the html page for list sensors",
+    httpMethod = "GET")
+  @ApiResponses(Array(
+    new ApiResponse(code=303,message="Move resource to the login page at /login if the user is not log"),
+    new ApiResponse(code=500,message="Have a mongoDB error")
+  ))
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(value = "Id of the sensor type for list sensors associated",required=true,name="id", dataType = "String", paramType = "path")
+  ))
+  def moreInformation(id:String,id2:String)=Action.async{
+    implicit request =>
+      //Verify if user is connect
+      UserManager.doIfconnectAsync(request) {
+        //Verify if sensor type found
+        typeSensorManager.doIfTypeSensorFound(BSONObjectID(id)) {typeSensor=>
+          sensorDao.findOne(Json.obj("delete"->false,"_id"->BSONObjectID(id2))).flatMap(
+            sensorOpt=>sensorOpt match{
+              case Some(sensor)=>typeMesureDao.findById(typeSensor.mesure).map(
+                typeMesureOpt=>typeMesureOpt match{
+                  case Some(typeMesure)=>Ok(views.html.sensors.moreInformation(typeSensor,typeMesure,sensor))
+                  case None=>Redirect(routes.SensorManager.inventary(id))
+                }
+              )
+              case None=>future{Redirect(routes.SensorManager.inventary(id))}
+            }
+          )
+        }{_=>
+          future{Redirect(routes.TypeSensorManager.inventary())}
+        }
+      }
+  }
+
+  /**
    * This method is call when the user is on the page /inventary/sensors/:id/sensor. It display a form for add new sensor
    * @return Return Ok Action when the user is on the page /inventary/sensors/:id/sensor with the form for add new sensor
    *         Return Redirect Action when the user is not log in

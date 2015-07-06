@@ -35,6 +35,7 @@ GET         /inventary/sensors/:id/sensor                     controllers.Sensor
 POST        /inventary/sensors/:id/sensor                     controllers.SensorManager.sensorInsert(id:String)
 GET         /inventary/sensors/:id/:id2                       controllers.SensorManager.sensorUpdatePage(id:String,id2:String)
 POST        /inventary/sensors/:id/:id2                       controllers.SensorManager.sensorUpdate(id:String,id2:String)
+GET         /inventary/sensors/:id/:id2/moreInformation         controllers.SensorManager.moreInformation(id:String,id2:String)
 GET         /inventary/sensors/:id/:id2/delete                controllers.SensorManager.delete(id:String,id2:String)
 GET         /inventary/sensors/:id/:id2/clone                 controllers.SensorManager.sensorClonePage(id:String,id2:String)
 
@@ -50,6 +51,7 @@ GET         /inventary/cards/:id/card                         controllers.CardsM
 POST        /inventary/cards/:id/card                         controllers.CardsManager.cardInsert(id:String)
 GET         /inventary/cards/:id/:id2                         controllers.CardsManager.cardUpdatePage(id:String,id2:String)
 POST        /inventary/cards/:id/:id2                         controllers.CardsManager.cardUpdate(id:String,id2:String)
+GET         /inventary/cards/:id/:id2/moreInformation         controllers.CardsManager.moreInformation(id:String,id2:String)
 GET         /inventary/cards/:id/:id2/delete                  controllers.CardsManager.delete(id:String,id2:String)
 GET         /inventary/cards/:id/:id2/clone                   controllers.CardsManager.cardClonePage(id:String,id2:String)
 
@@ -68,8 +70,8 @@ GET         /inventary/modules/form/sensors/:id               controllers.Module
 POST        /inventary/modules/form/sensors/:id               controllers.ModuleManager.addSensors(id)
 GET         /inventary/modules/form/validate                  controllers.ModuleManager.validate()
 POST        /inventary/modules/form/validate                  controllers.ModuleManager.insertModule()
-GET         /inventary/modules/form/:id                        controllers.ModuleManager.formGeneralUpdate(id)
-GET         /inventary/modules/:id/delete                      controllers.ModuleManager.deleteModule(id)
+GET         /inventary/modules/form/:id                       controllers.ModuleManager.formGeneralUpdate(id)
+GET         /inventary/modules/:id/delete                     controllers.ModuleManager.deleteModule(id)
 GET         /inventary/modules/:id                            controllers.ModuleManager.moreInformation(id)
 
 #Campaign page
@@ -82,6 +84,6 @@ POST        /campaigns/campaign/:id/update                    controllers.Campag
 # Map static resources from the /public folder to the /assets URL path
 GET         /assets/*file                                     controllers.Assets.at(path="/public", file)
 
-GET         /api/*file                                  controllers.Assets.at(path="/public/api",file)
+GET         /api/*file                                        controllers.Assets.at(path="/public/api",file)
 
-GET         /*path                                    controllers.Dashboard.notFound(path)
+GET         /*path                                            controllers.Dashboard.notFound(path)

@@ -1,0 +1,29 @@
+@(types:TypeSensor,mesure:TypeMesure,sensor:Sensor)(implicit request: Request[AnyContent])
+
+@main(Messages("inventary.typeSensor.title")){
+    @navigation("inventary")
+    <div class="container">
+        @inventary("capteur")
+        <section>
+            <article class="col-sm-12">
+                <a href="@routes.SensorManager.inventary(types._id.stringify)"><span class="glyphicon glyphicon-arrow-left"></span> Retour</a>
+                <div class="row">
+                    <div class="col-sm-12">
+                        <h4>@{types.nomType} / @{types.modele}</h4>
+                    </div>
+                    <div class="col-sm-11 col-sm-offset-1">
+                        <div class="row"><span class="bold">@Messages("inventary.sensor.id")</span> : @sensor.id </div>
+                        <div class="row"> <span class="bold">@Messages("inventary.typeSensor.fabricant")</span> : @{types.fabricant} </div>
+                        <div class="row"> <span class="bold">@Messages("inventary.typeSensor.nbSignaux")</span> : @{types.nbSignaux} (@{mesure.nom}) </div>
+                        <div class="row"> <span class="bold">@Messages("inventary.typeSensor.espece")</span> : @{types.espece.mkString(", ")} </div>
+                        <div class="row"><span class="bold">@Messages("inventary.sensor.acquisition")</span> : @SensorManager.format(sensor.acquisition) </div>
+                        <div class="row"><span class="bold">@Messages("inventary.sensor.expiration")</span> : @if(sensor.expiration.nonEmpty){@SensorManager.format(sensor.expiration.get)} </div>
+                        <div class="row"><span class="bold">@Messages("inventary.sensor.firstUse")</span> : @if(sensor.firstUse.nonEmpty){@SensorManager.format(sensor.firstUse.get)} </div>
+                        <div class="row"><span class="bold">@Messages("inventary.sensor.etat")</span> : @if(sensor.hs){@Messages("inventary.sensor.hs")}</div>
+                        <div class="row"><span class="bold">@Messages("inventary.sensor.commentaire")</span> : <br/>@sensor.commentaire </div>
+                    </div>
+                </div>
+            </article>
+        </section>
+    </div>
+}

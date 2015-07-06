@@ -123,6 +123,47 @@ trait CardsManagerLike extends Controller{
   }
 
   /**
+   * This method is call when the user is on the page /inventary/cards/:id. It list cards available for a particular type
+   * @return Return Ok Action when the user is on the page /inventary/sensors/:id with the list of cards
+   *         Return Redirect Action when the user is not log in
+   *         Return Internal Server Error Action when have mongoDB error
+   */
+  @ApiOperation(
+    nickname = "inventary",
+    value = "Get the html page for list cards",
+    notes = "Get the html page for list cards",
+    httpMethod = "GET")
+  @ApiResponses(Array(
+    new ApiResponse(code=303,message="Move resource to the login page at /login if the user is not log"),
+    new ApiResponse(code=500,message="Have a mongoDB error")
+  ))
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(value = "Id of the card type for list cards associated",required=true,name="id", dataType = "String", paramType = "path")
+  ))
+  def moreInformation(id:String,id2:String)=Action.async{
+    implicit request =>
+      //Verify if user is connect
+      UserManager.doIfconnectAsync(request) {
+        //Verify if card type found
+        typeCardsManager.doIfTypeCardsFound(BSONObjectID(id)) { typeCards =>
+          cardDao.findOne(Json.obj("delete"->false,"_id"->BSONFormats.BSONObjectIDFormat.writes(BSONObjectID(id2)))).flatMap(
+            cardsOpt=>cardsOpt match{
+              case Some(card)=> firmwareDao.findById(card.firmware).map(
+                firmwareOpt=>firmwareOpt match{
+                  case Some(firmware)=>Ok(views.html.cards.moreInformation(typeCards,card,firmware))
+                  case None=>Redirect(routes.CardsManager.inventary(id))
+                }
+              )
+              case None =>future{Redirect(routes.CardsManager.inventary(id))}
+            }
+          )
+        }{_=>
+          future{Redirect(routes.TypeCardsManager.inventary())}
+        }
+      }
+  }
+
+  /**
    * This method is call when the user is on the page /inventary/cards/:id/card. It display a form for add new card
    * @return Return Ok Action when the user is on the page /inventary/cards/:id/card with the form for add new card
    *         Return Redirect Action when the user is not log in
