@@ -538,8 +538,8 @@ class ModuleManagerSpec extends Specification with Mockito {
 
       val req=FakeRequest("POST","/inventary/modules/form/cards/"+bson.stringify).withSession("user" -> """{"login":"test"}""")
 
-      f.typeCardsManagerMock.doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[Unit => Future[Result]])(any[Unit => Future[Result]]) answers { (params, _) => params match {
-        case Array(_,p: (Unit => Future[Result]),_) => p.apply()
+      f.typeCardsManagerMock.doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[TypeCards => Future[Result]])(any[Unit => Future[Result]]) answers { (params, _) => params match {
+        case Array(_,p: (TypeCards => Future[Result]),_) => p.apply(typeCards)
       }}
 
       controller.selectElement.bindFromRequest()(org.mockito.Matchers.eq(req)) returns controller.selectElement
@@ -555,7 +555,7 @@ class ModuleManagerSpec extends Specification with Mockito {
 
       status(r) must equalTo(BAD_REQUEST)
 
-      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[Unit => Future[Result]])(any[Unit => Future[Result]])
+      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[TypeCards => Future[Result]])(any[Unit => Future[Result]])
       there was one(controller.selectElement).bindFromRequest()(org.mockito.Matchers.eq(req))
       there was one(controller.selectElement).fold(any[Form[SelectInfo]=>Future[Result]],any[SelectInfo=>Result])
       there was one(f.cardsManagerMock).getInventaryCards(any[JsObject],any[JsObject],any[BSONObjectID],any[Result])(any[(TypeCards,List[Cards],List[Firmware],List[(BSONObjectID,Int)])=>Result])
@@ -564,7 +564,7 @@ class ModuleManagerSpec extends Specification with Mockito {
     "send redirect if cards type not found" in new WithApplication{
       val f=fixture
 
-      f.typeCardsManagerMock.doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[Unit => Future[Result]])(any[Unit => Future[Result]]) answers { (params, _) => params match {
+      f.typeCardsManagerMock.doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[TypeCards => Future[Result]])(any[Unit => Future[Result]]) answers { (params, _) => params match {
         case Array(_,_, p: (Unit => Future[Result])) => p.apply()
       }}
 
@@ -573,15 +573,16 @@ class ModuleManagerSpec extends Specification with Mockito {
       status(r) must equalTo(SEE_OTHER)
       header("Location",r) must beSome("/inventary/modules/form/typeCards")
 
-      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[Unit => Future[Result]])(any[Unit => Future[Result]])
+      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[TypeCards => Future[Result]])(any[Unit => Future[Result]])
     }
 
     "send redirect if no elements select and user press on button 'Envoyer'" in new WithApplication{
       val f=fixture
       val data=Json.parse("""{"send":"Envoyer"}""")
+      val typeCards=mock[TypeCards]
 
-      f.typeCardsManagerMock.doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[Unit => Future[Result]])(any[Unit => Future[Result]]) answers { (params, _) => params match {
-        case Array(_,p: (Unit => Future[Result]),_) => p.apply()
+      f.typeCardsManagerMock.doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[TypeCards => Future[Result]])(any[Unit => Future[Result]]) answers { (params, _) => params match {
+        case Array(_,p: (TypeCards => Future[Result]),_) => p.apply(typeCards)
       }}
 
       val r=f.controller.addCards(bson.stringify).apply(FakeRequest("POST","/inventary/modules/form/cards/"+bson.stringify).withJsonBody(data).withSession("user" -> """{"login":"test"}"""))
@@ -589,15 +590,16 @@ class ModuleManagerSpec extends Specification with Mockito {
       status(r) must equalTo(SEE_OTHER)
       header("Location",r) must beSome("/inventary/modules/form/typeCards")
 
-      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[Unit => Future[Result]])(any[Unit => Future[Result]])
+      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[TypeCards => Future[Result]])(any[Unit => Future[Result]])
     }
 
     "send redirect if no elements select and user press on button 'Passer à l'étape suivante'" in new WithApplication{
       val f=fixture
       val data=Json.parse("""{"send":"Passer à l'étape suivante"}""")
+      val typeCards=mock[TypeCards]
 
-      f.typeCardsManagerMock.doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[Unit => Future[Result]])(any[Unit => Future[Result]]) answers { (params, _) => params match {
-        case Array(_,p: (Unit => Future[Result]),_) => p.apply()
+      f.typeCardsManagerMock.doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[TypeCards => Future[Result]])(any[Unit => Future[Result]]) answers { (params, _) => params match {
+        case Array(_,p: (TypeCards => Future[Result]),_) => p.apply(typeCards)
       }}
 
       val r=f.controller.addCards(bson.stringify).apply(FakeRequest("POST","/inventary/modules/form/cards/"+bson.stringify).withJsonBody(data).withSession("user" -> """{"login":"test"}"""))
@@ -605,15 +607,16 @@ class ModuleManagerSpec extends Specification with Mockito {
       status(r) must equalTo(SEE_OTHER)
       header("Location",r) must beSome("/inventary/modules/form/typeSensors")
 
-      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[Unit => Future[Result]])(any[Unit => Future[Result]])
+      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[TypeCards => Future[Result]])(any[Unit => Future[Result]])
     }
 
     "send redirect if after add cards to module in session" in new WithApplication{
       val f=fixture
       val data=Json.parse("""{"elements":[""""+bson.stringify+""""],"send":"Envoyer"}""")
+      val typeCards=mock[TypeCards]
 
-      f.typeCardsManagerMock.doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[Unit => Future[Result]])(any[Unit => Future[Result]]) answers { (params, _) => params match {
-        case Array(_,p: (Unit => Future[Result]),_) => p.apply()
+      f.typeCardsManagerMock.doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[TypeCards => Future[Result]])(any[Unit => Future[Result]]) answers { (params, _) => params match {
+        case Array(_,p: (TypeCards => Future[Result]),_) => p.apply(typeCards)
       }}
       f.cardsDaoMock.fold(any[JsObject],any[JsObject],org.mockito.Matchers.eq(List[BSONObjectID]()))(any[(List[BSONObjectID],Cards)=>List[BSONObjectID]])(any[ExecutionContext]) returns future{List(bson)}
 
@@ -628,7 +631,7 @@ class ModuleManagerSpec extends Specification with Mockito {
       (jsonModule\"cartes").as[List[BSONObjectID]] must contain(bson)
 
       there was one(f.cardsDaoMock).fold(any[JsObject],any[JsObject],org.mockito.Matchers.eq(List[BSONObjectID]()))(any[(List[BSONObjectID],Cards)=>List[BSONObjectID]])(any[ExecutionContext])
-      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[Unit => Future[Result]])(any[Unit => Future[Result]])
+      there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[TypeCards => Future[Result]])(any[Unit => Future[Result]])
     }
   }
 
@@ -824,8 +827,8 @@ class ModuleManagerSpec extends Specification with Mockito {
 
       val req=FakeRequest("POST","/inventary/modules/form/sensors/"+bson.stringify).withSession("user" -> """{"login":"test"}""")
 
-      f.typeSensorManagerMock.doIfTypeSensorFound(org.mockito.Matchers.eq(bson))(any[Unit => Future[Result]])(any[Unit => Future[Result]]) answers { (params, _) => params match {
-        case Array(_,p: (Unit => Future[Result]),_) => p.apply()
+      f.typeSensorManagerMock.doIfTypeSensorFound(org.mockito.Matchers.eq(bson))(any[TypeSensor => Future[Result]])(any[Unit => Future[Result]]) answers { (params, _) => params match {
+        case Array(_,p: (TypeSensor => Future[Result]),_) => p.apply(typeSensor)
       }}
 
       controller.selectElement.bindFromRequest()(org.mockito.Matchers.eq(req)) returns controller.selectElement
@@ -841,7 +844,7 @@ class ModuleManagerSpec extends Specification with Mockito {
 
       status(r) must equalTo(BAD_REQUEST)
 
-      there was one(f.typeSensorManagerMock).doIfTypeSensorFound(org.mockito.Matchers.eq(bson))(any[Unit => Future[Result]])(any[Unit => Future[Result]])
+      there was one(f.typeSensorManagerMock).doIfTypeSensorFound(org.mockito.Matchers.eq(bson))(any[TypeSensor => Future[Result]])(any[Unit => Future[Result]])
       there was one(controller.selectElement).bindFromRequest()(org.mockito.Matchers.eq(req))
       there was one(controller.selectElement).fold(any[Form[SelectInfo]=>Future[Result]],any[SelectInfo=>Result])
       there was one(f.sensorsManagerMock).getInventarySensor(any[JsObject],any[JsObject],any[BSONObjectID],any[Result])(any[(TypeSensor,TypeMesure,List[Sensor],List[(BSONObjectID,Int)])=>Result])
@@ -850,7 +853,7 @@ class ModuleManagerSpec extends Specification with Mockito {
     "send redirect if sensors type not found" in new WithApplication{
       val f=fixture
 
-      f.typeSensorManagerMock.doIfTypeSensorFound(org.mockito.Matchers.eq(bson))(any[Unit => Future[Result]])(any[Unit => Future[Result]]) answers { (params, _) => params match {
+      f.typeSensorManagerMock.doIfTypeSensorFound(org.mockito.Matchers.eq(bson))(any[TypeSensor => Future[Result]])(any[Unit => Future[Result]]) answers { (params, _) => params match {
         case Array(_,_, p: (Unit => Future[Result])) => p.apply()
       }}
 
@@ -859,15 +862,16 @@ class ModuleManagerSpec extends Specification with Mockito {
       status(r) must equalTo(SEE_OTHER)
       header("Location",r) must beSome("/inventary/modules/form/typeSensors")
 
-      there was one(f.typeSensorManagerMock).doIfTypeSensorFound(org.mockito.Matchers.eq(bson))(any[Unit => Future[Result]])(any[Unit => Future[Result]])
+      there was one(f.typeSensorManagerMock).doIfTypeSensorFound(org.mockito.Matchers.eq(bson))(any[TypeSensor => Future[Result]])(any[Unit => Future[Result]])
     }
 
     "send redirect if no elements select and user press on button 'Envoyer'" in new WithApplication{
       val f=fixture
       val data=Json.parse("""{"send":"Envoyer"}""")
+      val typeSensor=mock[TypeSensor]
 
-      f.typeSensorManagerMock.doIfTypeSensorFound(org.mockito.Matchers.eq(bson))(any[Unit => Future[Result]])(any[Unit => Future[Result]]) answers { (params, _) => params match {
-        case Array(_,p: (Unit => Future[Result]),_) => p.apply()
+      f.typeSensorManagerMock.doIfTypeSensorFound(org.mockito.Matchers.eq(bson))(any[TypeSensor => Future[Result]])(any[Unit => Future[Result]]) answers { (params, _) => params match {
+        case Array(_,p: (TypeSensor => Future[Result]),_) => p.apply(typeSensor)
       }}
 
       val r=f.controller.addSensors(bson.stringify).apply(FakeRequest("POST","/inventary/modules/form/sensors/"+bson.stringify).withJsonBody(data).withSession("user" -> """{"login":"test"}"""))
@@ -875,15 +879,16 @@ class ModuleManagerSpec extends Specification with Mockito {
       status(r) must equalTo(SEE_OTHER)
       header("Location",r) must beSome("/inventary/modules/form/typeSensors")
 
-      there was one(f.typeSensorManagerMock).doIfTypeSensorFound(org.mockito.Matchers.eq(bson))(any[Unit => Future[Result]])(any[Unit => Future[Result]])
+      there was one(f.typeSensorManagerMock).doIfTypeSensorFound(org.mockito.Matchers.eq(bson))(any[TypeSensor => Future[Result]])(any[Unit => Future[Result]])
     }
 
     "send redirect if no elements select and user press on button 'Passer à l'étape suivante'" in new WithApplication{
       val f=fixture
       val data=Json.parse("""{"send":"Passer à l'étape suivante"}""")
+      val typeSensor=mock[TypeSensor]
 
-      f.typeSensorManagerMock.doIfTypeSensorFound(org.mockito.Matchers.eq(bson))(any[Unit => Future[Result]])(any[Unit => Future[Result]]) answers { (params, _) => params match {
-        case Array(_,p: (Unit => Future[Result]),_) => p.apply()
+      f.typeSensorManagerMock.doIfTypeSensorFound(org.mockito.Matchers.eq(bson))(any[TypeSensor => Future[Result]])(any[Unit => Future[Result]]) answers { (params, _) => params match {
+        case Array(_,p: (TypeSensor => Future[Result]),_) => p.apply(typeSensor)
       }}
 
       val r=f.controller.addSensors(bson.stringify).apply(FakeRequest("POST","/inventary/modules/form/sensors/"+bson.stringify).withJsonBody(data).withSession("user" -> """{"login":"test"}"""))
@@ -891,15 +896,16 @@ class ModuleManagerSpec extends Specification with Mockito {
       status(r) must equalTo(SEE_OTHER)
       header("Location",r) must beSome("/inventary/modules/form/validate")
 
-      there was one(f.typeSensorManagerMock).doIfTypeSensorFound(org.mockito.Matchers.eq(bson))(any[Unit => Future[Result]])(any[Unit => Future[Result]])
+      there was one(f.typeSensorManagerMock).doIfTypeSensorFound(org.mockito.Matchers.eq(bson))(any[TypeSensor => Future[Result]])(any[Unit => Future[Result]])
     }
 
     "send redirect after add sensors to module in session if user press on button 'Envoyer'" in new WithApplication{
       val f=fixture
       val data=Json.parse("""{"elements":[""""+bson.stringify+""""],"send":"Envoyer"}""")
+      val typeSensor=mock[TypeSensor]
 
-      f.typeSensorManagerMock.doIfTypeSensorFound(org.mockito.Matchers.eq(bson))(any[Unit => Future[Result]])(any[Unit => Future[Result]]) answers { (params, _) => params match {
-        case Array(_,p: (Unit => Future[Result]),_) => p.apply()
+      f.typeSensorManagerMock.doIfTypeSensorFound(org.mockito.Matchers.eq(bson))(any[TypeSensor => Future[Result]])(any[Unit => Future[Result]]) answers { (params, _) => params match {
+        case Array(_,p: (TypeSensor => Future[Result]),_) => p.apply(typeSensor)
       }}
       f.sensorsDaoMock.fold(any[JsObject],any[JsObject],org.mockito.Matchers.eq(List[BSONObjectID]()))(any[(List[BSONObjectID],Sensor)=>List[BSONObjectID]])(any[ExecutionContext]) returns future{List(bson)}
 
@@ -914,7 +920,7 @@ class ModuleManagerSpec extends Specification with Mockito {
       (jsonModule\"capteurs").as[List[BSONObjectID]] must contain(bson)
 
       there was one(f.sensorsDaoMock).fold(any[JsObject],any[JsObject],org.mockito.Matchers.eq(List[BSONObjectID]()))(any[(List[BSONObjectID],Sensor)=>List[BSONObjectID]])(any[ExecutionContext])
-      there was one(f.typeSensorManagerMock).doIfTypeSensorFound(org.mockito.Matchers.eq(bson))(any[Unit => Future[Result]])(any[Unit => Future[Result]])
+      there was one(f.typeSensorManagerMock).doIfTypeSensorFound(org.mockito.Matchers.eq(bson))(any[TypeSensor => Future[Result]])(any[Unit => Future[Result]])
     }
   }
 

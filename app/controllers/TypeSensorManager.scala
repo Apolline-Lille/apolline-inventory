@@ -445,7 +445,7 @@ trait TypeSensorManagerLike extends Controller{
    * @param notFound Function executed if sensor type not found
    * @return Return the result of executed function
    */
-  def doIfTypeSensorFound(id:BSONObjectID)(found:Unit=>Future[Result])(notFound:Unit=>Future[Result]):Future[Result]={
+  def doIfTypeSensorFound(id:BSONObjectID)(found:TypeSensor=>Future[Result])(notFound:Unit=>Future[Result]):Future[Result]={
     //Find the sensor type
     typeSensorDao.findOne(Json.obj("_id"->id,"delete"->false)).flatMap(
       typeSensorOpt => typeSensorOpt match{
@@ -454,7 +454,7 @@ trait TypeSensorManagerLike extends Controller{
         case None => notFound()
 
           //If the sensor type found execute function found
-        case Some(typeSensor) => found()
+        case Some(typeSensor) => found(typeSensor)
       }
     ).recover({
       //Send Internal Server Error if have mongoDB error

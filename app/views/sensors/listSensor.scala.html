@@ -58,6 +58,7 @@
                   <td>@if(sensor.firstUse.nonEmpty){@{SensorManager.format(sensor.firstUse.get)}}else{-}</td>
                   <td>@if(sensor.hs){@Messages("inventary.sensor.hs")}</td>
                   <td>
+                    <a href="@routes.SensorManager.moreInformation(types._id.stringify,sensor._id.stringify)" data-toggle-tooltip title="@Messages("global.tooltip.detail")"><span class="glyphicon glyphicon-info-sign"></span></a>
                     <a href="@routes.SensorManager.sensorClonePage(types._id.stringify,sensor._id.stringify)" data-toggle-tooltip title="@Messages("global.tooltip.clone")"><span class="glyphicon glyphicon-copy"></span></a>
                     <a href="@routes.SensorManager.sensorUpdatePage(types._id.stringify,sensor._id.stringify)" data-toggle-tooltip title="@Messages("global.tooltip.update")"><span class="glyphicon glyphicon-pencil"></span></a>
                     <a data-toggle="modal" href="#modal-delete" data-toggle-tooltip title="@Messages("global.tooltip.delete")" data-title="@sensor.id" data-link="@routes.SensorManager.delete(types._id.stringify,sensor._id.stringify)">

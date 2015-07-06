@@ -1067,11 +1067,11 @@ class TypeSensorManagerSpec extends Specification with Mockito{
   "When verify if sensor type found, TypeSensorManager" should {
     "execute particular function if sensor type found" in new WithApplication{
       val fix=fixture
-      val func1=mock[Unit=>Future[Result]]
+      val func1=mock[TypeSensor=>Future[Result]]
       val func2=mock[Unit=>Future[Result]]
 
       fix.typeSensorDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{Some(TypeSensor(bson,"type","mod",bson2,"fab",1,List[String]("esp1"),false))}
-      func1.apply(any[Unit]) returns future{Results.Ok("func found")}
+      func1.apply(any[TypeSensor]) returns future{Results.Ok("func found")}
 
       val req=FakeRequest(GET, "url")
       val action=Action.async{fix.controller.doIfTypeSensorFound(bson)(func1)(func2)}
@@ -1081,13 +1081,13 @@ class TypeSensorManagerSpec extends Specification with Mockito{
       contentAsString(r) must equalTo("func found")
 
       there was one(fix.typeSensorDaoMock).findOne(any[JsObject])(any[ExecutionContext])
-      there was one(func1).apply(any[Unit])
+      there was one(func1).apply(any[TypeSensor])
       there was no(func2).apply(any[Unit])
     }
 
     "execute particular function if sensor type not found" in new WithApplication{
       val fix=fixture
-      val func1=mock[Unit=>Future[Result]]
+      val func1=mock[TypeSensor=>Future[Result]]
       val func2=mock[Unit=>Future[Result]]
 
       fix.typeSensorDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{None}
@@ -1102,12 +1102,12 @@ class TypeSensorManagerSpec extends Specification with Mockito{
 
       there was one(fix.typeSensorDaoMock).findOne(any[JsObject])(any[ExecutionContext])
       there was one(func2).apply(any[Unit])
-      there was no(func1).apply(any[Unit])
+      there was no(func1).apply(any[TypeSensor])
     }
 
     "send Internal server error if error mongoDB" in new WithApplication{
       val fix=fixture
-      val func1=mock[Unit=>Future[Result]]
+      val func1=mock[TypeSensor=>Future[Result]]
       val func2=mock[Unit=>Future[Result]]
       val futureMock=mock[Future[Option[TypeSensor]]]
       val throwable=mock[Throwable]

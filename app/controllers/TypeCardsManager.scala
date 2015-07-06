@@ -432,7 +432,7 @@ trait TypeCardsManagerLike extends Controller {
    * @param notFound Function executed if card type not found
    * @return Return the result of executed function
    */
-  def doIfTypeCardsFound(id:BSONObjectID)(found:Unit=>Future[Result])(notFound:Unit=>Future[Result]):Future[Result]={
+  def doIfTypeCardsFound(id:BSONObjectID)(found:TypeCards=>Future[Result])(notFound:Unit=>Future[Result]):Future[Result]={
     //Find the card type
     typeCardsDao.findOne(Json.obj("_id"->BSONFormats.BSONObjectIDFormat.writes(id),"delete"->false)).flatMap(
       typeCardsOpt => typeCardsOpt match{
@@ -441,7 +441,7 @@ trait TypeCardsManagerLike extends Controller {
         case None => notFound()
 
         //If the card type found execute function found
-        case Some(_) => found()
+        case Some(typeCard) => found(typeCard)
       }
     ).recover({
       //Send Internal Server Error if have mongoDB error

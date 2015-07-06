@@ -20,6 +20,7 @@ global.ignorer=Ignorer
 global.tooltip.update=Modifier
 global.tooltip.delete=Supprimer
 global.tooltip.clone=Cloner
+global.tooltip.detail=Plus de détails
 
 global.btn.submit=Envoyer
 global.btn.reset=Reset

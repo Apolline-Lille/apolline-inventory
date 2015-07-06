@@ -59,6 +59,7 @@
                   <td>@mod.apolline.getOrElse("-")</td>
                   <td>@if(mod.hs){@Messages("inventary.card.hs")}</td>
                   <td>
+                    <a href="@routes.CardsManager.moreInformation(types._id.stringify,mod._id.stringify)" data-toggle-tooltip title="@Messages("global.tooltip.detail")"><span class="glyphicon glyphicon-info-sign"></span></a>
                     <a href="@routes.CardsManager.cardClonePage(types._id.stringify,mod._id.stringify)" data-toggle-tooltip title="@Messages("global.tooltip.clone")"><span class="glyphicon glyphicon-copy"></span></a>
                     <a href="@routes.CardsManager.cardUpdatePage(types._id.stringify,mod._id.stringify)" data-toggle-tooltip title="@Messages("global.tooltip.update")"><span class="glyphicon glyphicon-pencil"></span></a>
                     <a data-toggle="modal" href="#modal-delete" data-toggle-tooltip title="@Messages("global.tooltip.delete")" data-title="@mod.id" data-link="@routes.CardsManager.delete(types._id.stringify,mod._id.stringify)">
