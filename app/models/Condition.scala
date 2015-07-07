@@ -36,18 +36,23 @@ abstract class ConditionDao extends JsonDao[Condition, BSONObjectID](ReactiveMon
    * @param modules List of modules
    * @return A future with the list of modules the state associat
    */
-  def findModulesState(modules:List[BSONObjectID])=
+  def findModulesState(modules:List[BSONObjectID])= {
+    val query = Json.obj("modules" -> Json.obj("$in" -> modules),"$or"->JsArray(Seq(
+      Json.obj("dateFin"->Json.obj("$exists"->false)),
+      Json.obj("dateDebut"->Json.obj("$lt"->new Date),"dateFin"->Json.obj("$gt"->new Date))
+    )))
     //Find conditions associat to modules
-    fold(Json.obj("modules"->Json.obj("$in"->modules)),Json.obj(),Map[BSONObjectID,BSONObjectID]()){(maps,cond)=>maps + (cond._id->cond.modules)}.flatMap(
-      modules=> {
+    fold(query, Json.obj(), Map[BSONObjectID, BSONObjectID]()) { (maps, cond) => maps + (cond._id -> cond.modules) }.flatMap(
+      modules => {
 
         //Get the list of conditions
-        val conditions=modules.keys.toList
+        val conditions = modules.keys.toList
 
         //Associat condition to module
         CampagneDaoObj.fold(Json.obj("conditions" -> Json.obj("$in" -> conditions)), Json.obj(), Map[BSONObjectID, String]()) { (maps, camp) => camp.conditions.intersect(conditions) map (c => modules(c) -> camp.types) toMap }
       }
     )
+  }
 }
 
 /**
