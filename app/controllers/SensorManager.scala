@@ -106,7 +106,9 @@ trait SensorManagerLike extends Controller{
     new ApiResponse(code=500,message="Have a mongoDB error")
   ))
   @ApiImplicitParams(Array(
-    new ApiImplicitParam(value = "Id of the sensor type for list sensors associated",required=true,name="id", dataType = "String", paramType = "path")
+    new ApiImplicitParam(value = "Id of the sensor type for list sensors associated",required=true,name="id", dataType = "String", paramType = "path"),
+    new ApiImplicitParam(value = "Name of the column for sort sensors",name="sort", dataType = "String", paramType = "query"),
+    new ApiImplicitParam(value = "Order for sort sensors",name="id", dataType = "Int", paramType = "query")
   ))
   def inventary(id:String,sort:String="id",sens:Int=1)=Action.async{
     implicit request =>
@@ -135,7 +137,8 @@ trait SensorManagerLike extends Controller{
     new ApiResponse(code=500,message="Have a mongoDB error")
   ))
   @ApiImplicitParams(Array(
-    new ApiImplicitParam(value = "Id of the sensor type for list sensors associated",required=true,name="id", dataType = "String", paramType = "path")
+    new ApiImplicitParam(value = "Id of the sensor type for list sensors associated",required=true,name="id", dataType = "String", paramType = "path"),
+    new ApiImplicitParam(value = "Sensor id",required=true,name="id", dataType = "String", paramType = "path")
   ))
   def moreInformation(id:String,id2:String)=Action.async{
     implicit request =>
@@ -181,13 +184,16 @@ trait SensorManagerLike extends Controller{
     //Verify if user is connect
     UserManager.doIfconnectAsync(request) {
       //Verify if sensor type found
-      typeSensorManager.doIfTypeSensorFound(BSONObjectID(id)) {_=>
-        //Print an empty form for add new sensor
-        future{Ok(views.html.sensors.formSensor(form.bind(Map("acquisition"->new SimpleDateFormat("YYYY-MM-dd").format(new Date))).discardingErrors, id, routes.SensorManager.sensorInsert(id)))}
-      }{_=>
-        //Print an empty form with error type not found
-        future{BadRequest(views.html.sensors.formSensor(form.bind(Map("acquisition"->new SimpleDateFormat("YYYY-MM-dd").format(new Date))).discardingErrors.withGlobalError(Messages("inventary.typeSensor.error.typeNotExist")), id, routes.SensorManager.sensorInsert(id)))}
-      }
+      typeSensorManager.doIfTypeSensorFound(BSONObjectID(id)) {typeSensor=>
+        typeMesureDao.findById(typeSensor.mesure).map(
+          typeMesureOpt=>typeMesureOpt match{
+            case Some(typeMesure)=>
+              //Print an empty form for add new sensor
+              Ok(views.html.sensors.formSensor(form.bind(Map("acquisition"->new SimpleDateFormat("YYYY-MM-dd").format(new Date))).discardingErrors, typeSensor,typeMesure, routes.SensorManager.sensorInsert(id)))
+            case None=>Redirect(routes.TypeSensorManager.inventary())
+          }
+        )
+      }{_=>future{Redirect(routes.TypeSensorManager.inventary())}}
     }
   }
 
@@ -303,14 +309,14 @@ trait SensorManagerLike extends Controller{
         sensorData=>Json.obj("id" -> sensorData.id, "types" -> BSONObjectID(id))
 
       }{
-        sensorData=>
+        (typeSensor,typeMesure,sensorData)=>
           if(!sensorData.send.equals("Réactiver")) {
-            insertSensor(id,sensorData)
+            insertSensor(typeSensor,typeMesure,sensorData)
           }else{
             sensorDao.findOne(Json.obj("id" -> sensorData.id, "types" -> BSONObjectID(id))).flatMap(
               sensorOpt=>sensorOpt match{
                 case Some(sensor)=>update(id,sensor._id.stringify,sensor,false)
-                case _=>future{Redirect(routes.SensorManager.inventary(id))}
+                case _=>future{Redirect(routes.SensorManager.inventary(typeSensor._id.stringify))}
               }
             ).recover({case _=>InternalServerError("error")})
           }
@@ -356,7 +362,7 @@ trait SensorManagerLike extends Controller{
 
       }{
         //Update the sensor
-        sensorData=>update(idType,id,sensorData,false)
+        (typeSensor,typeMesure,sensorData)=>update(idType,id,sensorData,false)
       }
   }
 
@@ -418,6 +424,7 @@ trait SensorManagerLike extends Controller{
    * List sensors get depending on the query
    * @param selector Query for get sensors
    * @param sort List of column and her direction used for sort sensors
+   * @param id Sensor type id
    * @param r Page display when type sensors or typeMesure not found
    * @param f Function for print the list of cards
    * @return
@@ -481,34 +488,40 @@ trait SensorManagerLike extends Controller{
     //Verify if user is connect
     UserManager.doIfconnectAsync(request) {
       //Verify if sensor type found
-      typeSensorManager.doIfTypeSensorFound(BSONObjectID(id)) {_=>
-        //Find the sensor
-        sensorDao.findById(BSONObjectID(id2)).map(
-          sensorOpt => sensorOpt match {
+      typeSensorManager.doIfTypeSensorFound(BSONObjectID(id)) {typeSensor=>
 
-            //If the sensor not found redirect to the sensor inventary
-            case None => Redirect(routes.SensorManager.inventary(id))
+        typeMesureDao.findById(typeSensor.mesure).flatMap(
+          typeMesureOpt=>typeMesureOpt match{
+            case Some(typeMesure)=>
+              //Find the sensor
+              sensorDao.findById(BSONObjectID(id2)).map(
+                sensorOpt => sensorOpt match {
 
-            //If the sensor found
-            case Some(sensor) => {
-              //print the prefilled form with sensor information
-              val sensorData = f(sensor)
-              Ok(views.html.sensors.formSensor(form.fill(sensorData), id, r))
-            }
+                  //If the sensor not found redirect to the sensor inventary
+                  case None => Redirect(routes.SensorManager.inventary(id))
 
+                  //If the sensor found
+                  case Some(sensor) => {
+                    //print the prefilled form with sensor information
+                    val sensorData = f(sensor)
+                    Ok(views.html.sensors.formSensor(form.fill(sensorData), typeSensor,typeMesure, r))
+                  }
+
+                }
+              ).recover({
+                //Send Internal Server Error if have mongoDB error
+                case _ => InternalServerError("error")
+              })
+            case None=>future{Redirect(routes.TypeSensorManager.inventary())}
           }
-        ).recover({
-          //Send Internal Server Error if have mongoDB error
-          case _ => InternalServerError("error")
-        })
-      }{_=>
-        future{BadRequest(views.html.sensors.formSensor(form.withGlobalError(Messages("inventary.typeSensor.error.typeNotExist")), id, r))}
-      }
+        )
+      }{_=>future{Redirect(routes.TypeSensorManager.inventary())}}
     }
   }
 
   /**
    * Verify if the user is connect and if data received are valid then apply function dedicated
+   * @param errorMessage String represent the error message if sensor exist on the database
    * @param id Sensor type id
    * @param routeSubmit Route use for submit the form
    * @param verif Function use for get sensor selector
@@ -518,60 +531,62 @@ trait SensorManagerLike extends Controller{
    *         Return Redirect if dedicated function is a success
    *         Return Internal server error if have mongoDB error
    */
-  def submitForm(errorMessage:String,id:String,routeSubmit:Call)(verif:SensorForm=>JsObject)(f:SensorForm=>Future[Result])(implicit request: Request[AnyContent]):Future[Result]={
+  def submitForm(errorMessage:String,id:String,routeSubmit:Call)(verif:SensorForm=>JsObject)(f:(TypeSensor,TypeMesure,SensorForm)=>Future[Result])(implicit request: Request[AnyContent]):Future[Result]={
     //Verify if user is connect
     UserManager.doIfconnectAsync(request) {
       //Verify if sensor type found
-      typeSensorManager.doIfTypeSensorFound(BSONObjectID(id)) {_=>
-        form.bindFromRequest.fold(
+      typeSensorManager.doIfTypeSensorFound(BSONObjectID(id)) {typeSensor=>
+        typeMesureDao.findById(typeSensor.mesure).flatMap(
+          typeMesureOpt=>typeMesureOpt match{
+            case Some(typeMesure)=>
+              form.bindFromRequest.fold(
 
-          //If form contains errors
-          formWithErrors => {
-            //the form is redisplay with error descriptions
-            future {
-              BadRequest(views.html.sensors.formSensor(formWithErrors, id, routeSubmit))
-            }
-          },
+                //If form contains errors
+                formWithErrors => {
+                  //the form is redisplay with error descriptions
+                  future {BadRequest(views.html.sensors.formSensor(formWithErrors, typeSensor,typeMesure, routeSubmit))}
+                },
 
-          // Else if form no contains errors
-          sensorData => {
+                // Else if form no contains errors
+                sensorData => {
 
-            //Verify if dates are consistent
-            val formWithVerif = verifyErrorAcquisitionAfterFirstUse(sensorData, form)
+                  //Verify if dates are consistent
+                  val formWithVerif = verifyErrorAcquisitionAfterFirstUse(sensorData, form)
 
-            //If dates ares consistent
-            if (formWithVerif.equals(form)) {
-              actionWhenFormValid(errorMessage,id,routeSubmit,sensorData,verif,f)
+                  //If dates ares consistent
+                  if (formWithVerif.equals(form)) {
+                    actionWhenFormValid(errorMessage,typeSensor,typeMesure,routeSubmit,sensorData,verif,f)
 
-            } else {
-              //If dates aren't consistent, return bad request with prefilled form
-              future {
-                BadRequest(views.html.sensors.formSensor(formWithVerif.fill(sensorData), id, routeSubmit))
-              }
-            }
+                  } else {
+                    //If dates aren't consistent, return bad request with prefilled form
+                    future {
+                      BadRequest(views.html.sensors.formSensor(formWithVerif.fill(sensorData), typeSensor,typeMesure, routeSubmit))
+                    }
+                  }
+                }
+              )
+            case None=>future{Redirect(routes.TypeSensorManager.inventary())}
           }
         )
-      } {_=>
-        future {
-          BadRequest(views.html.sensors.formSensor(form.withGlobalError(Messages("inventary.typeSensor.error.typeNotExist")), id, routeSubmit))
-        }
+      } {_=>future {Redirect(routes.TypeSensorManager.inventary())}
       }
     }
   }
 
   /**
    * This method insert a sensor into the databse
-   * @param id Sensor type id
+   * @param typeSensor Sensor type
+   * @param typeMesure Mesure type
    * @param sensorData Data received from the form
    * @param request
    * @return
    */
-  def insertSensor(id:String,sensorData:SensorForm)(implicit request: Request[AnyContent])={
+  def insertSensor(typeSensor:TypeSensor,typeMesure:TypeMesure,sensorData:SensorForm)(implicit request: Request[AnyContent])={
     //Insert the sensor into the mongoDB database
     sensorDao.insert(
       Sensor(
         id = sensorData.id,
-        types = BSONObjectID(id),
+        types = typeSensor._id,
         acquisition = sensorData.acquisition,
         expiration = sensorData.expiration,
         firstUse = sensorData.firstUse,
@@ -595,11 +610,11 @@ trait SensorManagerLike extends Controller{
             ""
           )
           //Print the form with prefilled data
-          Ok(views.html.sensors.formSensor(form.fill(sensorForm), id, routes.SensorManager.sensorInsert(id)))
+          Ok(views.html.sensors.formSensor(form.fill(sensorForm), typeSensor,typeMesure, routes.SensorManager.sensorInsert(typeSensor._id.stringify)))
         }
 
         //If user click on an other button redirect her to the sensor inventary for the current sensor type
-        case _ => Redirect(routes.SensorManager.inventary(id))
+        case _ => Redirect(routes.SensorManager.inventary(typeSensor._id.stringify))
       }
       ).recover({
       //Send Internal Server Error if have mongoDB error
@@ -610,7 +625,8 @@ trait SensorManagerLike extends Controller{
   /**
    * This method verify if the sensor exists before insert/update/reactivat the sensor
    * @param errorMessage Error message print if the sensor exist
-   * @param id Sensor type id
+   * @param typeSensor Sensor type
+   * @param typeMesure Mesure type
    * @param r Route used when submit a form
    * @param sensorData Data received from the form
    * @param verif A method return a JSON Object for get sensor to verify if the sensor exist
@@ -618,19 +634,19 @@ trait SensorManagerLike extends Controller{
    * @param request
    * @return
    */
-  def actionWhenFormValid(errorMessage:String,id:String,r:Call,sensorData:SensorForm,verif:SensorForm=>JsObject,f:SensorForm=>Future[Result])(implicit request:Request[AnyContent])={
+  def actionWhenFormValid(errorMessage:String,typeSensor:TypeSensor,typeMesure:TypeMesure,r:Call,sensorData:SensorForm,verif:SensorForm=>JsObject,f:(TypeSensor,TypeMesure,SensorForm)=>Future[Result])(implicit request:Request[AnyContent])={
     //Find the sensor
     sensorDao.findAll(verif(sensorData)).flatMap(
       sensor => {
 
         //If sensor not found, execute dedicated function
         if(sensor.size==0 || List("Réactiver","Ignorer").contains(sensorData.send)) {
-          f(sensorData)
+          f(typeSensor,typeMesure,sensorData)
         }else if(sensor.filter(p => !(p.delete) ).size>0){
-          future{BadRequest(views.html.sensors.formSensor(form.withGlobalError(Messages("inventary.sensor.error.sensorExist")).fill(sensorData),id, r))}
+          future{BadRequest(views.html.sensors.formSensor(form.withGlobalError(Messages("inventary.sensor.error.sensorExist")).fill(sensorData),typeSensor,typeMesure, r))}
         }
         else{
-          future{BadRequest(views.html.sensors.formSensor(form.withGlobalError(errorMessage).fill(sensorData),id, r))}
+          future{BadRequest(views.html.sensors.formSensor(form.withGlobalError(errorMessage).fill(sensorData),typeSensor,typeMesure, r))}
         }
       }
     ).recover({
