@@ -293,7 +293,7 @@ class TypeCardsManagerSpec extends Specification with Mockito {
       contentType(r) must beSome.which(_ == "text/html")
       val content = contentAsString(r)
       content must contain("<title>Inventaire des cartes</title>")
-      content must contain("<input id=\"modele\" name=\"modele\" class=\"form-control\" list=\"list_modele\" type=\"text\" autocomplete=\"off\" value=\"\"/>")
+      content must contain("<input id=\"modele\" name=\"modele\" class=\"form-control\" list=\"list_modele\" type=\"text\" autofocus=\"autofocus\" autocomplete=\"off\" value=\"\"/>")
       content must contain("<input id=\"types\" name=\"types\" class=\"form-control\" list=\"list_type\" type=\"text\" autocomplete=\"off\" value=\"\"/>")
 
       there was one(f.typeCardsDaoMock).findListModele()
@@ -456,7 +456,7 @@ class TypeCardsManagerSpec extends Specification with Mockito {
       contentType(r) must beSome.which(_ == "text/html")
       val content = contentAsString(r)
       content must contain("<title>Inventaire des cartes</title>")
-      content must contain("<input id=\"modele\" name=\"modele\" class=\"form-control\" list=\"list_modele\" type=\"text\" autocomplete=\"off\" value=\"\"/>")
+      content must contain("<input id=\"modele\" name=\"modele\" class=\"form-control\" list=\"list_modele\" type=\"text\" autofocus=\"autofocus\" autocomplete=\"off\" value=\"\"/>")
       content must contain("<input id=\"types\" name=\"types\" class=\"form-control\" list=\"list_type\" type=\"text\" autocomplete=\"off\" value=\"\"/>")
 
       there was one(f.typeCardsDaoMock).findListModele()
@@ -538,7 +538,7 @@ class TypeCardsManagerSpec extends Specification with Mockito {
       contentType(r) must beSome.which(_ == "text/html")
       val content = contentAsString(r)
       content must contain("<title>Inventaire des cartes</title>")
-      content must contain("<input id=\"modele\" name=\"modele\" class=\"form-control\" list=\"list_modele\" type=\"text\" autocomplete=\"off\" value=\"mod\"/>")
+      content must contain("<input id=\"modele\" name=\"modele\" class=\"form-control\" list=\"list_modele\" type=\"text\" autofocus=\"autofocus\" autocomplete=\"off\" value=\"mod\"/>")
       content must contain("<input id=\"types\" name=\"types\" class=\"form-control\" list=\"list_type\" type=\"text\" autocomplete=\"off\" value=\"typ\"/>")
 
       there was one(fix.typeCardsDaoMock).findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext])

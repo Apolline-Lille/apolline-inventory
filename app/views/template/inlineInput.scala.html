@@ -10,7 +10,14 @@
     }
   </label>
   <div class="input col-sm-8 col-sm-offset-1">
+    @if(elements.args.contains('readonly)){
+      <div class="input-group">
+    }
     @html
+    @if(elements.args.contains('readonly)){
+      <div class="input-group-addon pointer"><span class="glyphicon glyphicon-lock"></span></div>
+    </div>
+    }
     <span class="control-label errors">@elements.errors.mkString(", ")</span>
   </div>
 </div>

@@ -20,8 +20,13 @@
           }
           <h5 style="color:red;float:right"><em>*</em> @Messages("global.fieldRequired")</h5>
           <div class="col-sm-12">
-            @helper.inputText(form("id"),'_label->Messages("inventary.card.id"),'required->true,'class->"form-control")
-            @helper.inputDate(form("acquisition"),'_label->Messages("inventary.card.acquisition"),'required->true,'class->"form-control")
+            @if(!routeSubmit.toString().endsWith("/card")) {
+              @helper.inputText(form("id"), '_label -> Messages("inventary.card.id"), 'required -> true, 'class -> "form-control",'readonly->"readonly")
+              @helper.inputDate(form("acquisition"), '_label -> Messages("inventary.card.acquisition"), 'required -> true, 'class -> "form-control",'readonly->"readonly")
+            }else{
+              @helper.inputText(form("id"), '_label -> Messages("inventary.card.id"), 'required -> true, 'class -> "form-control",'autofocus->"autofocus")
+              @helper.inputDate(form("acquisition"), '_label -> Messages("inventary.card.acquisition"), 'required -> true, 'class -> "form-control")
+            }
             @helper.inputDate(form("firstUse"),'_label->Messages("inventary.card.firstUse"),'class->"form-control")
             @helper.checkbox(form("agregateur"),'_label->Messages("inventary.card.agregateur"))
             @helper.input(form("apolline"),'_label->Messages("inventary.card.apolline")){(id,name,value,args)=>

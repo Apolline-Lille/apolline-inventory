@@ -1,5 +1,4 @@
 function addField(id,classe) {
-    console.log(classe,id)
     $("#" + id).append($($("." + classe + ":first")[0]).clone().append(""));
 }
 
@@ -8,4 +7,12 @@ webshims.polyfill('forms forms-ext');
 
 $(function () {
     $('[data-toggle-tooltip]').tooltip()
+    $('[readonly] + .input-group-addon').on("click",function(e){
+        var elem=$(e.currentTarget).parent('div').find('input');
+        if(elem.attr("readonly")){
+            elem.removeAttr("readonly")
+        }else{
+            elem.attr("readonly","readonly")
+        }
+    })
 })

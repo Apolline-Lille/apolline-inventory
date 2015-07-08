@@ -1055,7 +1055,7 @@ trait ModuleManagerLike extends Controller {
       listType=>
 
         //Print the form
-        status(views.html.module.formModule(form,listType.toList)).withSession(session)
+        status(views.html.module.formModule(form,listType.toList,session("moduleForm"))).withSession(session)
 
     ).recover({case _ => InternalServerError("error")})
   }
