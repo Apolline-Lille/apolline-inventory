@@ -353,7 +353,7 @@ trait ModuleManagerLike extends Controller {
     new ApiImplicitParam(value = "Name of column cards used for sort cards",name="sort", dataType = "String", paramType = "query"),
     new ApiImplicitParam(value = "Flag indicate if the sort is ascending or descending",name="sens", dataType = "Int", paramType = "query")
   ))
-  def formCards(id:String,sort:String="id",sens:Int=1)=Action.async{
+  def formCards(id:String,sort:String="id",sens:Int=1,id2:String="")=Action.async{
     implicit request=>
       //Verify if user is connect
       UserManager.doIfconnectAsync(request) {
@@ -361,9 +361,10 @@ trait ModuleManagerLike extends Controller {
         moduleDao.fold(Json.obj("delete"->false,"_id"->Json.obj("$ne"->module._id)),Json.obj(),module.cartes)((list,card) => list ++ card.cartes).flatMap(
           listCardsUsed=> {
             val listCards = listCardsUsed.mapConserve(p => BSONObjectIDFormat.writes(p)).asInstanceOf[List[JsValue]]
+            val query=Json.obj("delete"->false,"types"->BSONObjectID(id),"_id"->Json.obj("$nin"->listCards)) ++ (if(id2.nonEmpty){Json.obj("id"->Json.obj("$regex"->(".*"+id2+".*")))}else{Json.obj()})
             //Find the list of cards
-            cardsManager.getInventaryCards(Json.obj("delete" -> false, "types" -> BSONObjectID(id),"_id"->Json.obj("$nin"->listCards)), Json.obj(sort -> sens), BSONObjectID(id), Redirect(routes.ModuleManager.formTypeCards())) {
-              (typeCards, listCards, firmware,cardsUsed,stateCards) => Ok(views.html.module.listCards(selectElement, typeCards, listCards, firmware,cardsUsed,stateCards, sort, sens))
+            cardsManager.getInventaryCards(query, Json.obj(sort -> sens), BSONObjectID(id), Redirect(routes.ModuleManager.formTypeCards())) {
+              (typeCards, listCards, firmware,cardsUsed,stateCards) => Ok(views.html.module.listCards(selectElement, typeCards, listCards, firmware,cardsUsed,stateCards, sort, sens,id2))
             }
           }
         )
@@ -477,7 +478,7 @@ trait ModuleManagerLike extends Controller {
             formWithErrors => {
               //Find the list of cards
               cardsManager.getInventaryCards(Json.obj("delete"->false,"types"->BSONObjectID(idType)),Json.obj("id"->1),BSONObjectID(idType),Redirect(routes.ModuleManager.formTypeCards())){
-                (typeCards,listCards,firmware,cardsUsed,stateCards)=>BadRequest(views.html.module.listCards(formWithErrors,typeCards,listCards,firmware,cardsUsed,stateCards,"id",1))
+                (typeCards,listCards,firmware,cardsUsed,stateCards)=>BadRequest(views.html.module.listCards(formWithErrors,typeCards,listCards,firmware,cardsUsed,stateCards,"id",1,""))
               }
             },
 

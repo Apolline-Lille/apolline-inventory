@@ -1,4 +1,4 @@
-@(form:Form[SelectInfo],types:TypeCards,listCards:List[Cards],listFirmware:List[Firmware],stockUsed:List[(reactivemongo.bson.BSONObjectID,Int)],state:Map[reactivemongo.bson.BSONObjectID,String],trie:String,sens:Int)(implicit request: Request[AnyContent])
+@(form:Form[SelectInfo],types:TypeCards,listCards:List[Cards],listFirmware:List[Firmware],stockUsed:List[(reactivemongo.bson.BSONObjectID,Int)],state:Map[reactivemongo.bson.BSONObjectID,String],trie:String,sens:Int,id:String)(implicit request: Request[AnyContent])
 
 @main(Messages("inventary.module.title")){
   @navigation("inventary")
@@ -6,7 +6,7 @@
     @inventary("module")
     <section>
       @module.stateForm("cards")
-      <article>
+      <article class="col-sm-10">
         <div class="row">
           <div class="col-sm-12">
             <h4>@{types.types} / @{types.modele}</h4>
@@ -23,7 +23,7 @@
                 <ul class="dropdown-menu" role="menu">
                 @for(col<-List[String]("id","acquisition","firstUse","agregateur","apolline","etat")){
                   <li>
-                    <a href="@routes.ModuleManager.formCards(types._id.stringify,col,if(trie.equals(col)){-sens}else{1})">
+                    <a href="@routes.ModuleManager.formCards(types._id.stringify,col,if(trie.equals(col)){-sens}else{1},id)">
                       @if(trie.equals(col)){<span class="glyphicon glyphicon-ok"></span>}
                       @Messages("inventary.card."+col)
                     </a>
@@ -80,6 +80,18 @@
           </p>
         }
       </article>
+      <nav class="col-sm-2">
+        <div class="search_lateral">
+        @helper.form(action=routes.ModuleManager.formCards(types._id.stringify)){
+          <div class="input-group">
+            <div class="input-group-addon"><span class="glyphicon glyphicon-search"></span></div>
+            <input type="search" name="id" class="form-control" value="@id" placeholder="@Messages("inventary.card.id")"/>
+            <input type="hidden" name="sort" value="@trie"/>
+            <input type="hidden" name="sens" value="@sens"/>
+          </div>
+        }
+        </div>
+      </nav>
     </section>
   </div>
 }

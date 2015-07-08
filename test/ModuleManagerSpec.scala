@@ -485,6 +485,37 @@ class ModuleManagerSpec extends Specification with Mockito {
       there was one(f.cardsManagerMock).getInventaryCards(any[JsObject],any[JsObject],any[BSONObjectID],any[Result])(any[(TypeCards,List[Cards],List[Firmware],List[(BSONObjectID,Int)],Map[BSONObjectID,String])=>Result])
     }
 
+    "send 200 on OK with 1 result for request with filter" in new WithApplication {
+      val f=fixture
+      val typeCards=TypeCards(bson,"mod","type")
+      val card=List(Cards(bson2, "Id", bson, bson3, date, None, true, Some("v01"), true, None))
+      val firmware=List(Firmware(bson3, "firm", "v02"))
+      val module=Module(bson,"id","types",date,List(bson2),List(bson3),Some("un com"))
+      val listCards=JsArray(Seq(BSONObjectIDFormat.writes(bson4)))
+
+      f.moduleDaoMock.fold(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->Json.obj("$ne"->bson))),any[JsObject],org.mockito.Matchers.eq(module.cartes))(any[(List[BSONObjectID],Module)=>List[BSONObjectID]])(any[ExecutionContext]) returns future{List[BSONObjectID](bson4)}
+      f.cardsManagerMock.getInventaryCards(org.mockito.Matchers.eq(Json.obj("delete"->false,"types"->bson,"_id"->Json.obj("$nin"->listCards),"id"->Json.obj("$regex"->".*val.*"))),any[JsObject],any[BSONObjectID],any[Result])(any[(TypeCards,List[Cards],List[Firmware],List[(BSONObjectID,Int)],Map[BSONObjectID,String])=>Result]) answers { (params, _) => params match {
+        case Array(_,_,_,_, p: ((TypeCards,List[Cards],List[Firmware],List[(BSONObjectID,Int)],Map[BSONObjectID,String])=>Result))=>future{p.apply(typeCards,card,firmware,List((bson,0)),Map(bson2->"Test"))}
+      }}
+
+      val r = f.controller.formCards(bson.stringify,"id",1,"val").apply(FakeRequest(GET, "/inventary/modules/form/cards/"+bson.stringify).withSession("user" -> """{"login":"test"}""","module"->Module.toStrings(module)))
+      status(r) must equalTo(OK)
+      contentType(r) must beSome.which(_ == "text/html")
+      val content = contentAsString(r)
+      content must contain("<title>Inventaire des modules</title>")
+      content must not contain("<h3 style=\"text-align:center\">Aucun résultat trouvé</h3>")
+      content must contain("<td>Id</td>")
+      content must contain("<td>22/04/2015</td>")
+      content must contain("<td>-</td>")
+      content must contain("<td>Oui</td>")
+      content must contain("<td>firm (v02)</td>")
+      content must contain("<td>v01</td>")
+      content must contain("<td>Hors service<br/>Test</td>")
+
+      there was one(f.moduleDaoMock).fold(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->Json.obj("$ne"->bson))),any[JsObject],org.mockito.Matchers.eq(module.cartes))(any[(List[BSONObjectID],Module)=>List[BSONObjectID]])(any[ExecutionContext])
+      there was one(f.cardsManagerMock).getInventaryCards(org.mockito.Matchers.eq(Json.obj("delete"->false,"types"->bson,"_id"->Json.obj("$nin"->listCards),"id"->Json.obj("$regex"->".*val.*"))),any[JsObject],any[BSONObjectID],any[Result])(any[(TypeCards,List[Cards],List[Firmware],List[(BSONObjectID,Int)],Map[BSONObjectID,String])=>Result])
+    }
+
     "send 200 on OK with 2 results" in new WithApplication {
       val f=fixture
       val typeCards=TypeCards(bson,"mod","type")
