@@ -25,8 +25,13 @@
           }
           <h5 style="color:red;float:right"><em>*</em> @Messages("global.fieldRequired")</h5>
           <div class="col-sm-12">
-            @helper.inputText(form("id"),'_label->Messages("inventary.sensor.id"),'required->true,'class->"form-control")
-            @helper.inputDate(form("acquisition"),'_label->Messages("inventary.sensor.acquisition"),'required->true,'class->"form-control")
+            @if(routeSubmit.toString().endsWith("/sensor")) {
+              @helper.inputText(form("id"), '_label -> Messages("inventary.sensor.id"), 'required -> true, 'class -> "form-control",'autofocus->"autofocus")
+              @helper.inputDate(form("acquisition"), '_label -> Messages("inventary.sensor.acquisition"), 'required -> true, 'class -> "form-control")
+            }else{
+              @helper.inputText(form("id"), '_label -> Messages("inventary.sensor.id"), 'required -> true, 'class -> "form-control",'readonly->"readonly")
+              @helper.inputDate(form("acquisition"), '_label -> Messages("inventary.sensor.acquisition"), 'required -> true, 'class -> "form-control",'readonly->"readonly")
+            }
             @helper.inputDate(form("expiration"),'_label->Messages("inventary.sensor.expiration"),'class->"form-control")
             @helper.inputDate(form("firstUse"),'_label->Messages("inventary.sensor.firstUse"),'class->"form-control")
             @helper.checkbox(form("hs"),'_label->Messages("inventary.sensor.hs"))
