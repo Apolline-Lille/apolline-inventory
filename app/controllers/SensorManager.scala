@@ -106,13 +106,14 @@ trait SensorManagerLike extends Controller{
   @ApiImplicitParams(Array(
     new ApiImplicitParam(value = "Id of the sensor type for list sensors associated",required=true,name="id", dataType = "String", paramType = "path")
   ))
-  def inventary(id:String,sort:String="id",sens:Int=1)=Action.async{
+  def inventary(id:String,sort:String="id",sens:Int=1,id2:String="")=Action.async{
     implicit request =>
       //Verify if user is connect
       UserManager.doIfconnectAsync(request) {
-        getInventarySensor(Json.obj("delete"->false,"types"->BSONObjectID(id)),Json.obj(sort->sens),BSONObjectID(id),Redirect(routes.TypeSensorManager.inventary())){
+        val query=Json.obj("delete"->false,"types"->BSONObjectID(id)) ++ (if(id2.nonEmpty){Json.obj("id"->Json.obj("$regex"->(".*"+id2+".*")))}else{Json.obj()})
+        getInventarySensor(query,Json.obj(sort->sens),BSONObjectID(id),Redirect(routes.TypeSensorManager.inventary())){
           (typeSensor,typeMesure,listSensor,sensorUsed,sensorState)=>
-            Ok(views.html.sensors.listSensor(typeSensor,typeMesure,listSensor,sensorUsed,sensorState,sort,sens))
+            Ok(views.html.sensors.listSensor(typeSensor,typeMesure,listSensor,sensorUsed,sensorState,sort,sens,id2))
         }
       }
   }

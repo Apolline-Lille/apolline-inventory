@@ -13,6 +13,7 @@ import play.api.mvc._
 import play.api.test.Helpers._
 import play.api.test.{FakeRequest, WithApplication}
 import play.api.libs.json.{Writes, Json, JsObject}
+import play.modules.reactivemongo.json.BSONFormats.BSONObjectIDFormat
 import reactivemongo.bson.BSONObjectID
 import reactivemongo.core.commands.{LastError, GetLastError}
 
@@ -186,6 +187,42 @@ class SensorManagerSpec extends Specification with Mockito{
       content must contain("<td>Test</td>")
 
       there was one(f.sensorDaoMock).findAll(any[JsObject],org.mockito.Matchers.eq(Json.obj("acquisition" -> -1)))(any[ExecutionContext])
+      there was one(f.typeMesureDaoMock).findById(org.mockito.Matchers.eq(bson2))(any[ExecutionContext])
+      there was one(f.typeSensorDaoMock).findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext])
+      there was one(f.sensorDaoMock).countUsedSensors(org.mockito.Matchers.eq(List(f.typeSensor)))
+      there was one(f.moduleDaoMock).findSensorState(org.mockito.Matchers.eq(List(bson3)))
+    }
+
+    "send 200 OK page with result for request with filter" in new WithApplication {
+      val f = fixture
+      val typeMesure = TypeMesure(bson2, "mesure1", "unite1")
+      val list_sensor = List[Sensor](
+        Sensor(bson3, "Id", bson, None, date, None, false, None)
+      )
+      f.sensorDaoMock.findAll(org.mockito.Matchers.eq(Json.obj("delete"->false,"types"->bson,"id"->Json.obj("$regex"->".*val.*"))), org.mockito.Matchers.eq(Json.obj("acquisition" -> -1)))(any[ExecutionContext]) returns future {
+        list_sensor
+      }
+      f.typeMesureDaoMock.findById(org.mockito.Matchers.eq(bson2))(any[ExecutionContext]) returns future {
+        Some(typeMesure)
+      }
+      f.typeSensorDaoMock.findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext]) returns future {
+        Some(f.typeSensor)
+      }
+      f.sensorDaoMock.countUsedSensors(org.mockito.Matchers.eq(List(f.typeSensor))) returns future{List((bson,0))}
+
+      f.moduleDaoMock.findSensorState(org.mockito.Matchers.eq(List(bson3))) returns future{Map(bson3->"Test")}
+
+      val r = f.controller.inventary(bson.stringify, "acquisition", -1,"val").apply(FakeRequest(GET, "/inventary/sensors/" + bson.stringify).withSession("user" -> """{"login":"test"}"""))
+
+      status(r) must equalTo(OK)
+      contentType(r) must beSome.which(_ == "text/html")
+      val content = contentAsString(r)
+      content must contain("<title>Inventaire des capteurs</title>")
+      content must contain("<td>Id</td>")
+      content must contain("<td>22/04/2015</td>")
+      content must contain("<td>Test</td>")
+
+      there was one(f.sensorDaoMock).findAll(org.mockito.Matchers.eq(Json.obj("delete"->false,"types"->bson,"id"->Json.obj("$regex"->".*val.*"))),org.mockito.Matchers.eq(Json.obj("acquisition" -> -1)))(any[ExecutionContext])
       there was one(f.typeMesureDaoMock).findById(org.mockito.Matchers.eq(bson2))(any[ExecutionContext])
       there was one(f.typeSensorDaoMock).findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext])
       there was one(f.sensorDaoMock).countUsedSensors(org.mockito.Matchers.eq(List(f.typeSensor)))
