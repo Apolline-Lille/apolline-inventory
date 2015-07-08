@@ -20,7 +20,7 @@
           <h5 style="color:red;float:right"><em>*</em> @Messages("global.fieldRequired")</h5>
           <div class="col-sm-12">
             @helper.input(form("modele"),'_label->Messages("inventary.typeCards.modele"),'required->true) { (id, name, value, args) =>
-              <input id="@id" name="@name" class="form-control" list="list_modele" type="text" autocomplete="off" @if(value!=null){value="@value"}/>
+              <input id="@id" name="@name" class="form-control" list="list_modele" type="text" autofocus="autofocus" autocomplete="off" @if(value!=null){value="@value"}/>
               <datalist id="list_modele">
               @for(mod<-modele){
                 <option value="@{mod.getAs[String]("_id")}"></option>
