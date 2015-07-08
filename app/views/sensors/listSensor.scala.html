@@ -16,7 +16,7 @@
               <div class="row"> <span class="bold">@Messages("inventary.typeSensor.fabricant")</span> : @{types.fabricant} </div>
               <div class="row"> <span class="bold">@Messages("inventary.typeSensor.nbSignaux")</span> : @{types.nbSignaux} (@{mesure.nom}) </div>
               <div class="row"> <span class="bold">@Messages("inventary.typeSensor.espece")</span> : @{types.espece.mkString(", ")} </div>
-              <div class="row"> <span class="bold">@Messages("inventary.typeSensor.stock")</span> : @stockUsed.head._2 / @{listSensor.size} </div>
+              <div class="row"> <span class="bold">@Messages("inventary.typeSensor.stock")</span> : @listSensor.size / @{listSensor.size + stockUsed.head._2} </div>
             </div>
         </div>
         @if(listSensor.size>0){
