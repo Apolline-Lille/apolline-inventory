@@ -10,7 +10,7 @@ import play.api.data.Forms._
 import play.api.i18n.Messages
 import play.api.libs.json.{Json, JsObject}
 import play.api.mvc._
-import play.modules.reactivemongo.json.BSONFormats
+import play.modules.reactivemongo.json.BSONFormats.BSONObjectIDFormat
 import reactivemongo.bson.{BSONDocument, BSONObjectID}
 import scala.concurrent._
 
@@ -109,12 +109,13 @@ trait CardsManagerLike extends Controller{
   @ApiImplicitParams(Array(
     new ApiImplicitParam(value = "Id of the card type for list cards associated",required=true,name="id", dataType = "String", paramType = "path")
   ))
-  def inventary(id:String,sort:String="id",sens:Int=1)=Action.async{
+  def inventary(id:String,sort:String="id",sens:Int=1,id2:String="")=Action.async{
     implicit request =>
       //Verify if user is connect
       UserManager.doIfconnectAsync(request) {
-        getInventaryCards(Json.obj("delete"->false,"types"->BSONFormats.BSONObjectIDFormat.writes(BSONObjectID(id))),Json.obj(sort->sens),BSONObjectID(id),Redirect(routes.TypeCardsManager.inventary())){
-          (typeCards,listCards,firmware,cardsUsed,cardState)=>Ok(views.html.cards.listCards(typeCards,listCards,firmware,cardsUsed,cardState,sort,sens))
+        val query=Json.obj("delete"->false,"types"->BSONObjectID(id)) ++ (if(id2.nonEmpty){Json.obj("id"->Json.obj("$regex"->(".*"+id2+".*")))}else{Json.obj()})
+        getInventaryCards(query,Json.obj(sort->sens),BSONObjectID(id),Redirect(routes.TypeCardsManager.inventary())){
+          (typeCards,listCards,firmware,cardsUsed,cardState)=>Ok(views.html.cards.listCards(typeCards,listCards,firmware,cardsUsed,cardState,sort,sens,id2))
         }
       }
   }
@@ -267,7 +268,7 @@ trait CardsManagerLike extends Controller{
       submitForm(msg,id,routes.CardsManager.cardInsert(id)){
 
         //Filter for verify if card exists
-        cardData=>Json.obj("id" -> cardData.id, "types" -> BSONFormats.BSONObjectIDFormat.writes(BSONObjectID(id)))
+        cardData=>Json.obj("id" -> cardData.id, "types" -> BSONObjectID(id))
 
       }{
         (cardData,firmware)=>
@@ -307,7 +308,7 @@ trait CardsManagerLike extends Controller{
               case e => InternalServerError("error")
             })
           }else{
-            updateWithColumnDelete(id,Json.obj("id" -> cardData.id, "types" -> BSONFormats.BSONObjectIDFormat.writes(BSONObjectID(id))),false)
+            updateWithColumnDelete(id,Json.obj("id" -> cardData.id, "types" -> BSONObjectID(id)),false)
           }
       }
   }
@@ -348,7 +349,7 @@ trait CardsManagerLike extends Controller{
       submitForm(msg,idType,routes.CardsManager.cardUpdate(idType,id)){
 
         //Filter for verify if sensor exists
-        cardData=>Json.obj("_id"->Json.obj("$ne"->BSONFormats.BSONObjectIDFormat.writes(BSONObjectID(id))),"id" -> cardData.id, "types" -> BSONFormats.BSONObjectIDFormat.writes(BSONObjectID(idType)))
+        cardData=>Json.obj("_id"->Json.obj("$ne"->BSONObjectID(id)),"id" -> cardData.id, "types" -> BSONObjectID(idType))
 
       }{
         //Update the card
@@ -411,7 +412,7 @@ trait CardsManagerLike extends Controller{
       UserManager.doIfconnectAsync(request) {
         //Verify if card type found
         typeCardsManager.doIfTypeCardsFound(BSONObjectID(idType)) { _ =>
-          updateWithColumnDelete(idType,Json.obj("_id" -> BSONFormats.BSONObjectIDFormat.writes(BSONObjectID(id))),true)
+          updateWithColumnDelete(idType,Json.obj("_id" -> BSONObjectID(id)),true)
         }{
           _=> future{Redirect(routes.TypeCardsManager.inventary())}
         }

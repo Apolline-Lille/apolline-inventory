@@ -12,6 +12,7 @@ import play.api.libs.json.{Writes, JsObject, Json}
 import play.api.mvc.{Call, Results, Action, Result}
 import play.api.test.Helpers._
 import play.api.test.{FakeRequest, WithApplication}
+import play.modules.reactivemongo.json.BSONFormats.BSONObjectIDFormat
 import reactivemongo.bson.{BSONDocument, BSONObjectID}
 import reactivemongo.core.commands.{LastError, GetLastError}
 
@@ -139,6 +140,45 @@ class CardsManagerSpec extends Specification with Mockito {
       content must contain("<td>Hors service<br/>Test</td>")
 
       there was one(f.cardDaoMock).findAll(any[JsObject], org.mockito.Matchers.eq(Json.obj("acquisition" -> -1)))(any[ExecutionContext])
+      there was one(f.typeCardsDaoMock).findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext])
+      there was one(f.firmwareDaoMock).findAll(any[JsObject], any[JsObject])(any[ExecutionContext])
+      there was one(f.cardDaoMock).countUsedCards(org.mockito.Matchers.eq(List(typeCards)))
+      there was one(f.moduleDaoMock).findCardState(org.mockito.Matchers.eq(List(bson2)))
+    }
+
+    "send 200 OK page with result for request with filter" in new WithApplication {
+      val f = fixture
+      val typeCards = TypeCards(bson, "mod", "type")
+      val list_card = List[Cards](
+        Cards(bson2, "Id", bson, bson3, date, None, true, Some("v01"), true, None)
+      )
+      f.cardDaoMock.findAll(org.mockito.Matchers.eq(Json.obj("delete"->false,"types"->bson,"id"->Json.obj("$regex"->".*val.*"))), org.mockito.Matchers.eq(Json.obj("acquisition" -> -1)))(any[ExecutionContext]) returns future {
+        list_card
+      }
+      f.typeCardsDaoMock.findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext]) returns future {
+        Some(typeCards)
+      }
+      f.firmwareDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns future {
+        List[Firmware](Firmware(bson3, "firm", "v02"))
+      }
+      f.cardDaoMock.countUsedCards(org.mockito.Matchers.eq(List(typeCards))) returns future{List((bson,0))}
+      f.moduleDaoMock.findCardState(org.mockito.Matchers.eq(List(bson2))) returns future{Map(bson2->"Test")}
+
+      val r = f.controller.inventary(bson.stringify, "acquisition", -1,"val").apply(FakeRequest(GET, "/inventary/cards/" + bson.stringify).withSession("user" -> """{"login":"test"}"""))
+
+      status(r) must equalTo(OK)
+      contentType(r) must beSome.which(_ == "text/html")
+      val content = contentAsString(r)
+      content must contain("<title>Inventaire des cartes</title>")
+      content must contain("<td>Id</td>")
+      content must contain("<td>22/04/2015</td>")
+      content must contain("<td>-</td>")
+      content must contain("<td> Oui </td>")
+      content must contain("<td>firm (v02)</td>")
+      content must contain("<td>v01</td>")
+      content must contain("<td>Hors service<br/>Test</td>")
+
+      there was one(f.cardDaoMock).findAll(org.mockito.Matchers.eq(Json.obj("delete"->false,"types"->bson,"id"->Json.obj("$regex"->".*val.*"))), org.mockito.Matchers.eq(Json.obj("acquisition" -> -1)))(any[ExecutionContext])
       there was one(f.typeCardsDaoMock).findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext])
       there was one(f.firmwareDaoMock).findAll(any[JsObject], any[JsObject])(any[ExecutionContext])
       there was one(f.cardDaoMock).countUsedCards(org.mockito.Matchers.eq(List(typeCards)))

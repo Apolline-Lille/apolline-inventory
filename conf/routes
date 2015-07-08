@@ -27,7 +27,7 @@ POST        /register                                          controllers.UserM
 GET         /inventary/sensors                                 controllers.TypeSensorManager.inventary(types:String ?= "",modele:String?="",stock:String ?= "")
 GET         /inventary/sensors/type                            controllers.TypeSensorManager.typePage
 POST        /inventary/sensors/type                            controllers.TypeSensorManager.typeInsert
-GET         /inventary/sensors/:id                             controllers.SensorManager.inventary(id:String,sort:String ?= "id",sens:Int ?= 1)
+GET         /inventary/sensors/:idType                             controllers.SensorManager.inventary(idType:String,sort:String ?= "id",sens:Int ?= 1,id:String ?= "")
 GET         /inventary/sensors/:id/update                      controllers.TypeSensorManager.typeUpdatePage(id:String)
 POST        /inventary/sensors/:id/update                      controllers.TypeSensorManager.typeUpdate(id:String)
 GET         /inventary/sensors/:id/delete                      controllers.TypeSensorManager.delete(id:String)
@@ -45,7 +45,7 @@ POST        /inventary/cards/type                              controllers.TypeC
 GET         /inventary/cards/:id/update                        controllers.TypeCardsManager.typeUpdatePage(id:String)
 POST        /inventary/cards/:id/update                        controllers.TypeCardsManager.typeUpdate(id:String)
 GET         /inventary/cards/:id/delete                        controllers.TypeCardsManager.delete(id:String)
-GET         /inventary/cards/:id                               controllers.CardsManager.inventary(id:String,sort:String ?= "id",sens:Int ?= 1)
+GET         /inventary/cards/:idType                               controllers.CardsManager.inventary(idType:String,sort:String ?= "id",sens:Int ?= 1,id:String ?="")
 GET         /inventary/cards/:id/card                          controllers.CardsManager.cardPage(id:String)
 POST        /inventary/cards/:id/card                          controllers.CardsManager.cardInsert(id:String)
 GET         /inventary/cards/:id/:id2                          controllers.CardsManager.cardUpdatePage(id:String,id2:String)
