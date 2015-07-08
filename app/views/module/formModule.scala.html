@@ -1,4 +1,4 @@
-@(form:Form[ModuleForm],listType:List[reactivemongo.bson.BSONDocument])(implicit request: Request[AnyContent])
+@(form:Form[ModuleForm],listType:List[reactivemongo.bson.BSONDocument],types:String)(implicit request: Request[AnyContent])
 
 @import models.template.InlineInput.inlineInput
 
@@ -16,15 +16,27 @@
           <h5 style="color:red;float:right"><em>*</em> @Messages("global.fieldRequired")</h5>
           <div class="col-sm-12">
             @helper.input(form("types"),'_label->Messages("inventary.module.types"),'required->true){ (id, name, value, args) =>
-              <input id="@id" name="@name" class="form-control" list="list_type" type="text" autocomplete="off" @if(value!=null){value="@value"}/>
+              @if(types.equals("update")){
+              <div class="input-group">
+                <input id="@id" name="@name" class="form-control" list="list_type" readonly="readonly" type="text" autocomplete="off" @if(value!=null){value="@value"}/>
+                <div class="input-group-addon pointer"><span class="glyphicon glyphicon-lock"></span></div>
+              </div>
+              }else{
+                <input id="@id" name="@name" class="form-control" list="list_type" autofocus="autofocus" type="text" autocomplete="off" @if(value!=null){value="@value"}/>
+              }
               <datalist id="list_type">
               @for(t<-listType){
                 <option value="@t.getAs[String]("_id")"></option>
               }
               </datalist>
             }
-            @helper.inputText(form("id"),'_label->Messages("inventary.module.id"),'required->true,'class->"form-control")
-            @helper.inputDate(form("dateAssemblage"),'_label->Messages("inventary.module.dateAssemblage"),'required->true,'class->"form-control")
+            @if(types.equals("update")) {
+              @helper.inputText(form("id"), '_label -> Messages("inventary.module.id"), 'required -> true, 'class -> "form-control",'readonly->"readonly")
+              @helper.inputDate(form("dateAssemblage"), '_label -> Messages("inventary.module.dateAssemblage"), 'required -> true, 'class -> "form-control",'readonly->"readonly")
+            }else{
+              @helper.inputText(form("id"), '_label -> Messages("inventary.module.id"), 'required -> true, 'class -> "form-control")
+              @helper.inputDate(form("dateAssemblage"), '_label -> Messages("inventary.module.dateAssemblage"), 'required -> true, 'class -> "form-control")
+            }
             @helper.textarea(form("commentaire"),'_label->Messages("inventary.module.commentaire"),'class->"form-control")
           </div>
           <div class="col-sm-12">
