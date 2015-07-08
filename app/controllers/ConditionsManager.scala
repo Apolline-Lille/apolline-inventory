@@ -799,7 +799,7 @@ trait ConditionsManagerLike extends Controller{
           //Move picture and insert the localisation
           data => insertLocalisation(loc, cond).flatMap(
             data=>updateCardSensor.map(
-              data => Redirect(routes.ConditionsManager.listConditions(campaign._id.stringify)).withSession(request.session - "condition")
+              data => Redirect(routes.ConditionsManager.listConditions(campaign._id.stringify)).withSession(request.session - "condition" - "form")
             )
           )
 
@@ -829,7 +829,7 @@ trait ConditionsManagerLike extends Controller{
 
         //update the first use date of sensor and card
         data=>updateFirstUseDate(cond.modules,cond.dateDebut).map(
-          data=>Redirect(routes.ConditionsManager.listConditions(id)).withSession(request.session - "condition")
+          data=>Redirect(routes.ConditionsManager.listConditions(id)).withSession(request.session - "condition" - "form")
         )
       )
     )
