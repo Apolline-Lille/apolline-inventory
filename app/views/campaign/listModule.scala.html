@@ -1,4 +1,4 @@
-@(modules:List[Module],listType:List[reactivemongo.bson.BSONDocument],filtre:String,filtreId:String,id:String,state:Html)(implicit request: Request[AnyContent])
+@(modules:List[Module],listType:List[reactivemongo.bson.BSONDocument],filtre:String,filtreId:String,campaign:Campagne,state:Html)(implicit request: Request[AnyContent])
 
 @import models.template.InlineInput.inlineInput
 
@@ -6,6 +6,13 @@
   @navigation("campaign")
   <div class="container">
     <section>
+      <a href="@routes.ConditionsManager.listConditions(campaign._id.stringify)"><span class="glyphicon glyphicon-arrow-left"></span> Retour</a>
+      <div class="col-sm-12">
+        <h4>@campaign.nom</h4>
+        <div class="col-sm-11 col-sm-offset-1">
+          <div class="row"><span class="bold">@Messages("campaign.list.type")</span> : @campaign.types</div>
+        </div>
+      </div>
       @state
       <article class="col-sm-9">
       @if(modules.size==0){
@@ -15,7 +22,7 @@
           <div class="row">
             <div class="col-sm-12">
               <h4>
-                <a href="@routes.ConditionsManager.formModule(id,mod.types)">@mod.types</a>
+                <a href="@routes.ConditionsManager.formModule(campaign._id.stringify,mod.types)">@mod.types</a>
                 /
                 <a href="@routes.ModuleManager.moreInformation(mod._id.stringify)">@mod.id</a>
               </h4>
@@ -26,7 +33,7 @@
               <div class="row"><span class="bold">@Messages("inventary.module.onglet.cards")</span> : @mod.cartes.size</div>
               <div class="row"><span class="bold">@Messages("inventary.module.onglet.sensors")</span> : @mod.capteurs.size</div>
               <div class="row">
-                @helper.form(action=routes.ConditionsManager.addSelectedModule(id)) {
+                @helper.form(action=routes.ConditionsManager.addSelectedModule(campaign._id.stringify)) {
                   <input type="hidden" name="id" value="@mod._id.stringify"/>
                   <input type="submit" class="btn btn-success" value="@Messages("campaign.condition.associat")"/>
                 }
@@ -41,18 +48,18 @@
           <span class="bold">@Messages("inventary.module.types")</span>
           <ul class="nav nav-pills nav-stacked">
             <li role="presentation" @if(filtre.isEmpty) {
-              class="active"}><a href="@routes.ConditionsManager.formModule(id,"",filtreId)" style="padding:0px 15px !important">
+              class="active"}><a href="@routes.ConditionsManager.formModule(campaign._id.stringify,"",filtreId)" style="padding:0px 15px !important">
             @Messages("global.all")</a></li>
             @for(types <- listType) {
               @defining(types.getAs[String]("_id").get) { nomType =>
                 <li role="presentation" @if(filtre.equals(nomType)) {
-                  class="active"}><a href="@routes.ConditionsManager.formModule(id,nomType,filtreId)" style="padding:0px 15px !important">@nomType</a></li>
+                  class="active"}><a href="@routes.ConditionsManager.formModule(campaign._id.stringify,nomType,filtreId)" style="padding:0px 15px !important">@nomType</a></li>
               }
             }
           </ul>
         }
         <div class="search_lateral">
-        @helper.form(action=routes.ConditionsManager.formModule(id)){
+        @helper.form(action=routes.ConditionsManager.formModule(campaign._id.stringify)){
           <div class="input-group">
             <div class="input-group-addon"><span class="glyphicon glyphicon-search"></span></div>
             <input type="search" name="filtreId" class="form-control" value="@filtreId" placeholder="@Messages("inventary.module.id")"/>

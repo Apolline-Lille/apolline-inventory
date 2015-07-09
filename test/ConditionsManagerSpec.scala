@@ -446,7 +446,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
 
       status(r) must equalTo(OK)
       val content=contentAsString(r)
-      content must matchRegex("<input type=\"text\" id=\"debut\" name=\"debut\" value=\"\\d{2}/\\d{2}/\\d{4} \\d{2}:\\d{2}:\\d{2}\" class=\"form-control\" placeholder=\"dd/mm/YYYY hh:mm:ss\"/>")
+      content must matchRegex("<input type=\"text\" id=\"debut\" name=\"debut\" value=\"\\d{2}/\\d{2}/\\d{4} \\d{2}:\\d{2}:\\d{2}\" class=\"form-control\" placeholder=\"dd/mm/YYYY hh:mm:ss\" autofocus=\"autofocus\"/>")
       content must contain("<input type=\"text\" id=\"fin\" name=\"fin\" value=\"\" class=\"form-control\" placeholder=\"dd/mm/YYYY hh:mm:ss\"/>")
       content must contain("<textarea id=\"commentaire\" name=\"commentaire\" class=\"form-control\"></textarea>")
 
@@ -539,7 +539,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
 
       status(r) must equalTo(BAD_REQUEST)
       val content=contentAsString(r)
-      content must matchRegex("<input type=\"text\" id=\"debut\" name=\"debut\" value=\"52/04/2015 00:00:00\" class=\"form-control\" placeholder=\"dd/mm/YYYY hh:mm:ss\"/>")
+      content must matchRegex("<input type=\"text\" id=\"debut\" name=\"debut\" value=\"52/04/2015 00:00:00\" class=\"form-control\" placeholder=\"dd/mm/YYYY hh:mm:ss\" autofocus=\"autofocus\"/>")
       content must contain("<input type=\"text\" id=\"fin\" name=\"fin\" value=\"\" class=\"form-control\" placeholder=\"dd/mm/YYYY hh:mm:ss\"/>")
       content must contain("<textarea id=\"commentaire\" name=\"commentaire\" class=\"form-control\"></textarea>")
       content must contain("<span class=\"control-label errors\">Valid date required</span>")
@@ -561,7 +561,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
 
       status(r) must equalTo(BAD_REQUEST)
       val content=contentAsString(r)
-      content must matchRegex("<input type=\"text\" id=\"debut\" name=\"debut\" value=\"22/04/2015 00:00:00\" class=\"form-control\" placeholder=\"dd/mm/YYYY hh:mm:ss\"/>")
+      content must matchRegex("<input type=\"text\" id=\"debut\" name=\"debut\" value=\"22/04/2015 00:00:00\" class=\"form-control\" placeholder=\"dd/mm/YYYY hh:mm:ss\" autofocus=\"autofocus\"/>")
       content must contain("<input type=\"text\" id=\"fin\" name=\"fin\" value=\"52/04/2015 00:00:00\" class=\"form-control\" placeholder=\"dd/mm/YYYY hh:mm:ss\"/>")
       content must contain("<textarea id=\"commentaire\" name=\"commentaire\" class=\"form-control\"></textarea>")
       content must contain("<span class=\"control-label errors\">Valid date required</span>")
@@ -583,7 +583,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
 
       status(r) must equalTo(BAD_REQUEST)
       val content=contentAsString(r)
-      content must matchRegex("<input type=\"text\" id=\"debut\" name=\"debut\" value=\"23/04/2015 00:00:00\" class=\"form-control\" placeholder=\"dd/mm/YYYY hh:mm:ss\"/>")
+      content must matchRegex("<input type=\"text\" id=\"debut\" name=\"debut\" value=\"23/04/2015 00:00:00\" class=\"form-control\" placeholder=\"dd/mm/YYYY hh:mm:ss\" autofocus=\"autofocus\"/>")
       content must contain("<input type=\"text\" id=\"fin\" name=\"fin\" value=\"22/04/2015 00:00:00\" class=\"form-control\" placeholder=\"dd/mm/YYYY hh:mm:ss\"/>")
       content must contain("<textarea id=\"commentaire\" name=\"commentaire\" class=\"form-control\"></textarea>")
       content must contain("<div class=\"alert alert-danger\" role=\"alert\">La date de début doit être inférieur à la date de fin</div>")
@@ -611,7 +611,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
 
       status(r) must equalTo(OK)
       val content=contentAsString(r)
-      content must matchRegex("<input type=\"text\" id=\"debut\" name=\"debut\" value=\"22/04/2015 00:00:00\" class=\"form-control\" placeholder=\"dd/mm/YYYY hh:mm:ss\"/>")
+      content must matchRegex("<input type=\"text\" id=\"debut\" name=\"debut\" value=\"22/04/2015 00:00:00\" class=\"form-control\" placeholder=\"dd/mm/YYYY hh:mm:ss\" autofocus=\"autofocus\"/>")
       content must contain("<input type=\"text\" id=\"fin\" name=\"fin\" value=\"23/04/2015 00:00:00\" class=\"form-control\" placeholder=\"dd/mm/YYYY hh:mm:ss\"/>")
       content must contain("<textarea id=\"commentaire\" name=\"commentaire\" class=\"form-control\">un com</textarea>")
       session(r).get("condition") must beSome(Json.stringify(sessionObj))
@@ -671,7 +671,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
 
       status(r) must equalTo(OK)
       val content=contentAsString(r)
-      content must matchRegex("<input type=\"text\" id=\"debut\" name=\"debut\" value=\"22/04/2015 00:00:00\" class=\"form-control\" placeholder=\"dd/mm/YYYY hh:mm:ss\"/>")
+      content must matchRegex("<input type=\"text\" id=\"debut\" name=\"debut\" value=\"22/04/2015 00:00:00\" class=\"form-control\" placeholder=\"dd/mm/YYYY hh:mm:ss\" autofocus=\"autofocus\"/>")
       content must contain("<input type=\"text\" id=\"fin\" name=\"fin\" value=\"23/04/2015 00:00:00\" class=\"form-control\" placeholder=\"dd/mm/YYYY hh:mm:ss\"/>")
       content must contain("<textarea id=\"commentaire\" name=\"commentaire\" class=\"form-control\">un com</textarea>")
 
@@ -943,7 +943,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
 
       status(r) must equalTo(OK)
       val content=contentAsString(r)
-      content must contain("<input type=\"text\" id=\"nom\" name=\"nom\" value=\"\" class=\"form-control\"/>")
+      content must contain("<input type=\"text\" id=\"nom\" name=\"nom\" value=\"\" class=\"form-control\" autofocus=\"autofocus\"/>")
       content must contain("<input type=\"text\" id=\"lat\" name=\"lat\" value=\"\" class=\"form-control\"/>")
       content must contain("<input type=\"text\" id=\"lon\" name=\"lon\" value=\"\" class=\"form-control\"/>")
       content must contain("<input name=\"photo[]\" id=\"photo\" type=\"file\" accept=\"image/*\"/>")
@@ -966,7 +966,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
 
       status(r) must equalTo(OK)
       val content=contentAsString(r)
-      content must contain("<input type=\"text\" id=\"nom\" name=\"nom\" value=\"loc\" class=\"form-control\"/>")
+      content must contain("<input type=\"text\" id=\"nom\" name=\"nom\" value=\"loc\" class=\"form-control\" autofocus=\"autofocus\"/>")
       content must contain("<input type=\"text\" id=\"lat\" name=\"lat\" value=\"1.2\" class=\"form-control\"/>")
       content must contain("<input type=\"text\" id=\"lon\" name=\"lon\" value=\"3.4\" class=\"form-control\"/>")
       content must contain("<input name=\"photo[]\" id=\"photo\" type=\"file\" accept=\"image/*\"/>")
@@ -1673,7 +1673,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
 
       status(r) must equalTo(BAD_REQUEST)
       val content=contentAsString(r)
-      content must matchRegex("<input type=\"text\" id=\"debut\" name=\"debut\" value=\"23/04/2015 00:00:00\" class=\"form-control\" placeholder=\"dd/mm/YYYY hh:mm:ss\"/>")
+      content must matchRegex("<input type=\"text\" id=\"debut\" name=\"debut\" value=\"23/04/2015 00:00:00\" class=\"form-control\" placeholder=\"dd/mm/YYYY hh:mm:ss\" autofocus=\"autofocus\"/>")
       content must contain("<input type=\"text\" id=\"fin\" name=\"fin\" value=\"22/04/2015 00:00:00\" class=\"form-control\" placeholder=\"dd/mm/YYYY hh:mm:ss\"/>")
       content must contain("<textarea id=\"commentaire\" name=\"commentaire\" class=\"form-control\"></textarea>")
       content must contain("<div class=\"alert alert-danger\" role=\"alert\">La date de début doit être inférieur à la date de fin</div>")

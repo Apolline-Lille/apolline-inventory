@@ -1,4 +1,4 @@
-@(form:Form[ConditionForm],id:String,state:Html)(implicit request: Request[AnyContent])
+@(form:Form[ConditionForm],campaign:Campagne,state:Html)(implicit request: Request[AnyContent])
 
 @import models.template.InlineInput.inlineInput
 
@@ -7,14 +7,21 @@
   <div class="container">
     <section>
       <article>
+        <a href="@routes.ConditionsManager.listConditions(campaign._id.stringify)"><span class="glyphicon glyphicon-arrow-left"></span> Retour</a>
+        <div class="col-sm-12">
+          <h4>@campaign.nom</h4>
+          <div class="col-sm-11 col-sm-offset-1">
+            <div class="row"><span class="bold">@Messages("campaign.list.type")</span> : @campaign.types</div>
+          </div>
+        </div>
         @state
-        @helper.form(action=routes.ConditionsManager.addGeneralInformation(id)){
+        @helper.form(action=routes.ConditionsManager.addGeneralInformation(campaign._id.stringify)){
           @for(error<-form.globalErrors){
             <div class="alert alert-danger" role="alert">@Html(error.message)</div>
           }
           <h5 style="color:red;float:right"><em>*</em> @Messages("global.fieldRequired")</h5>
           <div class="col-sm-12">
-            @helper.inputText(form("debut"),'_label->Messages("campaign.condition.debut"),'required->true,'class->"form-control",'placeholder->"dd/mm/YYYY hh:mm:ss")
+            @helper.inputText(form("debut"),'_label->Messages("campaign.condition.debut"),'required->true,'class->"form-control",'placeholder->"dd/mm/YYYY hh:mm:ss",'autofocus->"autofocus")
             @helper.inputText(form("fin"),'_label->Messages("campaign.condition.fin"),'class->"form-control",'placeholder->"dd/mm/YYYY hh:mm:ss")
             @helper.textarea(form("commentaire"),'_label->Messages("campaign.condition.commentaire"),'class->"form-control")
           </div>

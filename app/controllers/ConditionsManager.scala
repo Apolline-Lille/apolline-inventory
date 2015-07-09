@@ -213,7 +213,7 @@ trait ConditionsManagerLike extends Controller{
           //If campaign found
           campaign=> {
             val session=request.session + ("condition"->Json.stringify(Json.obj("form"->"insert")))
-            future{Ok(views.html.campaign.formConditions(form.bind(Map("debut"->new SimpleDateFormat("dd/MM/yyyy HH:mm:ss").format(new Date))),id, printStateForm("infoCondition", campaign.types, id))).withSession(session)}
+            future{Ok(views.html.campaign.formConditions(form.bind(Map("debut"->new SimpleDateFormat("dd/MM/yyyy HH:mm:ss").format(new Date))),campaign, printStateForm("infoCondition", campaign.types, id))).withSession(session)}
           }
         }{
 
@@ -274,7 +274,7 @@ trait ConditionsManagerLike extends Controller{
                   )
 
                   //Display the form
-                  Ok(views.html.campaign.formConditions(form.bind(data),id, printStateForm("infoCondition", campaign.types, id))).withSession(session)
+                  Ok(views.html.campaign.formConditions(form.bind(data),campaign, printStateForm("infoCondition", campaign.types, id))).withSession(session)
                 }
               )
             }
@@ -323,7 +323,7 @@ trait ConditionsManagerLike extends Controller{
             val dataForm=ConditionForm((cond\"debut").asOpt[Date].getOrElse(new Date),(cond\"fin").asOpt[Date],(cond\"commentaire").asOpt[String])
 
             //Display the form
-            future{Ok(views.html.campaign.formConditions(form.fill(dataForm),id, printStateForm("infoCondition", campaign.types, id)))}
+            future{Ok(views.html.campaign.formConditions(form.fill(dataForm),campaign, printStateForm("infoCondition", campaign.types, id)))}
           }
         }{
 
@@ -365,7 +365,7 @@ trait ConditionsManagerLike extends Controller{
 
             //Display module inventary
             moduleManager.getInventaryModule(filtre,filtreId) {
-              (modules, listType) => Ok(views.html.campaign.listModule(modules, listType, filtre,filtreId,id, printStateForm("module",campaign.types, id)))
+              (modules, listType) => Ok(views.html.campaign.listModule(modules, listType, filtre,filtreId,campaign, printStateForm("module",campaign.types, id)))
             }
         }{
           //If campaign not found
@@ -418,7 +418,7 @@ trait ConditionsManagerLike extends Controller{
                 }
 
                 //Display the form
-                future{Ok(views.html.campaign.formLocalisation(formLoc,"",id,printStateForm("localisation",campaign.types, id)))}
+                future{Ok(views.html.campaign.formLocalisation(formLoc,"",campaign,printStateForm("localisation",campaign.types, id)))}
               }
 
               //else redirect to conditions list
@@ -465,10 +465,10 @@ trait ConditionsManagerLike extends Controller{
             verifyAllData(campaign.types){
 
                   //If condition information not have error
-              (cond,loc,module)=>future{Ok(views.html.campaign.validate(cond,loc,Some(module),"",id,app.path.toString,tempFileBuilder,printStateForm("validate", campaign.types, id)))}
+              (cond,loc,module)=>future{Ok(views.html.campaign.validate(cond,loc,Some(module),"",campaign,app.path.toString,tempFileBuilder,printStateForm("validate", campaign.types, id)))}
             }{
                   //Id condition information have error
-              (error,cond,loc,module)=>future{BadRequest(views.html.campaign.validate(cond,loc,module,error,id,app.path.toString,tempFileBuilder,printStateForm("validate", campaign.types, id)))}
+              (error,cond,loc,module)=>future{BadRequest(views.html.campaign.validate(cond,loc,module,error,campaign,app.path.toString,tempFileBuilder,printStateForm("validate", campaign.types, id)))}
             }
         }{
           //If campaign not found
@@ -510,7 +510,7 @@ trait ConditionsManagerLike extends Controller{
               //If form contains errors
               formWithErrors => {
                 //the form is redisplay with error descriptions
-                future{BadRequest(views.html.campaign.formConditions(formWithErrors,id, printStateForm("infoCondition", campaign.types, id)))}
+                future{BadRequest(views.html.campaign.formConditions(formWithErrors,campaign, printStateForm("infoCondition", campaign.types, id)))}
               },
               infoData =>verifyGeneralData(infoData,id,campaign)
             )
@@ -552,7 +552,7 @@ trait ConditionsManagerLike extends Controller{
             formSelect.bindFromRequest.fold(
               //If form have error, display the modules list
               formWithErrors =>moduleManager.getInventaryModule("","") {
-                (modules, listType) => BadRequest(views.html.campaign.listModule(modules, listType, "","",id, printStateForm("module",campaign.types, id)))
+                (modules, listType) => BadRequest(views.html.campaign.listModule(modules, listType, "","",campaign, printStateForm("module",campaign.types, id)))
               },
               data =>
                 //Find the module
@@ -564,7 +564,7 @@ trait ConditionsManagerLike extends Controller{
 
                     //If module is not found, display the modules list
                     case None=>moduleManager.getInventaryModule("","") {
-                      (modules, listType) => BadRequest(views.html.campaign.listModule(modules, listType, "","",id, printStateForm("module",campaign.types, id)))
+                      (modules, listType) => BadRequest(views.html.campaign.listModule(modules, listType, "","",campaign, printStateForm("module",campaign.types, id)))
                     }
                   }
                 )
@@ -610,7 +610,7 @@ trait ConditionsManagerLike extends Controller{
 
             case "Terrain" => localisationForm.bindFromRequest.fold(
               //If form have error, display the form with error
-              formWithErrors => future {BadRequest(views.html.campaign.formLocalisation(formWithErrors, "", id, printStateForm("localisation", campaign.types, id))(request.asInstanceOf[Request[AnyContent]]))},
+              formWithErrors => future {BadRequest(views.html.campaign.formLocalisation(formWithErrors, "", campaign, printStateForm("localisation", campaign.types, id))(request.asInstanceOf[Request[AnyContent]]))},
               data => {
                 val oldCond=findCondition(request.asInstanceOf[Request[AnyContent]])
 
@@ -685,7 +685,7 @@ trait ConditionsManagerLike extends Controller{
               }
             }{
               //Id condition information have error
-              (error,cond,loc,module)=>future{BadRequest(views.html.campaign.validate(cond,loc,module,error,id,app.path.toString,tempFileBuilder,printStateForm("validate", campaign.types, id)))}
+              (error,cond,loc,module)=>future{BadRequest(views.html.campaign.validate(cond,loc,module,error,campaign,app.path.toString,tempFileBuilder,printStateForm("validate", campaign.types, id)))}
             }
         }{
           //If campaign not found
@@ -1311,7 +1311,7 @@ trait ConditionsManagerLike extends Controller{
     verifyDateValid(infoData){
 
       //If date aren't valid return bad request with the form
-      formWithError=>future{BadRequest(views.html.campaign.formConditions(formWithError,id, printStateForm("infoCondition", campaign.types, id)))}
+      formWithError=>future{BadRequest(views.html.campaign.formConditions(formWithError,campaign, printStateForm("infoCondition", campaign.types, id)))}
     }{
       //If date are valid
       (debut,fin)=> {

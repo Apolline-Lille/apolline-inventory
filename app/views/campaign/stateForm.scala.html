@@ -1,9 +1,11 @@
 @(activ:String,types:String,id:String)
-<ol class="breadcrumb">
-  <li @if(activ.equals("infoCondition")){class="active"}><a href="@routes.ConditionsManager.formGeneralUpdateInput(id)">@Messages("campaign.condition.onglet.info")</a></li>
-  <li @if(activ.equals("module")){class="active"}><a href="@routes.ConditionsManager.formModule(id)">@Messages("campaign.condition.onglet.module")</a></li>
-  @if(types.equals("Terrain")){
-    <li @if(activ.equals("localisation")){class="active"}><a href="@routes.ConditionsManager.formLocalisation(id)">@Messages("campaign.condition.onglet.localisation")</a></li>
-  }
-  <li @if(activ.equals("validate")){class="active"}><a href="@routes.ConditionsManager.formValidate(id)">@Messages("campaign.condition.onglet.validate")</a></li>
-</ol>
+<nav class="row col-sm-12">
+  <ol class="breadcrumb">
+    <li @if(activ.equals("infoCondition")){class="active"}><a href="@routes.ConditionsManager.formGeneralUpdateInput(id)">@Messages("campaign.condition.onglet.info")</a></li>
+    <li @if(activ.equals("module")){class="active"}><a href="@routes.ConditionsManager.formModule(id)">@Messages("campaign.condition.onglet.module")</a></li>
+    @if(types.equals("Terrain")){
+      <li @if(activ.equals("localisation")){class="active"}><a href="@routes.ConditionsManager.formLocalisation(id)">@Messages("campaign.condition.onglet.localisation")</a></li>
+    }
+    <li @if(activ.equals("validate")){class="active"}><a href="@routes.ConditionsManager.formValidate(id)">@Messages("campaign.condition.onglet.validate")</a></li>
+  </ol>
+</nav>

@@ -1,12 +1,12 @@
-@(cond:Condition,loc:Option[Localisation],module:Option[Module],error:String,id:String,path:String,tempFileBuilder:TemporaryFileBuilder,state:Html)(implicit request: Request[AnyContent])
+@(cond:Condition,loc:Option[Localisation],module:Option[Module],error:String,campaigns:Campagne,path:String,tempFileBuilder:TemporaryFileBuilder,state:Html)(implicit request: Request[AnyContent])
 
 @import java.text.SimpleDateFormat
 @import java.io.File
 @import play.api.libs.json.Json
 
 @deleteLink(path:String,fileName:String)={@{tempFileBuilder.createFile(path + "/public/images/campaign/tmp/" + fileName).exists() match {
-      case true => routes.ConditionsManager.removeImageCondition(id,"",fileName)
-      case false =>routes.ConditionsManager.removeImageCondition(id,(Json.parse(request.session.get("condition").get)\"id").as[String],fileName)
+      case true => routes.ConditionsManager.removeImageCondition(campaigns._id.stringify,"",fileName)
+      case false =>routes.ConditionsManager.removeImageCondition(campaigns._id.stringify,(Json.parse(request.session.get("condition").get)\"id").as[String],fileName)
 }}}
 
 @imgUrl(path:String,fileName:String)={@{tempFileBuilder.createFile(path + "/public/images/campaign/tmp/" + fileName).exists() match {
@@ -18,6 +18,13 @@
   @navigation("campaign")
   <div class="container">
     <section>
+      <a href="@routes.ConditionsManager.listConditions(campaigns._id.stringify)"><span class="glyphicon glyphicon-arrow-left"></span> Retour</a>
+      <div class="col-sm-12">
+        <h4>@campaigns.nom</h4>
+        <div class="col-sm-11 col-sm-offset-1">
+          <div class="row"><span class="bold">@Messages("campaign.list.type")</span> : @campaigns.types</div>
+        </div>
+      </div>
       @state
       <article class="col-sm-12">
         @if(error.nonEmpty) {
@@ -48,7 +55,7 @@
             </div>
           </div>
         }
-        @helper.form(action=routes.ConditionsManager.validate(id)){
+        @helper.form(action=routes.ConditionsManager.validate(campaigns._id.stringify)){
           <p><span style="float:right"><input type="submit" class="btn btn-default" value="@Messages("global.valider")"/></span></p>
         }
       </article>

@@ -1,4 +1,4 @@
-@(form:Form[LocalisationForm],fileError:String,id:String,state:Html)(implicit request: Request[AnyContent])
+@(form:Form[LocalisationForm],fileError:String,campaign:Campagne,state:Html)(implicit request: Request[AnyContent])
 
 @import models.template.InlineInput.inlineInput
 
@@ -7,14 +7,21 @@
   <div class="container">
     <section>
       <article>
+        <a href="@routes.ConditionsManager.listConditions(campaign._id.stringify)"><span class="glyphicon glyphicon-arrow-left"></span> Retour</a>
+        <div class="col-sm-12">
+          <h4>@campaign.nom</h4>
+          <div class="col-sm-11 col-sm-offset-1">
+            <div class="row"><span class="bold">@Messages("campaign.list.type")</span> : @campaign.types</div>
+          </div>
+        </div>
         @state
-        @helper.form(action=routes.ConditionsManager.addLocalisation(id),'enctype -> "multipart/form-data"){
+        @helper.form(action=routes.ConditionsManager.addLocalisation(campaign._id.stringify),'enctype -> "multipart/form-data"){
           @for(error<-form.globalErrors){
             <div class="alert alert-danger" role="alert">@Html(error.message)</div>
           }
           <h5 style="color:red;float:right"><em>*</em> @Messages("global.fieldRequired")</h5>
           <div class="col-sm-12">
-            @helper.inputText(form("nom"),'_label->Messages("campaign.condition.localisation.nom"),'required->true,'class->"form-control")
+            @helper.inputText(form("nom"),'_label->Messages("campaign.condition.localisation.nom"),'required->true,'class->"form-control",'autofocus->"autofocus")
             @helper.inputText(form("lat"),'_label->Messages("campaign.condition.localisation.lat"),'class->"form-control")
             @helper.inputText(form("lon"),'_label->Messages("campaign.condition.localisation.lon"),'class->"form-control")
             <div class=" col-sm-12 @if(fileError.nonEmpty) {has-error}">
