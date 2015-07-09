@@ -430,7 +430,7 @@ trait ModuleManagerLike extends Controller {
     new ApiImplicitParam(value = "Name of column sensors used for sort sensors",name="sort", dataType = "String", paramType = "query"),
     new ApiImplicitParam(value = "Flag indicate if the sort is ascending or descending",name="sens", dataType = "Int", paramType = "query")
   ))
-  def formSensors(id:String,sort:String="id",sens:Int=1)=Action.async{
+  def formSensors(id:String,sort:String="id",sens:Int=1,id2:String="")=Action.async{
     implicit request=>
       //Verify if user is connect
       UserManager.doIfconnectAsync(request) {
@@ -438,9 +438,10 @@ trait ModuleManagerLike extends Controller {
         moduleDao.fold(Json.obj("delete"->false,"_id"->Json.obj("$ne"->module._id)),Json.obj(),module.capteurs)((list,card) => list ++ card.capteurs).flatMap(
           listSensorsUsed=> {
             val listSensors = listSensorsUsed.mapConserve(p => BSONObjectIDFormat.writes(p)).asInstanceOf[List[JsValue]]
+            val query=Json.obj("delete"->false,"types"->BSONObjectID(id),"_id"->Json.obj("$nin"->listSensors)) ++ (if(id2.nonEmpty){Json.obj("id"->Json.obj("$regex"->(".*"+id2+".*")))}else{Json.obj()})
             //Find the list of sensors
-            sensorsManager.getInventarySensor(Json.obj("delete" -> false, "types" -> BSONObjectID(id), "_id" -> Json.obj("$nin" -> JsArray(listSensors))), Json.obj(sort -> sens), BSONObjectID(id), Redirect(routes.ModuleManager.formTypeSensors())) {
-              (typeSensor, typeMesure, listSensors,sensorsUsed,sensorState) => Ok(views.html.module.listSensors(selectElement, typeSensor, typeMesure, listSensors,sensorsUsed,sensorState, sort, sens))
+            sensorsManager.getInventarySensor(query, Json.obj(sort -> sens), BSONObjectID(id), Redirect(routes.ModuleManager.formTypeSensors())) {
+              (typeSensor, typeMesure, listSensors,sensorsUsed,sensorState) => Ok(views.html.module.listSensors(selectElement, typeSensor, typeMesure, listSensors,sensorsUsed,sensorState, sort, sens,id2))
             }
           }
         )
@@ -530,7 +531,7 @@ trait ModuleManagerLike extends Controller {
             formWithErrors => {
               //Find the list of cards
               sensorsManager.getInventarySensor(Json.obj("delete"->false,"types"->BSONObjectID(idType)),Json.obj("id"->1),BSONObjectID(idType),Redirect(routes.ModuleManager.formTypeCards())){
-                (typeSensor,typeMesure,listSensors,sensorUsed,sensorState)=>BadRequest(views.html.module.listSensors(selectElement,typeSensor,typeMesure,listSensors,sensorUsed,sensorState,"id",1))
+                (typeSensor,typeMesure,listSensors,sensorUsed,sensorState)=>BadRequest(views.html.module.listSensors(selectElement,typeSensor,typeMesure,listSensors,sensorUsed,sensorState,"id",1,""))
               }
             },
 

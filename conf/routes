@@ -64,7 +64,7 @@ GET         /inventary/modules/form/cards/:idType                  controllers.M
 POST        /inventary/modules/form/cards/:id                  controllers.ModuleManager.addCards(id)
 GET         /inventary/modules/form/typeSensors                controllers.ModuleManager.formTypeSensors(types:String ?= "",modele:String ?="")
 GET         /inventary/modules/form/sensors/:id/delete         controllers.ModuleManager.deleteSensors(id)
-GET         /inventary/modules/form/sensors/:id                controllers.ModuleManager.formSensors(id,sort:String ?= "id",sens:Int ?= 1)
+GET         /inventary/modules/form/sensors/:idType                controllers.ModuleManager.formSensors(idType,sort:String ?= "id",sens:Int ?= 1,id:String ?= "")
 POST        /inventary/modules/form/sensors/:id                controllers.ModuleManager.addSensors(id)
 GET         /inventary/modules/form/validate                   controllers.ModuleManager.validate()
 POST        /inventary/modules/form/validate                   controllers.ModuleManager.insertModule()
