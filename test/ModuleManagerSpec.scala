@@ -437,8 +437,8 @@ class ModuleManagerSpec extends Specification with Mockito {
       val listCards=JsArray(Seq(BSONObjectIDFormat.writes(bson4)))
 
       f.moduleDaoMock.fold(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->Json.obj("$ne"->bson))),any[JsObject],org.mockito.Matchers.eq(module.cartes))(any[(List[BSONObjectID],Module)=>List[BSONObjectID]])(any[ExecutionContext]) returns future{List[BSONObjectID](bson4)}
-      f.cardsManagerMock.getInventaryCards(any[JsObject],any[JsObject],any[BSONObjectID],any[Result])(any[(TypeCards,List[Cards],List[Firmware],List[(BSONObjectID,Int)],Map[BSONObjectID,String])=>Result]) answers { (params, _) => params match {
-        case Array(_,_,_,_, p: ((TypeCards,List[Cards],List[Firmware],List[(BSONObjectID,Int)],Map[BSONObjectID,String])=>Result))=>future{p.apply(TypeCards(bson,"mod","type"),List[Cards](),List[Firmware](),List((bson,0)),Map())}
+      f.cardsManagerMock.getInventaryCards(any[JsObject],any[JsObject],any[BSONObjectID],any[Result])(any[(TypeCards,List[Cards],List[Firmware],Int,List[(BSONObjectID,Int)],Map[BSONObjectID,String])=>Result]) answers { (params, _) => params match {
+        case Array(_,_,_,_, p: ((TypeCards,List[Cards],List[Firmware],Int,List[(BSONObjectID,Int)],Map[BSONObjectID,String])=>Result))=>future{p.apply(TypeCards(bson,"mod","type"),List[Cards](),List[Firmware](),0,List((bson,0)),Map())}
       }}
 
       val r = f.controller.formCards(bson.stringify).apply(FakeRequest(GET, "/inventary/modules/form/cards/"+bson.stringify).withSession("user" -> """{"login":"test"}""","module"->Module.toStrings(module)))
@@ -451,7 +451,7 @@ class ModuleManagerSpec extends Specification with Mockito {
       content must matchRegex("<span class=\"bold\">\\s*Stock\\s*</span>\\s*:\\s*0 / 0")
 
       there was one(f.moduleDaoMock).fold(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->Json.obj("$ne"->bson))),any[JsObject],org.mockito.Matchers.eq(module.cartes))(any[(List[BSONObjectID],Module)=>List[BSONObjectID]])(any[ExecutionContext])
-      there was one(f.cardsManagerMock).getInventaryCards(any[JsObject],any[JsObject],any[BSONObjectID],any[Result])(any[(TypeCards,List[Cards],List[Firmware],List[(BSONObjectID,Int)],Map[BSONObjectID,String])=>Result])
+      there was one(f.cardsManagerMock).getInventaryCards(any[JsObject],any[JsObject],any[BSONObjectID],any[Result])(any[(TypeCards,List[Cards],List[Firmware],Int,List[(BSONObjectID,Int)],Map[BSONObjectID,String])=>Result])
     }
 
     "send 200 on OK with 1 result" in new WithApplication {
@@ -463,8 +463,8 @@ class ModuleManagerSpec extends Specification with Mockito {
       val listCards=JsArray(Seq(BSONObjectIDFormat.writes(bson4)))
 
       f.moduleDaoMock.fold(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->Json.obj("$ne"->bson))),any[JsObject],org.mockito.Matchers.eq(module.cartes))(any[(List[BSONObjectID],Module)=>List[BSONObjectID]])(any[ExecutionContext]) returns future{List[BSONObjectID](bson4)}
-      f.cardsManagerMock.getInventaryCards(any[JsObject],any[JsObject],any[BSONObjectID],any[Result])(any[(TypeCards,List[Cards],List[Firmware],List[(BSONObjectID,Int)],Map[BSONObjectID,String])=>Result]) answers { (params, _) => params match {
-        case Array(_,_,_,_, p: ((TypeCards,List[Cards],List[Firmware],List[(BSONObjectID,Int)],Map[BSONObjectID,String])=>Result))=>future{p.apply(typeCards,card,firmware,List((bson,0)),Map(bson2->"Test"))}
+      f.cardsManagerMock.getInventaryCards(any[JsObject],any[JsObject],any[BSONObjectID],any[Result])(any[(TypeCards,List[Cards],List[Firmware],Int,List[(BSONObjectID,Int)],Map[BSONObjectID,String])=>Result]) answers { (params, _) => params match {
+        case Array(_,_,_,_, p: ((TypeCards,List[Cards],List[Firmware],Int,List[(BSONObjectID,Int)],Map[BSONObjectID,String])=>Result))=>future{p.apply(typeCards,card,firmware,1,List((bson,0)),Map(bson2->"Test"))}
       }}
 
       val r = f.controller.formCards(bson.stringify).apply(FakeRequest(GET, "/inventary/modules/form/cards/"+bson.stringify).withSession("user" -> """{"login":"test"}""","module"->Module.toStrings(module)))
@@ -482,7 +482,7 @@ class ModuleManagerSpec extends Specification with Mockito {
       content must contain("<td>Hors service<br/>Test</td>")
 
       there was one(f.moduleDaoMock).fold(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->Json.obj("$ne"->bson))),any[JsObject],org.mockito.Matchers.eq(module.cartes))(any[(List[BSONObjectID],Module)=>List[BSONObjectID]])(any[ExecutionContext])
-      there was one(f.cardsManagerMock).getInventaryCards(any[JsObject],any[JsObject],any[BSONObjectID],any[Result])(any[(TypeCards,List[Cards],List[Firmware],List[(BSONObjectID,Int)],Map[BSONObjectID,String])=>Result])
+      there was one(f.cardsManagerMock).getInventaryCards(any[JsObject],any[JsObject],any[BSONObjectID],any[Result])(any[(TypeCards,List[Cards],List[Firmware],Int,List[(BSONObjectID,Int)],Map[BSONObjectID,String])=>Result])
     }
 
     "send 200 on OK with 1 result for request with filter" in new WithApplication {
@@ -494,8 +494,8 @@ class ModuleManagerSpec extends Specification with Mockito {
       val listCards=JsArray(Seq(BSONObjectIDFormat.writes(bson4)))
 
       f.moduleDaoMock.fold(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->Json.obj("$ne"->bson))),any[JsObject],org.mockito.Matchers.eq(module.cartes))(any[(List[BSONObjectID],Module)=>List[BSONObjectID]])(any[ExecutionContext]) returns future{List[BSONObjectID](bson4)}
-      f.cardsManagerMock.getInventaryCards(org.mockito.Matchers.eq(Json.obj("delete"->false,"types"->bson,"_id"->Json.obj("$nin"->listCards),"id"->Json.obj("$regex"->".*val.*"))),any[JsObject],any[BSONObjectID],any[Result])(any[(TypeCards,List[Cards],List[Firmware],List[(BSONObjectID,Int)],Map[BSONObjectID,String])=>Result]) answers { (params, _) => params match {
-        case Array(_,_,_,_, p: ((TypeCards,List[Cards],List[Firmware],List[(BSONObjectID,Int)],Map[BSONObjectID,String])=>Result))=>future{p.apply(typeCards,card,firmware,List((bson,0)),Map(bson2->"Test"))}
+      f.cardsManagerMock.getInventaryCards(org.mockito.Matchers.eq(Json.obj("delete"->false,"types"->bson,"_id"->Json.obj("$nin"->listCards),"id"->Json.obj("$regex"->".*val.*"))),any[JsObject],any[BSONObjectID],any[Result])(any[(TypeCards,List[Cards],List[Firmware],Int,List[(BSONObjectID,Int)],Map[BSONObjectID,String])=>Result]) answers { (params, _) => params match {
+        case Array(_,_,_,_, p: ((TypeCards,List[Cards],List[Firmware],Int,List[(BSONObjectID,Int)],Map[BSONObjectID,String])=>Result))=>future{p.apply(typeCards,card,firmware,1,List((bson,0)),Map(bson2->"Test"))}
       }}
 
       val r = f.controller.formCards(bson.stringify,"id",1,"val").apply(FakeRequest(GET, "/inventary/modules/form/cards/"+bson.stringify).withSession("user" -> """{"login":"test"}""","module"->Module.toStrings(module)))
@@ -513,7 +513,7 @@ class ModuleManagerSpec extends Specification with Mockito {
       content must contain("<td>Hors service<br/>Test</td>")
 
       there was one(f.moduleDaoMock).fold(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->Json.obj("$ne"->bson))),any[JsObject],org.mockito.Matchers.eq(module.cartes))(any[(List[BSONObjectID],Module)=>List[BSONObjectID]])(any[ExecutionContext])
-      there was one(f.cardsManagerMock).getInventaryCards(org.mockito.Matchers.eq(Json.obj("delete"->false,"types"->bson,"_id"->Json.obj("$nin"->listCards),"id"->Json.obj("$regex"->".*val.*"))),any[JsObject],any[BSONObjectID],any[Result])(any[(TypeCards,List[Cards],List[Firmware],List[(BSONObjectID,Int)],Map[BSONObjectID,String])=>Result])
+      there was one(f.cardsManagerMock).getInventaryCards(org.mockito.Matchers.eq(Json.obj("delete"->false,"types"->bson,"_id"->Json.obj("$nin"->listCards),"id"->Json.obj("$regex"->".*val.*"))),any[JsObject],any[BSONObjectID],any[Result])(any[(TypeCards,List[Cards],List[Firmware],Int,List[(BSONObjectID,Int)],Map[BSONObjectID,String])=>Result])
     }
 
     "send 200 on OK with 2 results" in new WithApplication {
@@ -525,8 +525,8 @@ class ModuleManagerSpec extends Specification with Mockito {
       val listCards=JsArray(Seq(BSONObjectIDFormat.writes(bson4)))
 
       f.moduleDaoMock.fold(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->Json.obj("$ne"->bson))),any[JsObject],org.mockito.Matchers.eq(module.cartes))(any[(List[BSONObjectID],Module)=>List[BSONObjectID]])(any[ExecutionContext]) returns future{List[BSONObjectID](bson4)}
-      f.cardsManagerMock.getInventaryCards(any[JsObject],any[JsObject],any[BSONObjectID],any[Result])(any[(TypeCards,List[Cards],List[Firmware],List[(BSONObjectID,Int)],Map[BSONObjectID,String])=>Result]) answers { (params, _) => params match {
-        case Array(_,_,_,_, p: ((TypeCards,List[Cards],List[Firmware],List[(BSONObjectID,Int)],Map[BSONObjectID,String])=>Result))=>future{p.apply(typeCards,card,firmware,List((bson,1)),Map(bson4->"Terrain"))}
+      f.cardsManagerMock.getInventaryCards(any[JsObject],any[JsObject],any[BSONObjectID],any[Result])(any[(TypeCards,List[Cards],List[Firmware],Int,List[(BSONObjectID,Int)],Map[BSONObjectID,String])=>Result]) answers { (params, _) => params match {
+        case Array(_,_,_,_, p: ((TypeCards,List[Cards],List[Firmware],Int,List[(BSONObjectID,Int)],Map[BSONObjectID,String])=>Result))=>future{p.apply(typeCards,card,firmware,2,List((bson,1)),Map(bson4->"Terrain"))}
       }}
 
       val r = f.controller.formCards(bson.stringify).apply(FakeRequest(GET, "/inventary/modules/form/cards/"+bson.stringify).withSession("user" -> """{"login":"test"}""","module"->Module.toStrings(module)))
@@ -552,7 +552,7 @@ class ModuleManagerSpec extends Specification with Mockito {
       content must contain("<td>Terrain</td>")
 
       there was one(f.moduleDaoMock).fold(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->Json.obj("$ne"->bson))),any[JsObject],org.mockito.Matchers.eq(module.cartes))(any[(List[BSONObjectID],Module)=>List[BSONObjectID]])(any[ExecutionContext])
-      there was one(f.cardsManagerMock).getInventaryCards(any[JsObject],any[JsObject],any[BSONObjectID],any[Result])(any[(TypeCards,List[Cards],List[Firmware],List[(BSONObjectID,Int)],Map[BSONObjectID,String])=>Result])
+      there was one(f.cardsManagerMock).getInventaryCards(any[JsObject],any[JsObject],any[BSONObjectID],any[Result])(any[(TypeCards,List[Cards],List[Firmware],Int,List[(BSONObjectID,Int)],Map[BSONObjectID,String])=>Result])
     }
 
     "send bad request with list of cards if form submit have error" in new WithApplication{
@@ -577,8 +577,8 @@ class ModuleManagerSpec extends Specification with Mockito {
         case Array(p: (Form[SelectInfo]=>Future[Result]),_)=>p.apply(f.controller.selectElement)
       }}
 
-      f.cardsManagerMock.getInventaryCards(any[JsObject],any[JsObject],any[BSONObjectID],any[Result])(any[(TypeCards,List[Cards],List[Firmware],List[(BSONObjectID,Int)],Map[BSONObjectID,String])=>Result]) answers { (params, _) => params match {
-        case Array(_,_,_,_, p: ((TypeCards,List[Cards],List[Firmware],List[(BSONObjectID,Int)],Map[BSONObjectID,String])=>Result))=>future{p.apply(typeCards,card,firmware,List((bson,0)),Map(bson2->"Test"))}
+      f.cardsManagerMock.getInventaryCards(any[JsObject],any[JsObject],any[BSONObjectID],any[Result])(any[(TypeCards,List[Cards],List[Firmware],Int,List[(BSONObjectID,Int)],Map[BSONObjectID,String])=>Result]) answers { (params, _) => params match {
+        case Array(_,_,_,_, p: ((TypeCards,List[Cards],List[Firmware],Int,List[(BSONObjectID,Int)],Map[BSONObjectID,String])=>Result))=>future{p.apply(typeCards,card,firmware,1,List((bson,0)),Map(bson2->"Test"))}
       }}
 
       val r=controller.addCards(bson.stringify).apply(req)
@@ -588,7 +588,7 @@ class ModuleManagerSpec extends Specification with Mockito {
       there was one(f.typeCardsManagerMock).doIfTypeCardsFound(org.mockito.Matchers.eq(bson))(any[Unit => Future[Result]])(any[Unit => Future[Result]])
       there was one(controller.selectElement).bindFromRequest()(org.mockito.Matchers.eq(req))
       there was one(controller.selectElement).fold(any[Form[SelectInfo]=>Future[Result]],any[SelectInfo=>Result])
-      there was one(f.cardsManagerMock).getInventaryCards(any[JsObject],any[JsObject],any[BSONObjectID],any[Result])(any[(TypeCards,List[Cards],List[Firmware],List[(BSONObjectID,Int)],Map[BSONObjectID,String])=>Result])
+      there was one(f.cardsManagerMock).getInventaryCards(any[JsObject],any[JsObject],any[BSONObjectID],any[Result])(any[(TypeCards,List[Cards],List[Firmware],Int,List[(BSONObjectID,Int)],Map[BSONObjectID,String])=>Result])
     }
 
     "send redirect if cards type not found" in new WithApplication{

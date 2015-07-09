@@ -1,4 +1,4 @@
-@(form:Form[SelectInfo],types:TypeCards,listCards:List[Cards],listFirmware:List[Firmware],stockUsed:List[(reactivemongo.bson.BSONObjectID,Int)],state:Map[reactivemongo.bson.BSONObjectID,String],trie:String,sens:Int,id:String)(implicit request: Request[AnyContent])
+@(form:Form[SelectInfo],types:TypeCards,listCards:List[Cards],listFirmware:List[Firmware],totalStock:Int,stockUsed:List[(reactivemongo.bson.BSONObjectID,Int)],state:Map[reactivemongo.bson.BSONObjectID,String],trie:String,sens:Int,id:String)(implicit request: Request[AnyContent])
 
 @main(Messages("inventary.module.title")){
   @navigation("inventary")
@@ -12,7 +12,7 @@
             <h4>@{types.types} / @{types.modele}</h4>
           </div>
           <div class="col-sm-11 col-sm-offset-1">
-            <div class="row"> <span class="bold">@Messages("inventary.typeCards.stock")</span> : @listCards.size / @{listCards.size+stockUsed.head._2}</div>
+            <div class="row"> <span class="bold">@Messages("inventary.typeCards.stock")</span> : @{totalStock - stockUsed.head._2} / @totalStock</div>
           </div>
         </div>
         @if(listCards.size>0){

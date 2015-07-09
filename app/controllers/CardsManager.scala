@@ -115,7 +115,7 @@ trait CardsManagerLike extends Controller{
       UserManager.doIfconnectAsync(request) {
         val query=Json.obj("delete"->false,"types"->BSONObjectID(id)) ++ (if(id2.nonEmpty){Json.obj("id"->Json.obj("$regex"->(".*"+id2+".*")))}else{Json.obj()})
         getInventaryCards(query,Json.obj(sort->sens),BSONObjectID(id),Redirect(routes.TypeCardsManager.inventary())){
-          (typeCards,listCards,firmware,cardsUsed,cardState)=>Ok(views.html.cards.listCards(typeCards,listCards,firmware,cardsUsed,cardState,sort,sens,id2))
+          (typeCards,listCards,firmware,totalCards,cardsUsed,cardState)=>Ok(views.html.cards.listCards(typeCards,listCards,firmware,totalCards,cardsUsed,cardState,sort,sens,id2))
         }
       }
   }
@@ -429,9 +429,12 @@ trait CardsManagerLike extends Controller{
    * @param f Function for print the list of cards
    * @return
    */
-  def getInventaryCards(selector:JsObject,sort:JsObject,id:BSONObjectID,redirect:Result)(f:(TypeCards,List[Cards],List[Firmware],List[(BSONObjectID,Int)],Map[BSONObjectID,String])=>Result)={
+  def getInventaryCards(selector:JsObject,sort:JsObject,id:BSONObjectID,redirect:Result)(f:(TypeCards,List[Cards],List[Firmware],Int,List[(BSONObjectID,Int)],Map[BSONObjectID,String])=>Result)={
     //Find all cards
     val futureCards=cardDao.findAll(selector,sort)
+
+    //Find number of cards
+    val numberCards=cardDao.count(Json.obj("delete"->false,"types"->id))
 
     //Find firmware
     val futureFirmware=firmwareDao.findAll()
@@ -449,10 +452,13 @@ trait CardsManagerLike extends Controller{
             futureFirmware.flatMap(firmware=>
               cardDao.countUsedCards(List(typeCards)).flatMap(
                 cardsUsed=>
-                  moduleDao.findCardState(listCards.mapConserve(c=>c._id).asInstanceOf[List[BSONObjectID]]).map(
-                   cardState=>
-                     //Display the list of cards
-                     f(typeCards,listCards,firmware,cardsUsed,cardState)
+                  numberCards.flatMap(
+                    totalCards=>
+                      moduleDao.findCardState(listCards.mapConserve(c=>c._id).asInstanceOf[List[BSONObjectID]]).map(
+                        cardState=>
+                          //Display the list of cards
+                          f(typeCards,listCards,firmware,totalCards,cardsUsed,cardState)
+                      )
                   )
               )
             ).recover({case _=>InternalServerError("error")})
