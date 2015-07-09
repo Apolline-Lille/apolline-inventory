@@ -112,8 +112,8 @@ trait SensorManagerLike extends Controller{
       UserManager.doIfconnectAsync(request) {
         val query=Json.obj("delete"->false,"types"->BSONObjectID(id)) ++ (if(id2.nonEmpty){Json.obj("id"->Json.obj("$regex"->(".*"+id2+".*")))}else{Json.obj()})
         getInventarySensor(query,Json.obj(sort->sens),BSONObjectID(id),Redirect(routes.TypeSensorManager.inventary())){
-          (typeSensor,typeMesure,listSensor,sensorUsed,sensorState)=>
-            Ok(views.html.sensors.listSensor(typeSensor,typeMesure,listSensor,sensorUsed,sensorState,sort,sens,id2))
+          (typeSensor,typeMesure,listSensor,totalSensor,sensorUsed,sensorState)=>
+            Ok(views.html.sensors.listSensor(typeSensor,typeMesure,listSensor,totalSensor,sensorUsed,sensorState,sort,sens,id2))
         }
       }
   }
@@ -380,9 +380,12 @@ trait SensorManagerLike extends Controller{
    * @param f Function for print the list of cards
    * @return
    */
-  def getInventarySensor(selector:JsObject,sort:JsObject,id:BSONObjectID,r:Result)(f:(TypeSensor,TypeMesure,List[Sensor],List[(BSONObjectID,Int)],Map[BSONObjectID,String])=>Result)={
+  def getInventarySensor(selector:JsObject,sort:JsObject,id:BSONObjectID,r:Result)(f:(TypeSensor,TypeMesure,List[Sensor],Int,List[(BSONObjectID,Int)],Map[BSONObjectID,String])=>Result)={
     //Find sensors
     val future_sensors=sensorDao.findAll(selector,sort)
+
+    //Find the total number of sensors
+    val countSensors=sensorDao.count(Json.obj("types"->id,"delete"->false))
 
     //Find type sensors
     typeSensorDao.findById(id).flatMap(typeSensorOpt=>
@@ -405,11 +408,13 @@ trait SensorManagerLike extends Controller{
                 future_sensors.flatMap(listSensor=>
                   sensorDao.countUsedSensors(List(typeSensor)).flatMap(
                     countSensorUsed=>
-                      moduleDao.findSensorState(listSensor.mapConserve(s=>s._id).asInstanceOf[List[BSONObjectID]]).map(
-                        sensorState=> {
-                          //Print the list of sensors
-                          f(typeSensor, typeMesure, listSensor, countSensorUsed, sensorState)
-                        }
+                      countSensors.flatMap(
+                        totalSensor=>moduleDao.findSensorState(listSensor.mapConserve(s=>s._id).asInstanceOf[List[BSONObjectID]]).map(
+                          sensorState=> {
+                            //Print the list of sensors
+                            f(typeSensor, typeMesure, listSensor,totalSensor, countSensorUsed, sensorState)
+                          }
+                        )
                       )
                   )
                 ).recover({
