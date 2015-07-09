@@ -9,7 +9,7 @@
           <h3 style="text-align:center">@Messages("global.error.noResult")</h3>
         }else{
           @for(camp<-campaigns){
-            <div class="col-sm-12">
+            <div class="col-sm-12" id="@camp._id.stringify">
               <h4>
                 <a href="@routes.ConditionsManager.listConditions(camp._id.stringify)">@camp.nom</a>
                 <span>
