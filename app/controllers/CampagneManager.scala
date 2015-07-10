@@ -18,7 +18,7 @@ import play.api.libs.concurrent.Execution.Implicits.defaultContext
  * @param nom Name of the campaign
  * @param send Value of the button press
  */
-case class CampaignForm(nom:String,send:Option[String])
+case class CampaignForm(nom:String,types:String,send:Option[String])
 
 /**
  * This object is a controller for manage all campaign
@@ -35,6 +35,7 @@ trait CampagneManagerLike extends Controller{
   val form=Form[CampaignForm](
     mapping(
       "nom"->nonEmptyText,
+      "types"->nonEmptyText,
       "send"->optional(text)
     )(CampaignForm.apply)(CampaignForm.unapply)
   )
@@ -124,7 +125,7 @@ trait CampagneManagerLike extends Controller{
             //If campaign found
             case Some(campaign) => {
               //Prepare form data
-              val campForm=CampaignForm(campaign.nom,None)
+              val campForm=CampaignForm(campaign.nom,campaign.types,None)
               //Print the form
               Ok(views.html.campaign.formCampaign(form.fill(campForm),routes.CampagneManager.updateCampaign(id)))
             }
@@ -176,7 +177,7 @@ trait CampagneManagerLike extends Controller{
             }
 
             //If user press on a other insert the campaign
-            case _=>campaignDao.insert(Campagne(nom = campaignData.nom, conditions = List())).map(
+            case _=>campaignDao.insert(Campagne(nom = campaignData.nom,types=campaignData.types, conditions = List())).map(
               data => Redirect(routes.CampagneManager.listCampaign())
             ).recover({ case _ => InternalServerError("error") })
           }
@@ -289,6 +290,30 @@ trait CampagneManagerLike extends Controller{
         ).recover({case _ => InternalServerError("error")})
       }
     ).recover({case _ => InternalServerError("error")})
+  }
+
+  /**
+   * Verify if card type found and execute a function if campaign found or not
+   * @param id Campaign id
+   * @param found Function executed if campaign found
+   * @param notFound Function executed if campaign not found
+   * @return Return the result of executed function
+   */
+  def doIfCampaignFound(id:BSONObjectID)(found:Campagne=>Future[Result])(notFound:Unit=>Future[Result]):Future[Result]={
+    //Find the card type
+    campaignDao.findOne(Json.obj("_id"->id,"delete"->false)).flatMap(
+      campaignOpt => campaignOpt match{
+
+        //If the card type not found execute function not found
+        case None => notFound()
+
+        //If the card type found execute function found
+        case Some(camp) => found(camp)
+      }
+    ).recover({
+      //Send Internal Server Error if have mongoDB error
+      case _=> InternalServerError("error")
+    })
   }
 }
 

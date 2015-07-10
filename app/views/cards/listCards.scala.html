@@ -1,4 +1,4 @@
-@(types:TypeCards,listCards:List[Cards],listFirmware:List[Firmware],stockUsed:List[(reactivemongo.bson.BSONObjectID,Int)],trie:String,sens:Int,previous:String)(implicit request: Request[AnyContent])
+@(types:TypeCards,listCards:List[Cards],listFirmware:List[Firmware],totalStock:Int,stockUsed:List[(reactivemongo.bson.BSONObjectID,Int)],state:Map[reactivemongo.bson.BSONObjectID,String],trie:String,sens:Int,id:String,previous:String)(implicit request: Request[AnyContent])
 
 @main(Messages("inventary.typeCards.title")){
   <script src="@routes.Assets.at("/public","javascripts/modal-delete.js")" type="text/javascript" defer></script>
@@ -13,7 +13,7 @@
             <h4>@{types.types} / @{types.modele}</h4>
           </div>
           <div class="col-sm-11 col-sm-offset-1">
-            <div class="row"> <span class="bold">@Messages("inventary.typeCards.stock")</span> : @listCards.size / @{listCards.size+stockUsed.head._2}</div>
+            <div class="row"> <span class="bold">@Messages("inventary.typeCards.stock")</span> : @{totalStock-stockUsed.head._2} / @totalStock</div>
           </div>
         </div>
         @if(listCards.size>0){
@@ -24,7 +24,7 @@
                 <ul class="dropdown-menu" role="menu">
                 @for(col<-List[String]("id","acquisition","firstUse","agregateur","apolline","etat")){
                   <li>
-                    <a href="@routes.CardsManager.inventary(types._id.stringify,col,if(trie.equals(col)){-sens}else{1})">
+                    <a href="@routes.CardsManager.inventary(types._id.stringify,col,if(trie.equals(col)){-sens}else{1},id)">
                       @if(trie.equals(col)){<span class="glyphicon glyphicon-ok"></span>}
                       @Messages("inventary.card."+col)
                     </a>
@@ -57,7 +57,7 @@
                   <td>@defining(listFirmware.filter(firm=>firm._id.equals(mod.firmware))){firm=>@firm.head.nom (@firm.head.version)}</td>
                   <td>@if(mod.agregateur){ @Messages("global.yes") }else{ @Messages("global.no") }</td>
                   <td>@mod.apolline.getOrElse("-")</td>
-                  <td>@if(mod.hs){@Messages("inventary.card.hs")}</td>
+                  <td>@if(mod.hs){@Messages("inventary.card.hs")}@if(mod.hs && state.getOrElse(mod._id,"").nonEmpty){<br/>}@state.getOrElse(mod._id,"")</td>
                   <td>
                     <a href="@routes.CardsManager.moreInformation(types._id.stringify,mod._id.stringify)" data-toggle-tooltip title="@Messages("global.tooltip.detail")"><span class="glyphicon glyphicon-info-sign"></span></a>
                     <a href="@routes.CardsManager.cardClonePage(types._id.stringify,mod._id.stringify)" data-toggle-tooltip title="@Messages("global.tooltip.clone")"><span class="glyphicon glyphicon-copy"></span></a>
@@ -76,6 +76,16 @@
         }
       </article>
       <nav class="col-sm-2">
+        <div class="search_lateral">
+        @helper.form(action=routes.CardsManager.inventary(types._id.stringify)){
+          <div class="input-group">
+            <div class="input-group-addon"><span class="glyphicon glyphicon-search"></span></div>
+            <input type="search" name="id" class="form-control" value="@id" placeholder="@Messages("inventary.card.id")"/>
+            <input type="hidden" name="sort" value="@trie"/>
+            <input type="hidden" name="sens" value="@sens"/>
+          </div>
+        }
+        </div>
         <a href="@routes.CardsManager.cardPage(types._id.stringify)" class="btn btn-success">
           <span class="glyphicon glyphicon-plus"></span>
           @Messages("inventary.card.addCards")

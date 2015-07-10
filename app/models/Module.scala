@@ -65,6 +65,26 @@ abstract class ModuleDao extends JsonDao[Module, BSONObjectID](ReactiveMongoPlug
    * @return Return the list of module type
    */
   def findListType()=collection.db.command(Aggregate(collection.name, Seq(Match(BSONDocument("delete"->false)) ,GroupField("types")("count" -> SumValue(1)))))
+
+  def findSensorState(sensors:List[BSONObjectID])=fold(Json.obj("delete"->false,"capteurs"->Json.obj("$in"->sensors)),Json.obj(),Map[BSONObjectID,List[BSONObjectID]]()){
+    (maps,mod)=>maps + (mod._id->mod.capteurs.intersect(sensors))
+  }.flatMap(
+      sensors=>ConditionDaoObj.findModulesState(sensors.keys.toList).map(
+        data=>{
+          data.keys.foldLeft(Map[BSONObjectID,String]()){(maps,k) => maps ++ (sensors(k) map (s=> s->data(k) )) }
+        }
+      )
+    )
+
+  def findCardState(cards:List[BSONObjectID])=fold(Json.obj("delete"->false,"cartes"->Json.obj("$in"->cards)),Json.obj(),Map[BSONObjectID,List[BSONObjectID]]()){
+    (maps,mod)=>maps + (mod._id->mod.cartes.intersect(cards))
+  }.flatMap(
+      cards=>ConditionDaoObj.findModulesState(cards.keys.toList).map(
+        data=>{
+          data.keys.foldLeft(Map[BSONObjectID,String]()){(maps,k) => maps ++ (cards(k) map (s=> s->data(k) )) }
+        }
+      )
+    )
 }
 
 /**

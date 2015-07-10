@@ -12,6 +12,7 @@ import play.api.libs.json.{Writes, Json, JsObject}
 import play.api.mvc.{Result, Action, Results, Call}
 import play.api.test.Helpers._
 import play.api.test.{FakeRequest, WithApplication}
+import play.modules.reactivemongo.json.BSONFormats.BSONObjectIDFormat
 import reactivemongo.bson.{BSONObjectID, BSONDocument}
 import reactivemongo.core.commands.{GetLastError, LastError}
 import scala.concurrent._
@@ -181,24 +182,90 @@ class TypeCardsManagerSpec extends Specification with Mockito {
 
   "When method getInventaryTypeCards is called, TypeCardsManager" should{
 
-    "Call function for print result" in new WithApplication {
+    "Call function for print result if method is called without filter" in new WithApplication {
       val f=fixture
       val func=mock[(List[TypeCards],List[BSONDocument],List[BSONDocument],List[(BSONObjectID,Int)])=>Result]
 
-      f.typeCardsDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns future{List[TypeCards]()}
-      f.typeCardsDaoMock.findListType(any[BSONDocument]) returns future{Stream[BSONDocument]()}
+      f.typeCardsDaoMock.findAll(org.mockito.Matchers.eq(Json.obj("_id"->bson)), any[JsObject])(any[ExecutionContext]) returns future{List[TypeCards]()}
+      f.typeCardsDaoMock.findListType(org.mockito.Matchers.eq(BSONDocument("_id"->bson))) returns future{Stream[BSONDocument]()}
       f.cardDaoMock.countCards() returns future{Stream[BSONDocument]()}
       f.cardDaoMock.countUsedCards(org.mockito.Matchers.eq(List())) returns future{List()}
       func.apply(any[List[TypeCards]],any[List[BSONDocument]],any[List[BSONDocument]],any[List[(BSONObjectID,Int)]]) returns Results.Ok("call function")
 
       val req=FakeRequest(GET, "/inventary/cards").withSession("user" -> """{"login":"test"}""")
-      val action = Action.async{f.controller.getInventaryTypeCards(Json.obj(),"")(func)}
+      val action = Action.async{f.controller.getInventaryTypeCards(Json.obj("_id"->bson),"","")(func)}
       val r=call(action,req)
       status(r) must equalTo(OK)
       contentAsString(r) must equalTo("call function")
 
-      there was one(f.typeCardsDaoMock).findAll(any[JsObject], any[JsObject])(any[ExecutionContext])
-      there was one(f.typeCardsDaoMock).findListType(any[BSONDocument])
+      there was one(f.typeCardsDaoMock).findAll(org.mockito.Matchers.eq(Json.obj("_id"->bson)), any[JsObject])(any[ExecutionContext])
+      there was one(f.typeCardsDaoMock).findListType(org.mockito.Matchers.eq(BSONDocument("_id"->bson)))
+      there was one(f.cardDaoMock).countCards()
+      there was one(func).apply(any[List[TypeCards]],any[List[BSONDocument]],any[List[BSONDocument]],any[List[(BSONObjectID,Int)]])
+    }
+
+    "Call function for print result if method is called with type filter" in new WithApplication {
+      val f=fixture
+      val func=mock[(List[TypeCards],List[BSONDocument],List[BSONDocument],List[(BSONObjectID,Int)])=>Result]
+
+      f.typeCardsDaoMock.findAll(org.mockito.Matchers.eq(Json.obj("_id"->bson,"types"->"typ")), any[JsObject])(any[ExecutionContext]) returns future{List[TypeCards]()}
+      f.typeCardsDaoMock.findListType(org.mockito.Matchers.eq(BSONDocument("_id"->bson))) returns future{Stream[BSONDocument]()}
+      f.cardDaoMock.countCards() returns future{Stream[BSONDocument]()}
+      f.cardDaoMock.countUsedCards(org.mockito.Matchers.eq(List())) returns future{List()}
+      func.apply(any[List[TypeCards]],any[List[BSONDocument]],any[List[BSONDocument]],any[List[(BSONObjectID,Int)]]) returns Results.Ok("call function")
+
+      val req=FakeRequest(GET, "/inventary/cards").withSession("user" -> """{"login":"test"}""")
+      val action = Action.async{f.controller.getInventaryTypeCards(Json.obj("_id"->bson),"typ","")(func)}
+      val r=call(action,req)
+      status(r) must equalTo(OK)
+      contentAsString(r) must equalTo("call function")
+
+      there was one(f.typeCardsDaoMock).findAll(org.mockito.Matchers.eq(Json.obj("_id"->bson,"types"->"typ")), any[JsObject])(any[ExecutionContext])
+      there was one(f.typeCardsDaoMock).findListType(org.mockito.Matchers.eq(BSONDocument("_id"->bson)))
+      there was one(f.cardDaoMock).countCards()
+      there was one(func).apply(any[List[TypeCards]],any[List[BSONDocument]],any[List[BSONDocument]],any[List[(BSONObjectID,Int)]])
+    }
+
+    "Call function for print result if method is called with modele filter" in new WithApplication {
+      val f=fixture
+      val func=mock[(List[TypeCards],List[BSONDocument],List[BSONDocument],List[(BSONObjectID,Int)])=>Result]
+
+      f.typeCardsDaoMock.findAll(org.mockito.Matchers.eq(Json.obj("_id"->bson,"modele"->Json.obj("$regex"->".*mod.*"))), any[JsObject])(any[ExecutionContext]) returns future{List[TypeCards]()}
+      f.typeCardsDaoMock.findListType(org.mockito.Matchers.eq(BSONDocument("_id"->bson))) returns future{Stream[BSONDocument]()}
+      f.cardDaoMock.countCards() returns future{Stream[BSONDocument]()}
+      f.cardDaoMock.countUsedCards(org.mockito.Matchers.eq(List())) returns future{List()}
+      func.apply(any[List[TypeCards]],any[List[BSONDocument]],any[List[BSONDocument]],any[List[(BSONObjectID,Int)]]) returns Results.Ok("call function")
+
+      val req=FakeRequest(GET, "/inventary/cards").withSession("user" -> """{"login":"test"}""")
+      val action = Action.async{f.controller.getInventaryTypeCards(Json.obj("_id"->bson),"","mod")(func)}
+      val r=call(action,req)
+      status(r) must equalTo(OK)
+      contentAsString(r) must equalTo("call function")
+
+      there was one(f.typeCardsDaoMock).findAll(org.mockito.Matchers.eq(Json.obj("_id"->bson,"modele"->Json.obj("$regex"->".*mod.*"))), any[JsObject])(any[ExecutionContext])
+      there was one(f.typeCardsDaoMock).findListType(org.mockito.Matchers.eq(BSONDocument("_id"->bson)))
+      there was one(f.cardDaoMock).countCards()
+      there was one(func).apply(any[List[TypeCards]],any[List[BSONDocument]],any[List[BSONDocument]],any[List[(BSONObjectID,Int)]])
+    }
+
+    "Call function for print result if method is called with type and modele filter" in new WithApplication {
+      val f=fixture
+      val func=mock[(List[TypeCards],List[BSONDocument],List[BSONDocument],List[(BSONObjectID,Int)])=>Result]
+
+      f.typeCardsDaoMock.findAll(org.mockito.Matchers.eq(Json.obj("_id"->bson,"types"->"typ","modele"->Json.obj("$regex"->".*mod.*"))), any[JsObject])(any[ExecutionContext]) returns future{List[TypeCards]()}
+      f.typeCardsDaoMock.findListType(org.mockito.Matchers.eq(BSONDocument("_id"->bson))) returns future{Stream[BSONDocument]()}
+      f.cardDaoMock.countCards() returns future{Stream[BSONDocument]()}
+      f.cardDaoMock.countUsedCards(org.mockito.Matchers.eq(List())) returns future{List()}
+      func.apply(any[List[TypeCards]],any[List[BSONDocument]],any[List[BSONDocument]],any[List[(BSONObjectID,Int)]]) returns Results.Ok("call function")
+
+      val req=FakeRequest(GET, "/inventary/cards").withSession("user" -> """{"login":"test"}""")
+      val action = Action.async{f.controller.getInventaryTypeCards(Json.obj("_id"->bson),"typ","mod")(func)}
+      val r=call(action,req)
+      status(r) must equalTo(OK)
+      contentAsString(r) must equalTo("call function")
+
+      there was one(f.typeCardsDaoMock).findAll(org.mockito.Matchers.eq(Json.obj("_id"->bson,"types"->"typ","modele"->Json.obj("$regex"->".*mod.*"))), any[JsObject])(any[ExecutionContext])
+      there was one(f.typeCardsDaoMock).findListType(org.mockito.Matchers.eq(BSONDocument("_id"->bson)))
       there was one(f.cardDaoMock).countCards()
       there was one(func).apply(any[List[TypeCards]],any[List[BSONDocument]],any[List[BSONDocument]],any[List[(BSONObjectID,Int)]])
     }
@@ -215,7 +282,7 @@ class TypeCardsManagerSpec extends Specification with Mockito {
       f.typeCardsDaoMock.findListType(any[BSONDocument]) returns future{Stream[BSONDocument]()}
 
       val req=FakeRequest(GET, "/inventary/cards").withSession("user" -> """{"login":"test"}""")
-      val action = Action.async{f.controller.getInventaryTypeCards(Json.obj(),"")(func)}
+      val action = Action.async{f.controller.getInventaryTypeCards(Json.obj(),"","")(func)}
       val r=call(action,req)
 
       status(r) must equalTo(INTERNAL_SERVER_ERROR)
@@ -239,7 +306,7 @@ class TypeCardsManagerSpec extends Specification with Mockito {
       futureMock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers {value=>future{value.asInstanceOf[PartialFunction[Throwable,Result]](throwable)}}
 
       val req=FakeRequest(GET, "/inventary/cards").withSession("user" -> """{"login":"test"}""")
-      val action = Action.async{f.controller.getInventaryTypeCards(Json.obj(),"")(func)}
+      val action = Action.async{f.controller.getInventaryTypeCards(Json.obj(),"","")(func)}
       val r=call(action,req)
 
       status(r) must equalTo(INTERNAL_SERVER_ERROR)
@@ -264,7 +331,7 @@ class TypeCardsManagerSpec extends Specification with Mockito {
       futureMock.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers {value=>future{value.asInstanceOf[PartialFunction[Throwable,Result]](throwable)}}
 
       val req=FakeRequest(GET, "/inventary/cards").withSession("user" -> """{"login":"test"}""")
-      val action = Action.async{f.controller.getInventaryTypeCards(Json.obj(),"")(func)}
+      val action = Action.async{f.controller.getInventaryTypeCards(Json.obj(),"","")(func)}
       val r=call(action,req)
       status(r) must equalTo(INTERNAL_SERVER_ERROR)
 
@@ -736,6 +803,105 @@ class TypeCardsManagerSpec extends Specification with Mockito {
       there was one(fix.typeCardsDaoMock).findOne(any[JsObject])(any[ExecutionContext])
       there was one(fix.cardDaoMock).findOne(any[JsObject])(any[ExecutionContext])
       there was one(fix.typeCardsDaoMock).updateById(any[BSONObjectID],any[TypeCards],any[GetLastError])(any[Writes[TypeCards]],any[ExecutionContext])
+    }
+  }
+
+  "When method doIfTypeCardsFound is called, TypeCardsManager" should{
+    "call function notFound if type cards not found" in new WithApplication{
+      val fix=fixture
+      val found=mock[TypeCards=>Future[Result]]
+      val notFound=mock[Unit=>Future[Result]]
+
+      fix.typeCardsDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("_id"->bson,"delete"->false)))(any[ExecutionContext]) returns future{None}
+      notFound.apply(any[Unit]) returns future{Results.Ok("exec notFound")}
+
+      val r=fix.controller.doIfTypeCardsFound(bson)(found)(notFound)
+
+      status(r) must equalTo(OK)
+      contentAsString(r) must equalTo("exec notFound")
+
+      there was one(fix.typeCardsDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("_id"->bson,"delete"->false)))(any[ExecutionContext])
+      there was one(notFound).apply(any[Unit])
+      there was no(found).apply(any[TypeCards])
+    }
+
+    "call function found if type cards found" in new WithApplication{
+      val fix=fixture
+      val found=mock[TypeCards=>Future[Result]]
+      val notFound=mock[Unit=>Future[Result]]
+      val typeCards=mock[TypeCards]
+
+      fix.typeCardsDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("_id"->bson,"delete"->false)))(any[ExecutionContext]) returns future{Some(typeCards)}
+      found.apply(any[TypeCards]) returns future{Results.Ok("exec found")}
+
+      val r=fix.controller.doIfTypeCardsFound(bson)(found)(notFound)
+
+      status(r) must equalTo(OK)
+      contentAsString(r) must equalTo("exec found")
+
+      there was one(fix.typeCardsDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("_id"->bson,"delete"->false)))(any[ExecutionContext])
+      there was no(notFound).apply(any[Unit])
+      there was one(found).apply(any[TypeCards])
+    }
+
+    "send internal server error if have mongoDB error when find type cards" in new WithApplication{
+      val fix=fixture
+      val found=mock[TypeCards=>Future[Result]]
+      val notFound=mock[Unit=>Future[Result]]
+      val lastError=mock[Future[Option[TypeCards]]]
+      val throwable=mock[Throwable]
+
+      fix.typeCardsDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("_id"->bson,"delete"->false)))(any[ExecutionContext]) returns lastError
+      lastError.flatMap(any[Option[TypeCards]=>Future[Option[TypeCards]]])(any[ExecutionContext]) returns lastError
+      lastError.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers {value=>future{value.asInstanceOf[PartialFunction[Throwable,Result]](throwable)}}
+
+      val r=fix.controller.doIfTypeCardsFound(bson)(found)(notFound)
+
+      status(r) must equalTo(INTERNAL_SERVER_ERROR)
+
+      there was one(fix.typeCardsDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("_id"->bson,"delete"->false)))(any[ExecutionContext])
+      there was no(notFound).apply(any[Unit])
+      there was no(found).apply(any[TypeCards])
+      there was one(lastError).flatMap(any[Option[TypeCards]=>Future[Option[TypeCards]]])(any[ExecutionContext])
+      there was one(lastError).recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext])
+    }
+  }
+
+  "When method filtreStock is called, TypeCardsManager" should{
+    "return true if the value is greater than 0 and filter is equal to yes" in new WithApplication{
+      val fix=fixture
+
+      fix.controller.filtreStock("yes")(1) must beTrue
+    }
+
+    "return false if the value is less or equal than 0 and filter is equal to yes" in new WithApplication{
+      val fix=fixture
+
+      fix.controller.filtreStock("yes")(0) must beFalse
+    }
+
+    "return true if the value is equal to 0 and filter is equal to no" in new WithApplication{
+      val fix=fixture
+
+      fix.controller.filtreStock("no")(0) must beTrue
+    }
+
+    "return false if the value is not equal to 0 and filter is equal to no" in new WithApplication{
+      val fix=fixture
+
+      fix.controller.filtreStock("no")(1) must beFalse
+    }
+
+    "return true if the value is greater or equal than 0 and filter is not equal to yes or no" in new WithApplication{
+      val fix=fixture
+
+      fix.controller.filtreStock("yesNo")(0) must beTrue
+    }
+
+    "return false if the value is less than 0 and filter is not equal to yes or no" in new WithApplication{
+      val fix=fixture
+
+      fix.controller.filtreStock("yesNo")(-1) must beFalse
     }
   }
 }

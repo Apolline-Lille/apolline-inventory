@@ -12,7 +12,7 @@ import play.api.i18n.Messages
 import play.api.libs.json.{JsObject, JsValue, JsArray, Json}
 import play.api.mvc._
 import play.modules.reactivemongo.json.BSONFormats.BSONObjectIDFormat
-import reactivemongo.bson.BSONObjectID
+import reactivemongo.bson.{BSONDocument, BSONObjectID}
 import scala.collection.immutable.HashSet
 import scala.concurrent._
 
@@ -81,6 +81,8 @@ trait ModuleManagerLike extends Controller {
    */
   val sensorsDao: SensorDao = SensorDaoObj
 
+  val conditionDao:ConditionDao = ConditionDaoObj
+
   /**
    * DAO for type sensors
    */
@@ -128,20 +130,16 @@ trait ModuleManagerLike extends Controller {
   @ApiImplicitParams(Array(
     new ApiImplicitParam(name="filtre",value="Value used for filter modules depending on their type",dataType="String",paramType="query")
   ))
-  def inventary(filtre:String="") = Action.async {
+  def inventary(filtre:String="",id:String="") = Action.async {
     implicit request =>
       //Verify if user is connect
       UserManager.doIfconnectAsync(request) {
-        val selector=if(filtre.isEmpty) Json.obj("delete"->false) else { Json.obj("delete"->false,"types"->filtre) }
-        moduleDao.findAll(selector).flatMap(
-          modules=> {
-            moduleDao.findListType().map(
-              listType=>
-                //Print the list of module
-                Ok(views.html.module.listModule(modules,listType.toList,filtre))
-            )
-          }
-        )
+        //Display inventary of module
+        getInventaryModule(filtre,id) {
+          (modules, listType) =>
+            //Print the list of module
+            Ok(views.html.module.listModule(modules, listType, filtre,id))
+        }
       }
   }
 
@@ -183,13 +181,16 @@ trait ModuleManagerLike extends Controller {
                   case (typeSensors,typeMesure,sensors)=>
 
                     //Find cards information
-                    findCardsInfo (module).map (
+                    findCardsInfo (module).flatMap (
                       data => data match {
                         case (typesCards, cards,firmware) =>
-
                           val previous=previousPage
-                          //Print module information
-                          Ok(views.html.module.moreInfo(module,typesCards,cards,firmware,typeSensors,typeMesure,sensors,previous)).withSession(request.session + ("previous"->previous))
+                          //Find the state of the module
+                          conditionDao.findModulesState(List(module._id)).map(
+                            data =>
+                              //Print module information
+                              Ok(views.html.module.moreInfo(module,data.getOrElse(module._id,""),typesCards,cards,firmware,typeSensors,typeMesure,sensors,previous)).withSession(request.session + ("previous"->previous))
+                          )
                       }
                     )
                 }
@@ -312,7 +313,7 @@ trait ModuleManagerLike extends Controller {
   @ApiImplicitParams(Array(
     new ApiImplicitParam(value = "Name of type cards used for filter type cards",name="filtre", dataType = "String", paramType = "query")
   ))
-  def formTypeCards(filtreType:String="") = Action.async{
+  def formTypeCards(filtreType:String="",filtreModele:String="") = Action.async{
     implicit request =>
       //Verify if user is connect
       UserManager.doIfconnectAsync(request) {
@@ -326,8 +327,8 @@ trait ModuleManagerLike extends Controller {
 
                 //Find the list of type cards
                 val selector = Json.obj("delete" -> false, "_id" -> Json.obj("$in" -> JsArray(idType.toSeq)))
-                typeCardsManager.getInventaryTypeCards(selector, filtreType) {
-                  (types, filtre, count,countUsed) => Ok(views.html.module.listTypeCards(filtreType, types, count,countUsed, filtre))
+                typeCardsManager.getInventaryTypeCards(selector, filtreType,filtreModele) {
+                  (types, filtre, count,countUsed) => Ok(views.html.module.listTypeCards(filtreType,filtreModele, types, count,countUsed, filtre))
                 }
 
               }
@@ -356,7 +357,7 @@ trait ModuleManagerLike extends Controller {
     new ApiImplicitParam(value = "Name of column cards used for sort cards",name="sort", dataType = "String", paramType = "query"),
     new ApiImplicitParam(value = "Flag indicate if the sort is ascending or descending",name="sens", dataType = "Int", paramType = "query")
   ))
-  def formCards(id:String,sort:String="id",sens:Int=1)=Action.async{
+  def formCards(id:String,sort:String="id",sens:Int=1,id2:String="")=Action.async{
     implicit request=>
       //Verify if user is connect
       UserManager.doIfconnectAsync(request) {
@@ -364,9 +365,10 @@ trait ModuleManagerLike extends Controller {
         moduleDao.fold(Json.obj("delete"->false,"_id"->Json.obj("$ne"->module._id)),Json.obj(),module.cartes)((list,card) => list ++ card.cartes).flatMap(
           listCardsUsed=> {
             val listCards = listCardsUsed.mapConserve(p => BSONObjectIDFormat.writes(p)).asInstanceOf[List[JsValue]]
+            val query=Json.obj("delete"->false,"types"->BSONObjectID(id),"_id"->Json.obj("$nin"->listCards)) ++ (if(id2.nonEmpty){Json.obj("id"->Json.obj("$regex"->(".*"+id2+".*")))}else{Json.obj()})
             //Find the list of cards
-            cardsManager.getInventaryCards(Json.obj("delete" -> false, "types" -> BSONObjectID(id),"_id"->Json.obj("$nin"->listCards)), Json.obj(sort -> sens), BSONObjectID(id), Redirect(routes.ModuleManager.formTypeCards())) {
-              (typeCards, listCards, firmware,cardsUsed) => Ok(views.html.module.listCards(selectElement, typeCards, listCards, firmware,cardsUsed, sort, sens))
+            cardsManager.getInventaryCards(query, Json.obj(sort -> sens), BSONObjectID(id), Redirect(routes.ModuleManager.formTypeCards())) {
+              (typeCards, listCards, firmware,totalStock,cardsUsed,stateCards) => Ok(views.html.module.listCards(selectElement, typeCards, listCards, firmware,totalStock,cardsUsed,stateCards, sort, sens,id2))
             }
           }
         )
@@ -390,7 +392,7 @@ trait ModuleManagerLike extends Controller {
   @ApiImplicitParams(Array(
     new ApiImplicitParam(value = "Name of type cards used for filter type sensors",name="filtre", dataType = "String", paramType = "query")
   ))
-  def formTypeSensors(filtreType:String="")=Action.async{
+  def formTypeSensors(filtreType:String="",filtreModele:String="")=Action.async{
     implicit request=>
       //Verify if user is connect
       UserManager.doIfconnectAsync(request) {
@@ -403,8 +405,8 @@ trait ModuleManagerLike extends Controller {
               idType =>
 
                 //Find the list of type sensors
-                typeSensorManager.getInventaryTypeSensor(Json.obj("delete" -> false, "_id" -> Json.obj("$in" -> JsArray(idType.toSeq))), filtreType) {
-                  (typeSensor, typeMesure, stock,stockUsed, nomType) => Ok(views.html.module.listTypeSensors(filtreType, typeSensor, typeMesure, stock,stockUsed, nomType))
+                typeSensorManager.getInventaryTypeSensor(Json.obj("delete" -> false, "_id" -> Json.obj("$in" -> JsArray(idType.toSeq))), filtreType,filtreModele) {
+                  (typeSensor, typeMesure, stock,stockUsed, nomType) => Ok(views.html.module.listTypeSensors(filtreType,filtreModele, typeSensor, typeMesure, stock,stockUsed, nomType))
                 }
 
             ).recover({ case e => InternalServerError("error") })
@@ -432,7 +434,7 @@ trait ModuleManagerLike extends Controller {
     new ApiImplicitParam(value = "Name of column sensors used for sort sensors",name="sort", dataType = "String", paramType = "query"),
     new ApiImplicitParam(value = "Flag indicate if the sort is ascending or descending",name="sens", dataType = "Int", paramType = "query")
   ))
-  def formSensors(id:String,sort:String="id",sens:Int=1)=Action.async{
+  def formSensors(id:String,sort:String="id",sens:Int=1,id2:String="")=Action.async{
     implicit request=>
       //Verify if user is connect
       UserManager.doIfconnectAsync(request) {
@@ -440,9 +442,10 @@ trait ModuleManagerLike extends Controller {
         moduleDao.fold(Json.obj("delete"->false,"_id"->Json.obj("$ne"->module._id)),Json.obj(),module.capteurs)((list,card) => list ++ card.capteurs).flatMap(
           listSensorsUsed=> {
             val listSensors = listSensorsUsed.mapConserve(p => BSONObjectIDFormat.writes(p)).asInstanceOf[List[JsValue]]
+            val query=Json.obj("delete"->false,"types"->BSONObjectID(id),"_id"->Json.obj("$nin"->listSensors)) ++ (if(id2.nonEmpty){Json.obj("id"->Json.obj("$regex"->(".*"+id2+".*")))}else{Json.obj()})
             //Find the list of sensors
-            sensorsManager.getInventarySensor(Json.obj("delete" -> false, "types" -> BSONObjectID(id), "_id" -> Json.obj("$nin" -> JsArray(listSensors))), Json.obj(sort -> sens), BSONObjectID(id), Redirect(routes.ModuleManager.formTypeSensors())) {
-              (typeSensor, typeMesure, listSensors,sensorsUsed) => Ok(views.html.module.listSensors(selectElement, typeSensor, typeMesure, listSensors,sensorsUsed, sort, sens))
+            sensorsManager.getInventarySensor(query, Json.obj(sort -> sens), BSONObjectID(id), Redirect(routes.ModuleManager.formTypeSensors())) {
+              (typeSensor, typeMesure, listSensors,totalSensors,sensorsUsed,sensorState) => Ok(views.html.module.listSensors(selectElement, typeSensor, typeMesure, listSensors,totalSensors,sensorsUsed,sensorState, sort, sens,id2))
             }
           }
         )
@@ -480,7 +483,7 @@ trait ModuleManagerLike extends Controller {
             formWithErrors => {
               //Find the list of cards
               cardsManager.getInventaryCards(Json.obj("delete"->false,"types"->BSONObjectID(idType)),Json.obj("id"->1),BSONObjectID(idType),Redirect(routes.ModuleManager.formTypeCards())){
-                (typeCards,listCards,firmware,cardsUsed)=>BadRequest(views.html.module.listCards(formWithErrors,typeCards,listCards,firmware,cardsUsed,"id",1))
+                (typeCards,listCards,firmware,totalStock,cardsUsed,stateCards)=>BadRequest(views.html.module.listCards(formWithErrors,typeCards,listCards,firmware,totalStock,cardsUsed,stateCards,"id",1,""))
               }
             },
 
@@ -537,7 +540,7 @@ trait ModuleManagerLike extends Controller {
             formWithErrors => {
               //Find the list of cards
               sensorsManager.getInventarySensor(Json.obj("delete"->false,"types"->BSONObjectID(idType)),Json.obj("id"->1),BSONObjectID(idType),Redirect(routes.ModuleManager.formTypeCards())){
-                (typeSensor,typeMesure,listSensors,sensorUsed)=>BadRequest(views.html.module.listSensors(selectElement,typeSensor,typeMesure,listSensors,sensorUsed,"id",1))
+                (typeSensor,typeMesure,listSensors,totalSensors,sensorUsed,sensorState)=>BadRequest(views.html.module.listSensors(selectElement,typeSensor,typeMesure,listSensors,totalSensors,sensorUsed,sensorState,"id",1,""))
               }
             },
 
@@ -828,6 +831,36 @@ trait ModuleManagerLike extends Controller {
         //Redirect to validate page
         Redirect(routes.ModuleManager.validate()).withSession(request.session + ("module" -> Module.toStrings(newModule)))
       }
+  }
+
+  /**
+   * Find modules and their type for display the inventary
+   * @param filtre Module type for filter it
+   * @param view Function for print the inventary
+   * @return A result with the modules inventary
+   */
+  def getInventaryModule(filtre:String,filtreId:String)(view:(List[Module],List[BSONDocument])=>Result)={
+    //Create the query
+    val selector=(filtre,filtreId) match {
+      case ("","")=>Json.obj("delete"->false)
+      case (_,"")=> Json.obj("delete"->false,"types"->filtre)
+      case ("",_)=>Json.obj("delete"->false,"id"->Json.obj("$regex"->(".*"+filtreId+".*")))
+      case _ =>Json.obj("delete"->false,"types"->filtre,"id"->Json.obj("$regex"->(".*"+filtreId+".*")))
+    }
+
+    //Find modules
+    moduleDao.findAll(selector).flatMap(
+      modules=> {
+
+        //Find modules type
+        moduleDao.findListType().map(
+          listType=>
+
+            //Display the inventary
+            view(modules,listType.toList)
+        )
+      }
+    )
   }
 
   /**

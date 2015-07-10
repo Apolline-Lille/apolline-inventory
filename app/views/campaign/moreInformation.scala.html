@@ -1,0 +1,38 @@
+@(cond:Condition,loc:Option[Localisation],module:Module,id:String)(implicit request: Request[AnyContent])
+
+@import java.text.SimpleDateFormat
+
+@main(Messages("campaign.list.title")){
+  @navigation("campaign")
+  <div class="container">
+    <section>
+      <article class="col-sm-12">
+        <div class="row"><span class="bold">@Messages("campaign.condition.debut")</span> : @{new SimpleDateFormat("dd/MM/yyyy HH:mm:ss").format(cond.dateDebut)}</div>
+        <div class="row"><span class="bold">@Messages("campaign.condition.fin")</span> : @if(cond.dateFin.nonEmpty){@{new SimpleDateFormat("dd/MM/yyyy HH:mm:ss").format(cond.dateFin.get)}}</div>
+        <div class="row"><span class="bold">@Messages("campaign.condition.commentaire")</span> : @cond.commentaire</div>
+        <div class="row"><span class="bold">@Messages("campaign.condition.onglet.module")</span> : @campaign.validateModule(module)</div>
+        @if(loc.nonEmpty){
+          <div class="row"><span class="bold">@Messages("campaign.condition.onglet.localisation")</span> : @loc.get.nom
+            <div class="col-sm-11 col-sm-offset-1" style="font-size:small">
+              <div class="row"><span class="bold">@Messages("campaign.condition.localisation.lat")</span> : @loc.get.lat</div>
+              <div class="row"><span class="bold">@Messages("campaign.condition.localisation.lon")</span> : @loc.get.lon</div>
+              <div class="row"><span class="bold">@Messages("campaign.condition.localisation.commentaire")</span> : @loc.get.commentaire</div>
+              <div class="row"><span class="bold">@Messages("campaign.condition.localisation.photo")</span> :
+                <div class="row">
+                @for(photo<-loc.get.photo){
+                  <div class="img-xs img-md img-lg img-thumbnail">
+                    <a class="linkImg" href="@routes.Assets.at("/public","images/campaign/"+photo)">
+                      <img src="@routes.Assets.at("/public","images/campaign/"+photo)" class="img-responsive">
+                    </a>
+                    <a class="linkDeleteImg" href="@routes.ConditionsManager.removeImageCondition(id,cond._id.stringify,photo)"><span class="glyphicon glyphicon-remove"></span></a>
+                  </div>
+                }
+                </div>
+              </div>
+            </div>
+          </div>
+        }
+      </article>
+    </section>
+  </div>
+}

@@ -11,7 +11,7 @@ import play.api.data.Forms._
 import play.api.i18n.Messages
 import play.api.libs.json.{Json, JsObject}
 import play.api.mvc._
-import play.modules.reactivemongo.json.BSONFormats
+import play.modules.reactivemongo.json.BSONFormats.BSONObjectIDFormat
 import reactivemongo.bson.{BSONDocument, BSONObjectID}
 import scala.concurrent._
 
@@ -66,6 +66,8 @@ trait CardsManagerLike extends Controller{
    */
   val firmwareDao:FirmwareDao=FirmwareDaoObj
 
+  val moduleDao:ModuleDao=ModuleDaoObj
+
   /**
    * Manager for cards type
    */
@@ -111,13 +113,14 @@ trait CardsManagerLike extends Controller{
   @ApiImplicitParams(Array(
     new ApiImplicitParam(value = "Id of the card type for list cards associated",required=true,name="id", dataType = "String", paramType = "path")
   ))
-  def inventary(id:String,sort:String="id",sens:Int=1)=Action.async{
+  def inventary(id:String,sort:String="id",sens:Int=1,id2:String="")=Action.async{
     implicit request =>
       //Verify if user is connect
       UserManager.doIfconnectAsync(request) {
         val previous=previousPage
-        getInventaryCards(Json.obj("delete"->false,"types"->BSONFormats.BSONObjectIDFormat.writes(BSONObjectID(id))),Json.obj(sort->sens),BSONObjectID(id),Redirect(routes.TypeCardsManager.inventary())){
-          (typeCards,listCards,firmware,cardsUsed)=>Ok(views.html.cards.listCards(typeCards,listCards,firmware,cardsUsed,sort,sens,previous)).withSession(request.session + ("previous"->previous))
+        val query=Json.obj("delete"->false,"types"->BSONObjectID(id)) ++ (if(id2.nonEmpty){Json.obj("id"->Json.obj("$regex"->(".*"+id2+".*")))}else{Json.obj()})
+        getInventaryCards(query,Json.obj(sort->sens),BSONObjectID(id),Redirect(routes.TypeCardsManager.inventary())){
+          (typeCards,listCards,firmware,totalCards,cardsUsed,cardState)=>Ok(views.html.cards.listCards(typeCards,listCards,firmware,totalCards,cardsUsed,cardState,sort,sens,id2,previous)).withSession(request.session + ("previous"->previous))
         }
       }
   }
@@ -146,7 +149,7 @@ trait CardsManagerLike extends Controller{
       UserManager.doIfconnectAsync(request) {
         //Verify if card type found
         typeCardsManager.doIfTypeCardsFound(BSONObjectID(id)) { typeCards =>
-          cardDao.findOne(Json.obj("delete"->false,"_id"->BSONFormats.BSONObjectIDFormat.writes(BSONObjectID(id2)))).flatMap(
+          cardDao.findOne(Json.obj("delete"->false,"_id"->BSONObjectID(id2))).flatMap(
             cardsOpt=>cardsOpt match{
               case Some(card)=> firmwareDao.findById(card.firmware).map(
                 firmwareOpt=>firmwareOpt match{
@@ -308,7 +311,7 @@ trait CardsManagerLike extends Controller{
       submitForm(msg,id,routes.CardsManager.cardInsert(id)){
 
         //Filter for verify if card exists
-        cardData=>Json.obj("id" -> cardData.id, "types" -> BSONFormats.BSONObjectIDFormat.writes(BSONObjectID(id)))
+        cardData=>Json.obj("id" -> cardData.id, "types" -> BSONObjectID(id))
 
       }{
         (typeCards,cardData,firmware)=>
@@ -348,7 +351,7 @@ trait CardsManagerLike extends Controller{
               case e => InternalServerError("error")
             })
           }else{
-            updateWithColumnDelete(id,Json.obj("id" -> cardData.id, "types" -> BSONFormats.BSONObjectIDFormat.writes(BSONObjectID(id))),false)
+            updateWithColumnDelete(id,Json.obj("id" -> cardData.id, "types" -> BSONObjectID(id)),false)
           }
       }
   }
@@ -389,7 +392,7 @@ trait CardsManagerLike extends Controller{
       submitForm(msg,idType,routes.CardsManager.cardUpdate(idType,id)){
 
         //Filter for verify if sensor exists
-        cardData=>Json.obj("_id"->Json.obj("$ne"->BSONFormats.BSONObjectIDFormat.writes(BSONObjectID(id))),"id" -> cardData.id, "types" -> BSONFormats.BSONObjectIDFormat.writes(BSONObjectID(idType)))
+        cardData=>Json.obj("_id"->Json.obj("$ne"->BSONObjectID(id)),"id" -> cardData.id, "types" -> BSONObjectID(idType))
 
       }{
         //Update the card
@@ -452,7 +455,7 @@ trait CardsManagerLike extends Controller{
       UserManager.doIfconnectAsync(request) {
         //Verify if card type found
         typeCardsManager.doIfTypeCardsFound(BSONObjectID(idType)) { _ =>
-          updateWithColumnDelete(idType,Json.obj("_id" -> BSONFormats.BSONObjectIDFormat.writes(BSONObjectID(id))),true)
+          updateWithColumnDelete(idType,Json.obj("_id" -> BSONObjectID(id)),true)
         }{
           _=> future{Redirect(routes.TypeCardsManager.inventary())}
         }
@@ -469,9 +472,12 @@ trait CardsManagerLike extends Controller{
    * @param f Function for print the list of cards
    * @return
    */
-  def getInventaryCards(selector:JsObject,sort:JsObject,id:BSONObjectID,redirect:Result)(f:(TypeCards,List[Cards],List[Firmware],List[(BSONObjectID,Int)])=>Result)={
+  def getInventaryCards(selector:JsObject,sort:JsObject,id:BSONObjectID,redirect:Result)(f:(TypeCards,List[Cards],List[Firmware],Int,List[(BSONObjectID,Int)],Map[BSONObjectID,String])=>Result)={
     //Find all cards
     val futureCards=cardDao.findAll(selector,sort)
+
+    //Find number of cards
+    val numberCards=cardDao.count(Json.obj("delete"->false,"types"->id))
 
     //Find firmware
     val futureFirmware=firmwareDao.findAll()
@@ -487,10 +493,16 @@ trait CardsManagerLike extends Controller{
         case Some(typeCards) => {
           futureCards.flatMap(listCards=>
             futureFirmware.flatMap(firmware=>
-              cardDao.countUsedCards(List(typeCards)).map(
+              cardDao.countUsedCards(List(typeCards)).flatMap(
                 cardsUsed=>
-                  //Display the list of cards
-                  f(typeCards,listCards,firmware,cardsUsed)
+                  numberCards.flatMap(
+                    totalCards=>
+                      moduleDao.findCardState(listCards.mapConserve(c=>c._id).asInstanceOf[List[BSONObjectID]]).map(
+                        cardState=>
+                          //Display the list of cards
+                          f(typeCards,listCards,firmware,totalCards,cardsUsed,cardState)
+                      )
+                  )
               )
             ).recover({case _=>InternalServerError("error")})
           ).recover({case _=>InternalServerError("error")})

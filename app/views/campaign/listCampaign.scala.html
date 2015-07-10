@@ -9,9 +9,9 @@
           <h3 style="text-align:center">@Messages("global.error.noResult")</h3>
         }else{
           @for(camp<-campaigns){
-            <div class="col-sm-12">
+            <div class="col-sm-12" id="@camp._id.stringify">
               <h4>
-                @camp.nom
+                <a href="@routes.ConditionsManager.listConditions(camp._id.stringify)">@camp.nom</a>
                 <span>
                   <a href="@routes.CampagneManager.updateCampaignPage(camp._id.stringify)" data-toggle-tooltip title="@Messages("global.tooltip.update")"><span class="glyphicon glyphicon-pencil"></span></a>
                   @*if(sto == 0) {
@@ -22,6 +22,7 @@
                 </span>
               </h4>
               <div class="col-sm-11 col-sm-offset-1">
+                <div class="row"><span class="bold">@Messages("campaign.list.type")</span> : @camp.types</div>
                 <div class="row"><span class="bold">@Messages("campaign.list.conditions")</span> : @camp.conditions.size</div>
               </div>
             </div>

@@ -1,4 +1,4 @@
-@(form:Form[SelectInfo],types:TypeSensor,mesure:TypeMesure,listSensor:List[Sensor],stockUsed:List[(reactivemongo.bson.BSONObjectID,Int)],trie:String,sens:Int)(implicit request: Request[AnyContent])
+@(form:Form[SelectInfo],types:TypeSensor,mesure:TypeMesure,listSensor:List[Sensor],totalSensors:Int,stockUsed:List[(reactivemongo.bson.BSONObjectID,Int)],sensorState:Map[reactivemongo.bson.BSONObjectID,String],trie:String,sens:Int,id:String)(implicit request: Request[AnyContent])
 
 @main(Messages("inventary.module.title")){
   @navigation("inventary")
@@ -6,7 +6,7 @@
     @inventary("module")
     <section>
       @module.stateForm("sensors")
-      <article>
+      <article class="col-sm-10">
         <div class="row">
           <div class="col-sm-12">
             <h4>@{types.nomType} / @{types.modele}</h4>
@@ -14,8 +14,10 @@
           <div class="col-sm-11 col-sm-offset-1">
             <div class="row"> <span class="bold">@Messages("inventary.typeSensor.fabricant")</span> : @{types.fabricant} </div>
             <div class="row"> <span class="bold">@Messages("inventary.typeSensor.nbSignaux")</span> : @{types.nbSignaux} (@{mesure.nom}) </div>
+            <div class="row"> <span class="bold">@Messages("inventary.typeSensor.signalMin")</span> : @types.min @mesure.unite</div>
+            <div class="row"> <span class="bold">@Messages("inventary.typeSensor.signalMax")</span> : @types.max @mesure.unite</div>
             <div class="row"> <span class="bold">@Messages("inventary.typeSensor.espece")</span> : @{types.espece.mkString(", ")} </div>
-            <div class="row"> <span class="bold">@Messages("inventary.typeSensor.stock")</span> : @{listSensor.size} / @{listSensor.size + stockUsed.head._2} </div>
+            <div class="row"> <span class="bold">@Messages("inventary.typeSensor.stock")</span> : @{totalSensors - stockUsed.head._2} / @totalSensors </div>
           </div>
         </div>
         @if(listSensor.size>0){
@@ -26,7 +28,7 @@
                 <ul class="dropdown-menu" role="menu">
                 @for(col<-List[String]("id","acquisition","expiration","firstUse","etat")){
                   <li>
-                    <a href="@routes.ModuleManager.formSensors(types._id.stringify,col,if(trie.equals(col)){-sens}else{1})">
+                    <a href="@routes.ModuleManager.formSensors(types._id.stringify,col,if(trie.equals(col)){-sens}else{1},id)">
                       @if(trie.equals(col)){<span class="glyphicon glyphicon-ok"></span>}
                       @Messages("inventary.sensor."+col)
                     </a>
@@ -57,7 +59,7 @@
                     <td>@{SensorManager.format(sensor.acquisition)}</td>
                     <td>@if(sensor.expiration.nonEmpty){@{SensorManager.format(sensor.expiration.get)}}else{-}</td>
                     <td>@if(sensor.firstUse.nonEmpty){@{SensorManager.format(sensor.firstUse.get)}}else{-}</td>
-                    <td>@if(sensor.hs){@Messages("inventary.sensor.hs")}</td>
+                    <td>@if(sensor.hs){@Messages("inventary.sensor.hs")}@if(sensor.hs && sensorState.getOrElse(sensor._id,"").nonEmpty){<br/>}@sensorState.getOrElse(sensor._id,"")</td>
                   </tr>
                 }
                 </tbody>
@@ -79,6 +81,18 @@
           </p>
         }
       </article>
+      <nav class="col-sm-2">
+        <div class="search_lateral">
+        @helper.form(action=routes.ModuleManager.formSensors(types._id.stringify)){
+          <div class="input-group">
+            <div class="input-group-addon"><span class="glyphicon glyphicon-search"></span></div>
+            <input type="search" name="id" class="form-control" value="@id" placeholder="@Messages("inventary.sensor.id")"/>
+            <input type="hidden" name="sort" value="@trie"/>
+            <input type="hidden" name="sens" value="@sens"/>
+          </div>
+        }
+        </div>
+      </nav>
     </section>
   </div>
 }

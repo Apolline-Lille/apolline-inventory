@@ -47,16 +47,18 @@ class SensorManagerSpec extends Specification with Mockito{
     val typeSensorDaoMock = mock[TypeSensorDao]
     val typeMesureDaoMock = mock[TypeMesureDao]
     val sensorDaoMock = mock[SensorDao]
+    val moduleDaoMock = mock[ModuleDao]
     val typeSensorController=mock[TypeSensorManagerLike]
     val configMock=mock[Configuration]
     val controller = new SensorManagerTest {
       override val typeSensorDao: TypeSensorDao = typeSensorDaoMock
       override val typeMesureDao: TypeMesureDao = typeMesureDaoMock
       override val sensorDao: SensorDao = sensorDaoMock
+      override val moduleDao:ModuleDao=moduleDaoMock
       override val typeSensorManager:TypeSensorManagerLike = typeSensorController
       override val config=configMock
     }
-    val typeSensor=TypeSensor(bson,"type1","modele1",bson2,"fab1",1,List[String]("esp1","esp2"))
+    val typeSensor=TypeSensor(bson,"type1","modele1",bson2,"fab1",1,List("esp1","esp2"),2f,3f)
 
     def applyFoundFunction() {
       typeSensorController.doIfTypeSensorFound(org.mockito.Matchers.eq(bson))(any[TypeSensor => Future[Result]])(any[Unit => Future[Result]]) answers { (params, _) => params match {
@@ -176,6 +178,8 @@ class SensorManagerSpec extends Specification with Mockito{
         Some(f.typeSensor)
       }
       f.sensorDaoMock.countUsedSensors(org.mockito.Matchers.eq(List(f.typeSensor))) returns future{List((bson,0))}
+      f.sensorDaoMock.count(org.mockito.Matchers.eq(Json.obj("delete"->false,"types"->bson)))(any[ExecutionContext]) returns future{0}
+      f.moduleDaoMock.findSensorState(org.mockito.Matchers.eq(List(bson3))) returns future{Map(bson3->"Test")}
 
       val r = f.controller.inventary(bson.stringify, "acquisition", -1).apply(FakeRequest(GET, "/inventary/sensors/" + bson.stringify).withSession("user" -> """{"login":"test"}"""))
 
@@ -185,12 +189,55 @@ class SensorManagerSpec extends Specification with Mockito{
       content must contain("<title>Inventaire des capteurs</title>")
       content must contain("<td>Id</td>")
       content must contain("<td>22/04/2015</td>")
-      content must contain("<td></td>")
+      content must contain("<td>Test</td>")
 
       there was one(f.sensorDaoMock).findAll(any[JsObject],org.mockito.Matchers.eq(Json.obj("acquisition" -> -1)))(any[ExecutionContext])
       there was one(f.typeMesureDaoMock).findById(org.mockito.Matchers.eq(bson2))(any[ExecutionContext])
       there was one(f.typeSensorDaoMock).findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext])
       there was one(f.sensorDaoMock).countUsedSensors(org.mockito.Matchers.eq(List(f.typeSensor)))
+      there was one(f.configMock).getString(org.mockito.Matchers.eq("hostname"),any[Option[Set[String]]])
+      there was one(f.moduleDaoMock).findSensorState(org.mockito.Matchers.eq(List(bson3)))
+      there was one(f.sensorDaoMock).count(org.mockito.Matchers.eq(Json.obj("delete"->false,"types"->bson)))(any[ExecutionContext])
+    }
+
+    "send 200 OK page with result for request with filter" in new WithApplication {
+      val f = fixture
+      val typeMesure = TypeMesure(bson2, "mesure1", "unite1")
+      val list_sensor = List[Sensor](
+        Sensor(bson3, "Id", bson, None, date, None, false, None)
+      )
+      val url="http://hostname/inventary/sensors?types=typ"
+
+      f.configMock.getString(org.mockito.Matchers.eq("hostname"),any[Option[Set[String]]]) returns Some("http://hostname/")
+      f.sensorDaoMock.findAll(org.mockito.Matchers.eq(Json.obj("delete"->false,"types"->bson,"id"->Json.obj("$regex"->".*val.*"))), org.mockito.Matchers.eq(Json.obj("acquisition" -> -1)))(any[ExecutionContext]) returns future {
+        list_sensor
+      }
+      f.typeMesureDaoMock.findById(org.mockito.Matchers.eq(bson2))(any[ExecutionContext]) returns future {
+        Some(typeMesure)
+      }
+      f.typeSensorDaoMock.findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext]) returns future {
+        Some(f.typeSensor)
+      }
+      f.sensorDaoMock.countUsedSensors(org.mockito.Matchers.eq(List(f.typeSensor))) returns future{List((bson,0))}
+      f.sensorDaoMock.count(org.mockito.Matchers.eq(Json.obj("delete"->false,"types"->bson)))(any[ExecutionContext]) returns future{1}
+      f.moduleDaoMock.findSensorState(org.mockito.Matchers.eq(List(bson3))) returns future{Map(bson3->"Test")}
+
+      val r = f.controller.inventary(bson.stringify, "acquisition", -1,"val").apply(FakeRequest(GET, "/inventary/sensors/" + bson.stringify).withHeaders(("Referer"->url)).withSession("user" -> """{"login":"test"}"""))
+
+      status(r) must equalTo(OK)
+      contentType(r) must beSome.which(_ == "text/html")
+      val content = contentAsString(r)
+      content must contain("<title>Inventaire des capteurs</title>")
+      content must contain("<td>Id</td>")
+      content must contain("<td>22/04/2015</td>")
+      content must contain("<td>Test</td>")
+
+      there was one(f.sensorDaoMock).findAll(org.mockito.Matchers.eq(Json.obj("delete"->false,"types"->bson,"id"->Json.obj("$regex"->".*val.*"))),org.mockito.Matchers.eq(Json.obj("acquisition" -> -1)))(any[ExecutionContext])
+      there was one(f.typeMesureDaoMock).findById(org.mockito.Matchers.eq(bson2))(any[ExecutionContext])
+      there was one(f.typeSensorDaoMock).findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext])
+      there was one(f.sensorDaoMock).countUsedSensors(org.mockito.Matchers.eq(List(f.typeSensor)))
+      there was one(f.moduleDaoMock).findSensorState(org.mockito.Matchers.eq(List(bson3)))
+      there was one(f.sensorDaoMock).count(org.mockito.Matchers.eq(Json.obj("delete"->false,"types"->bson)))(any[ExecutionContext])
       there was one(f.configMock).getString(org.mockito.Matchers.eq("hostname"),any[Option[Set[String]]])
     }
 
@@ -212,6 +259,8 @@ class SensorManagerSpec extends Specification with Mockito{
         Some(f.typeSensor)
       }
       f.sensorDaoMock.countUsedSensors(org.mockito.Matchers.eq(List(f.typeSensor))) returns future{List((bson,0))}
+      f.moduleDaoMock.findSensorState(org.mockito.Matchers.eq(List())) returns future{Map()}
+      f.sensorDaoMock.count(org.mockito.Matchers.eq(Json.obj("delete"->false,"types"->bson)))(any[ExecutionContext]) returns future{0}
 
       val r = f.controller.inventary(bson.stringify, "acquisition", -1).apply(FakeRequest(GET, "/inventary/sensors/" + bson.stringify).withHeaders(("Referer"->url)).withSession("user" -> """{"login":"test"}"""))
 
@@ -224,6 +273,8 @@ class SensorManagerSpec extends Specification with Mockito{
       content must matchRegex("<span class=\"bold\">\\s*Fabricant\\s*</span>\\s*:\\s*fab1")
       content must matchRegex("<span class=\"bold\">\\s*Nombre de signaux\\s*</span>\\s*:\\s*1\\s*\\(\\s*mesure1\\s*\\)")
       content must matchRegex("<span class=\"bold\">\\s*Espèces\\s*</span>\\s*:\\s*esp1, esp2")
+      content must contain("<span class=\"bold\">Signal minimum</span> : 2.0 unite1")
+      content must contain("<span class=\"bold\">Signal maximum</span> : 3.0 unite1")
       content must matchRegex("<span class=\"bold\">\\s*Stock\\s*</span>\\s*:\\s*0 / 0")
       session(r).get("previous") must beSome(url)
 
@@ -232,6 +283,8 @@ class SensorManagerSpec extends Specification with Mockito{
       there was one(f.typeSensorDaoMock).findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext])
       there was one(f.sensorDaoMock).countUsedSensors(org.mockito.Matchers.eq(List(f.typeSensor)))
       there was one(f.configMock).getString(org.mockito.Matchers.eq("hostname"),any[Option[Set[String]]])
+      there was one(f.moduleDaoMock).findSensorState(org.mockito.Matchers.eq(List()))
+      there was one(f.sensorDaoMock).count(org.mockito.Matchers.eq(Json.obj("delete"->false,"types"->bson)))(any[ExecutionContext])
     }
 
     "send 200 OK page with 2 sensors" in new WithApplication {
@@ -254,6 +307,8 @@ class SensorManagerSpec extends Specification with Mockito{
       }
 
       f.sensorDaoMock.countUsedSensors(org.mockito.Matchers.eq(List(f.typeSensor))) returns future{List((bson,0))}
+      f.moduleDaoMock.findSensorState(org.mockito.Matchers.eq(List(bson3,bson4))) returns future{Map(bson4->"Terrain")}
+      f.sensorDaoMock.count(org.mockito.Matchers.eq(Json.obj("delete"->false,"types"->bson)))(any[ExecutionContext]) returns future{2}
 
       val r = f.controller.inventary(bson.stringify, "acquisition", -1).apply(FakeRequest(GET, "/inventary/sensors/" + bson.stringify).withSession("user" -> """{"login":"test"}"""))
 
@@ -265,13 +320,15 @@ class SensorManagerSpec extends Specification with Mockito{
       content must contains("<td>22/04/2015</td>", 4)
       content must contain("<td></td>")
       content must contain("<td>Id2</td>")
-      content must contain("<td>Hors service</td>")
+      content must contain("<td>Hors service<br/>Terrain</td>")
 
       there was one(f.sensorDaoMock).findAll(any[JsObject], org.mockito.Matchers.eq(Json.obj("acquisition" -> -1)))(any[ExecutionContext])
       there was one(f.typeMesureDaoMock).findById(org.mockito.Matchers.eq(bson2))(any[ExecutionContext])
       there was one(f.typeSensorDaoMock).findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext])
       there was one(f.sensorDaoMock).countUsedSensors(org.mockito.Matchers.eq(List(f.typeSensor)))
       there was one(f.configMock).getString(org.mockito.Matchers.eq("hostname"),any[Option[Set[String]]])
+      there was one(f.moduleDaoMock).findSensorState(org.mockito.Matchers.eq(List(bson3,bson4)))
+      there was one(f.sensorDaoMock).count(org.mockito.Matchers.eq(Json.obj("delete"->false,"types"->bson)))(any[ExecutionContext])
     }
   }
 
@@ -364,12 +421,14 @@ class SensorManagerSpec extends Specification with Mockito{
         Sensor(bson3, "Id", bson, None, date, None, false, None)
       )
       f.sensorDaoMock.countUsedSensors(org.mockito.Matchers.eq(List(f.typeSensor))) returns future{List((bson,0))}
-      val func=mock[(TypeSensor,TypeMesure,List[Sensor],List[(BSONObjectID,Int)])=>Result]
+      val func=mock[(TypeSensor,TypeMesure,List[Sensor],Int,List[(BSONObjectID,Int)],Map[BSONObjectID,String])=>Result]
 
       f.sensorDaoMock.findAll(any[JsObject],org.mockito.Matchers.eq(Json.obj()))(any[ExecutionContext]) returns future{list_sensor}
+      f.sensorDaoMock.count(org.mockito.Matchers.eq(Json.obj("delete"->false,"types"->bson)))(any[ExecutionContext]) returns future{0}
       f.typeMesureDaoMock.findById(org.mockito.Matchers.eq(bson2))(any[ExecutionContext]) returns future{Some(typeMesure)}
       f.typeSensorDaoMock.findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext]) returns  future{Some(f.typeSensor)}
-      func.apply(org.mockito.Matchers.eq(f.typeSensor),org.mockito.Matchers.eq(typeMesure),org.mockito.Matchers.eq(list_sensor),org.mockito.Matchers.eq(List((bson,0)))) returns Results.Ok("call function")
+      func.apply(org.mockito.Matchers.eq(f.typeSensor),org.mockito.Matchers.eq(typeMesure),org.mockito.Matchers.eq(list_sensor),org.mockito.Matchers.eq(0),org.mockito.Matchers.eq(List((bson,0))),any[Map[BSONObjectID,String]]) returns Results.Ok("call function")
+      f.moduleDaoMock.findSensorState(org.mockito.Matchers.eq(List(bson3))) returns future{Map(bson3->"Test")}
 
       val r=f.controller.getInventarySensor(Json.obj(),Json.obj(),bson,mock[Result])(func)
 
@@ -377,9 +436,11 @@ class SensorManagerSpec extends Specification with Mockito{
       contentAsString(r) must equalTo("call function")
 
       there was one(f.sensorDaoMock).findAll(any[JsObject],org.mockito.Matchers.eq(Json.obj()))(any[ExecutionContext])
+      there was one(f.sensorDaoMock).count(org.mockito.Matchers.eq(Json.obj("delete"->false,"types"->bson)))(any[ExecutionContext])
       there was one(f.typeMesureDaoMock).findById(org.mockito.Matchers.eq(bson2))(any[ExecutionContext])
       there was one(f.typeSensorDaoMock).findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext])
-      there was one(func).apply(org.mockito.Matchers.eq(f.typeSensor),org.mockito.Matchers.eq(typeMesure),org.mockito.Matchers.eq(list_sensor),org.mockito.Matchers.eq(List((bson,0))))
+      there was one(func).apply(org.mockito.Matchers.eq(f.typeSensor),org.mockito.Matchers.eq(typeMesure),org.mockito.Matchers.eq(list_sensor),org.mockito.Matchers.eq(0),org.mockito.Matchers.eq(List((bson,0))),any[Map[BSONObjectID,String]])
+      there was one(f.moduleDaoMock).findSensorState(org.mockito.Matchers.eq(List(bson3)))
     }
 
     "send 500 internal error if mongoDB error when sensors" in new WithApplication{
@@ -387,9 +448,10 @@ class SensorManagerSpec extends Specification with Mockito{
       val typeMesure=TypeMesure(bson2,"mesure1","unite1")
       val futureMock=mock[Future[List[Sensor]]]
       val throwable=mock[Throwable]
-      val func=mock[(TypeSensor,TypeMesure,List[Sensor],List[(BSONObjectID,Int)])=>Result]
+      val func=mock[(TypeSensor,TypeMesure,List[Sensor],Int,List[(BSONObjectID,Int)],Map[BSONObjectID,String])=>Result]
 
       f.sensorDaoMock.findAll(any[JsObject],org.mockito.Matchers.eq(Json.obj()))(any[ExecutionContext]) returns futureMock
+      f.sensorDaoMock.count(org.mockito.Matchers.eq(Json.obj("delete"->false,"types"->bson)))(any[ExecutionContext]) returns future{0}
       f.typeMesureDaoMock.findById(org.mockito.Matchers.eq(bson2))(any[ExecutionContext]) returns future{Some(typeMesure)}
       f.typeSensorDaoMock.findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext]) returns  future{Some(f.typeSensor)}
       futureMock.flatMap(any[List[Sensor]=>Future[List[Sensor]]])(any[ExecutionContext]) returns futureMock
@@ -404,7 +466,8 @@ class SensorManagerSpec extends Specification with Mockito{
       there was one(f.sensorDaoMock).findAll(any[JsObject],org.mockito.Matchers.eq(Json.obj()))(any[ExecutionContext])
       there was one(f.typeMesureDaoMock).findById(org.mockito.Matchers.eq(bson2))(any[ExecutionContext])
       there was one(f.typeSensorDaoMock).findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext])
-      there was no(func).apply(any[TypeSensor],any[TypeMesure],any[List[Sensor]],any[List[(BSONObjectID,Int)]])
+      there was one(f.sensorDaoMock).count(org.mockito.Matchers.eq(Json.obj("delete"->false,"types"->bson)))(any[ExecutionContext])
+      there was no(func).apply(any[TypeSensor],any[TypeMesure],any[List[Sensor]],anyInt,any[List[(BSONObjectID,Int)]],any[Map[BSONObjectID,String]])
     }
 
     "send 500 internal error if mongoDB error when find type mesure" in new WithApplication{
@@ -412,9 +475,10 @@ class SensorManagerSpec extends Specification with Mockito{
       val typeMesure=TypeMesure(bson2,"mesure1","unite1")
       val futureMockMesure=mock[Future[Option[TypeMesure]]]
       val throwable=mock[Throwable]
-      val func=mock[(TypeSensor,TypeMesure,List[Sensor],List[(BSONObjectID,Int)])=>Result]
+      val func=mock[(TypeSensor,TypeMesure,List[Sensor],Int,List[(BSONObjectID,Int)],Map[BSONObjectID,String])=>Result]
 
       f.sensorDaoMock.findAll(any[JsObject],org.mockito.Matchers.eq(Json.obj()))(any[ExecutionContext]) returns future{List()}
+      f.sensorDaoMock.count(org.mockito.Matchers.eq(Json.obj("delete"->false,"types"->bson)))(any[ExecutionContext]) returns future{0}
       f.typeSensorDaoMock.findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext]) returns  future{Some(f.typeSensor)}
       f.typeMesureDaoMock.findById(org.mockito.Matchers.eq(bson2))(any[ExecutionContext]) returns futureMockMesure
       futureMockMesure.flatMap(any[Option[TypeMesure]=>Future[Option[TypeMesure]]])(any[ExecutionContext]) returns futureMockMesure
@@ -425,19 +489,21 @@ class SensorManagerSpec extends Specification with Mockito{
       status(r) must equalTo(INTERNAL_SERVER_ERROR)
 
       there was one(f.sensorDaoMock).findAll(any[JsObject],org.mockito.Matchers.eq(Json.obj()))(any[ExecutionContext])
+      there was one(f.sensorDaoMock).count(org.mockito.Matchers.eq(Json.obj("delete"->false,"types"->bson)))(any[ExecutionContext])
       there was one(f.typeSensorDaoMock).findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext])
       there was one(f.typeMesureDaoMock).findById(org.mockito.Matchers.eq(bson2))(any[ExecutionContext])
       there was one(futureMockMesure).flatMap(any[Option[TypeMesure]=>Future[Option[TypeMesure]]])(any[ExecutionContext])
       there was one(futureMockMesure).recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext])
-      there was no(func).apply(any[TypeSensor],any[TypeMesure],any[List[Sensor]],any[List[(BSONObjectID,Int)]])
+      there was no(func).apply(any[TypeSensor],any[TypeMesure],any[List[Sensor]],anyInt,any[List[(BSONObjectID,Int)]],any[Map[BSONObjectID,String]])
     }
 
     "send Redirect if type mesure not found" in new WithApplication{
       val f=fixture
       val typeMesure=TypeMesure(bson2,"mesure1","unite1")
-      val func=mock[(TypeSensor,TypeMesure,List[Sensor],List[(BSONObjectID,Int)])=>Result]
+      val func=mock[(TypeSensor,TypeMesure,List[Sensor],Int,List[(BSONObjectID,Int)],Map[BSONObjectID,String])=>Result]
 
       f.sensorDaoMock.findAll(any[JsObject],org.mockito.Matchers.eq(Json.obj()))(any[ExecutionContext]) returns future{List()}
+      f.sensorDaoMock.count(org.mockito.Matchers.eq(Json.obj("delete"->false,"types"->bson)))(any[ExecutionContext]) returns future{0}
       f.typeSensorDaoMock.findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext]) returns  future{Some(f.typeSensor)}
       f.typeMesureDaoMock.findById(org.mockito.Matchers.eq(bson2))(any[ExecutionContext]) returns future{None}
 
@@ -449,19 +515,21 @@ class SensorManagerSpec extends Specification with Mockito{
       there was one(f.typeMesureDaoMock).findById(org.mockito.Matchers.eq(bson2))(any[ExecutionContext])
       there was one(f.sensorDaoMock).findAll(any[JsObject],org.mockito.Matchers.eq(Json.obj()))(any[ExecutionContext])
       there was one(f.typeSensorDaoMock).findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext])
-      there was no(func).apply(any[TypeSensor],any[TypeMesure],any[List[Sensor]],any[List[(BSONObjectID,Int)]])
+      there was one(f.sensorDaoMock).count(org.mockito.Matchers.eq(Json.obj("delete"->false,"types"->bson)))(any[ExecutionContext])
+      there was no(func).apply(any[TypeSensor],any[TypeMesure],any[List[Sensor]],anyInt,any[List[(BSONObjectID,Int)]],any[Map[BSONObjectID,String]])
     }
 
     "send 500 internal error if mongoDB error when find sensor type" in new WithApplication{
       val f=fixture
       val futureMockSensor=mock[Future[Option[TypeSensor]]]
       val throwable=mock[Throwable]
-      val func=mock[(TypeSensor,TypeMesure,List[Sensor],List[(BSONObjectID,Int)])=>Result]
+      val func=mock[(TypeSensor,TypeMesure,List[Sensor],Int,List[(BSONObjectID,Int)],Map[BSONObjectID,String])=>Result]
 
       f.sensorDaoMock.findAll(any[JsObject],org.mockito.Matchers.eq(Json.obj()))(any[ExecutionContext]) returns future{List()}
       f.typeSensorDaoMock.findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext]) returns futureMockSensor
       futureMockSensor.flatMap(any[Option[TypeSensor]=>Future[Option[TypeSensor]]])(any[ExecutionContext]) returns futureMockSensor
       futureMockSensor.recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext]) answers (value=>future{value.asInstanceOf[PartialFunction[Throwable,Result]](throwable)})
+      f.sensorDaoMock.count(org.mockito.Matchers.eq(Json.obj("delete"->false,"types"->bson)))(any[ExecutionContext]) returns future{0}
 
       val r=f.controller.getInventarySensor(Json.obj(),Json.obj(),bson,mock[Result])(func)
 
@@ -471,15 +539,17 @@ class SensorManagerSpec extends Specification with Mockito{
       there was one(f.typeSensorDaoMock).findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext])
       there was one(futureMockSensor).flatMap(any[Option[TypeSensor]=>Future[Option[TypeSensor]]])(any[ExecutionContext])
       there was one(futureMockSensor).recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext])
-      there was no(func).apply(any[TypeSensor],any[TypeMesure],any[List[Sensor]],any[List[(BSONObjectID,Int)]])
+      there was no(func).apply(any[TypeSensor],any[TypeMesure],any[List[Sensor]],anyInt,any[List[(BSONObjectID,Int)]],any[Map[BSONObjectID,String]])
+      there was one(f.sensorDaoMock).count(org.mockito.Matchers.eq(Json.obj("delete"->false,"types"->bson)))(any[ExecutionContext])
     }
 
     "send Redirect if type sensor not found" in new WithApplication{
       val f=fixture
-      val func=mock[(TypeSensor,TypeMesure,List[Sensor],List[(BSONObjectID,Int)])=>Result]
+      val func=mock[(TypeSensor,TypeMesure,List[Sensor],Int,List[(BSONObjectID,Int)],Map[BSONObjectID,String])=>Result]
 
       f.sensorDaoMock.findAll(any[JsObject],org.mockito.Matchers.eq(Json.obj()))(any[ExecutionContext]) returns future{List()}
       f.typeSensorDaoMock.findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext]) returns future{None}
+      f.sensorDaoMock.count(org.mockito.Matchers.eq(Json.obj("delete"->false,"types"->bson)))(any[ExecutionContext]) returns future{0}
 
       val r=f.controller.getInventarySensor(Json.obj(),Json.obj(),bson,Results.Redirect("/inventary/sensors",303))(func)
 
@@ -488,7 +558,8 @@ class SensorManagerSpec extends Specification with Mockito{
 
       there was one(f.sensorDaoMock).findAll(any[JsObject],org.mockito.Matchers.eq(Json.obj()))(any[ExecutionContext])
       there was one(f.typeSensorDaoMock).findById(org.mockito.Matchers.eq(bson))(any[ExecutionContext])
-      there was no(func).apply(any[TypeSensor],any[TypeMesure],any[List[Sensor]],any[List[(BSONObjectID,Int)]])
+      there was no(func).apply(any[TypeSensor],any[TypeMesure],any[List[Sensor]],anyInt,any[List[(BSONObjectID,Int)]],any[Map[BSONObjectID,String]])
+      there was one(f.sensorDaoMock).count(org.mockito.Matchers.eq(Json.obj("delete"->false,"types"->bson)))(any[ExecutionContext])
     }
   }
 

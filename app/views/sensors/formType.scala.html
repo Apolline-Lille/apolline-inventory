@@ -68,6 +68,8 @@
             @helper.input(form("nbSignaux"),'_label->Messages("inventary.typeSensor.nbSignaux"),'required->true) { (id, name, value, args) =>
               <input id="@id" name="@name" class="form-control" type="number" autocomplete="off" @if(value!=null){value="@value"}/>
             }
+            @helper.inputText(form("min"),'_label->Messages("inventary.typeSensor.signalMin"),'required->true,'class->"form-control")
+            @helper.inputText(form("max"),'_label->Messages("inventary.typeSensor.signalMax"),'required->true,'class->"form-control")
             @helper.input(form("mesure"),'_label->Messages("inventary.typeSensor.mesure"),'required->true) { (id, name, value, args) =>
               <input id="@id" name="@name" class="form-control" list="list_mesure" type="text" autocomplete="off" @if(value!=null){value="@value"}/>
               <datalist id="list_mesure">

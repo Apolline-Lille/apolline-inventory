@@ -67,7 +67,11 @@
                                     <div class="row">
                                         <div class="col-sm-11 col-sm-offset-1">
                                             <div class="row"> <span class="bold">@Messages("inventary.typeSensor.fabricant")</span> : @types.fabricant</div>
-                                            <div class="row"> <span class="bold">@Messages("inventary.typeSensor.nbSignaux")</span> : @types.nbSignaux (@typeMesure.filter(m => m._id == types.mesure).head.nom)</div>
+                                            @defining(typeMesure.filter(m => m._id == types.mesure).head) { mesure =>
+                                                <div class="row"> <span class="bold">@Messages("inventary.typeSensor.nbSignaux")</span> : @{types.nbSignaux} (@{mesure.nom})</div>
+                                                <div class="row"><span class="bold">@Messages("inventary.typeSensor.signalMin")</span> : @types.min @mesure.unite</div>
+                                                <div class="row"><span class="bold">@Messages("inventary.typeSensor.signalMax")</span> : @types.max @mesure.unite</div>
+                                            }
                                             <div class="row"> <span class="bold">@Messages("inventary.typeSensor.espece")</span> : @types.espece.mkString(", ")</div>
                                         </div>
                                     </div>
@@ -107,7 +111,7 @@
                     </div>
                 </div>
                 @helper.form(action=routes.ModuleManager.insertModule()){
-                    <p><span style="float:right"><input type="submit" class="btn btn-default" value="Valider"/></span></p>
+                    <p><span style="float:right"><input type="submit" class="btn btn-default" value="@Messages("global.valider")"/></span></p>
                 }
             </article>
         </section>

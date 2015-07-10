@@ -66,6 +66,8 @@ trait SensorManagerLike extends Controller{
    */
   val sensorDao:SensorDao=SensorDaoObj
 
+  val moduleDao:ModuleDao=ModuleDaoObj
+
   /**
    * Manager for sensors type
    */
@@ -110,13 +112,15 @@ trait SensorManagerLike extends Controller{
     new ApiImplicitParam(value = "Name of the column for sort sensors",name="sort", dataType = "String", paramType = "query"),
     new ApiImplicitParam(value = "Order for sort sensors",name="id", dataType = "Int", paramType = "query")
   ))
-  def inventary(id:String,sort:String="id",sens:Int=1)=Action.async{
+  def inventary(id:String,sort:String="id",sens:Int=1,id2:String="")=Action.async{
     implicit request =>
       //Verify if user is connect
       UserManager.doIfconnectAsync(request) {
         val previous=previousPage
-        getInventarySensor(Json.obj("delete"->false,"types"->BSONObjectID(id)),Json.obj(sort->sens),BSONObjectID(id),Redirect(routes.TypeSensorManager.inventary())){
-          (typeSensor,typeMesure,listSensor,sensorUsed)=>Ok(views.html.sensors.listSensor(typeSensor,typeMesure,listSensor,sensorUsed,sort,sens,previous)).withSession(request.session + ("previous"->previous))
+        val query=Json.obj("delete"->false,"types"->BSONObjectID(id)) ++ (if(id2.nonEmpty){Json.obj("id"->Json.obj("$regex"->(".*"+id2+".*")))}else{Json.obj()})
+        getInventarySensor(query,Json.obj(sort->sens),BSONObjectID(id),Redirect(routes.TypeSensorManager.inventary())){
+          (typeSensor,typeMesure,listSensor,totalSensor,sensorUsed,sensorState)=>
+            Ok(views.html.sensors.listSensor(typeSensor,typeMesure,listSensor,totalSensor,sensorUsed,sensorState,sort,sens,id2,previous)).withSession(request.session + ("previous"->previous))
         }
       }
   }
@@ -429,9 +433,12 @@ trait SensorManagerLike extends Controller{
    * @param f Function for print the list of cards
    * @return
    */
-  def getInventarySensor(selector:JsObject,sort:JsObject,id:BSONObjectID,r:Result)(f:(TypeSensor,TypeMesure,List[Sensor],List[(BSONObjectID,Int)])=>Result)={
+  def getInventarySensor(selector:JsObject,sort:JsObject,id:BSONObjectID,r:Result)(f:(TypeSensor,TypeMesure,List[Sensor],Int,List[(BSONObjectID,Int)],Map[BSONObjectID,String])=>Result)={
     //Find sensors
     val future_sensors=sensorDao.findAll(selector,sort)
+
+    //Find the total number of sensors
+    val countSensors=sensorDao.count(Json.obj("types"->id,"delete"->false))
 
     //Find type sensors
     typeSensorDao.findById(id).flatMap(typeSensorOpt=>
@@ -452,14 +459,20 @@ trait SensorManagerLike extends Controller{
               //If signal found, apply function for get list of sensors
               case Some(typeMesure) =>
                 future_sensors.flatMap(listSensor=>
-                  sensorDao.countUsedSensors(List(typeSensor)).map(
+                  sensorDao.countUsedSensors(List(typeSensor)).flatMap(
                     countSensorUsed=>
-                      //Print the list of sensors
-                      f(typeSensor,typeMesure,listSensor,countSensorUsed)
+                      countSensors.flatMap(
+                        totalSensor=>moduleDao.findSensorState(listSensor.mapConserve(s=>s._id).asInstanceOf[List[BSONObjectID]]).map(
+                          sensorState=> {
+                            //Print the list of sensors
+                            f(typeSensor, typeMesure, listSensor,totalSensor, countSensorUsed, sensorState)
+                          }
+                        )
+                      )
                   )
                 ).recover({
                   //Send Internal Server Error if have mongoDB error
-                  case e => InternalServerError("error")
+                  case e => InternalServerError(e.toString)
                 })
             }
           ).recover({

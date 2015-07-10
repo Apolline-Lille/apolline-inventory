@@ -3,12 +3,13 @@ package controllers
 import com.wordnik.swagger.annotations._
 import models._
 import play.api.i18n.Messages
-import play.api.libs.json.{Json, JsObject}
+import play.api.libs.json.{JsSuccess, Json, JsObject}
 import play.api.mvc._
 import play.api.data._
 import play.api.data.Forms._
 import play.modules.reactivemongo.json.BSONFormats
 import reactivemongo.bson.{BSONObjectID, BSONDocument}
+import reactivemongo.core.commands.LastError
 import scala.concurrent._
 
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
@@ -69,15 +70,15 @@ trait TypeCardsManagerLike extends Controller {
   @ApiImplicitParams(Array(
     new ApiImplicitParam(value = "Cards type name for filter all cards type", name = "sort", dataType = "String", paramType = "query")
   ))
-  def inventary(sort: String = "",filtreSto:String = "") = Action.async {
+  def inventary(types: String = "",modele:String="",filtreSto:String = "") = Action.async {
     implicit request =>
       //Verify if user is connect
       UserManager.doIfconnectAsync(request) {
         //Create selector for select card type
-        getInventaryTypeCards(Json.obj("delete"->false),sort){
+        getInventaryTypeCards(Json.obj("delete"->false),types,modele){
           (listType,filtre,countCards,cardsUsed)=>
             //Print the list of card type
-            Ok(views.html.cards.listTypeCards(filtreSto,sort,filtreStock(filtreSto),listType,countCards,cardsUsed,filtre))
+            Ok(views.html.cards.listTypeCards(filtreSto,types,modele,filtreStock(filtreSto),listType,countCards,cardsUsed,filtre))
         }
       }
   }
@@ -299,11 +300,19 @@ trait TypeCardsManagerLike extends Controller {
    * @param f Function for print the list of type cards
    * @return
    */
-  def getInventaryTypeCards(selector: JsObject,filtreType:String)(f:(List[TypeCards],List[BSONDocument],List[BSONDocument],List[(BSONObjectID,Int)])=>Result)={
-    val selectorAll=if(filtreType.isEmpty){selector}else{selector ++ Json.obj("types"->filtreType)}
+  def getInventaryTypeCards(selector: JsObject,filtreType:String,filtreModele:String)(f:(List[TypeCards],List[BSONDocument],List[BSONDocument],List[(BSONObjectID,Int)])=>Result)={
+    val selectorAll=(filtreType,filtreModele) match{
+      case ("","") => selector
+      case (_,"")=>selector ++ Json.obj("types"->filtreType)
+      case ("",_)=>selector ++ Json.obj("modele"->Json.obj("$regex"->(".*"+filtreModele+".*")))
+      case _=>selector ++ Json.obj("types"->filtreType,"modele"->Json.obj("$regex"->(".*"+filtreModele+".*")))
+    }
 
     //Find all type cards name
-    val futureListType=typeCardsDao.findListType(BSONFormats.toBSON(selector).get.asInstanceOf[BSONDocument])
+    val futureListType=BSONFormats.toBSON(selector) match{
+      case JsSuccess(v,_)=>typeCardsDao.findListType(v.asInstanceOf[BSONDocument])
+      case _=>future{Stream[BSONDocument]()}
+    }
     //Find number of cards
     val futureCountCards=cardDao.countCards()
 
@@ -403,18 +412,15 @@ trait TypeCardsManagerLike extends Controller {
 
           //Find the sensor type
           typeCardsDao.findAll(verif(typeData)).flatMap(
-            data =>{
+            data =>(typeData.send,data) match{
               //If sensor type not found
-              if(data.size==0 || List(Some("Réactiver"),Some("Ignorer")).contains(typeData.send)) {
-                f(typeData)
-              }
-              else if(data.filter(p => !(p.delete) ).size>0) {
-                //print form with prefilled data and a bad request
-                printForm(Results.BadRequest, form.withGlobalError(Messages("inventary.typeCards.error.typeExist")).fill(typeData), r)
-              }
-              else {
-                printForm(Results.BadRequest, form.withGlobalError(errorMessage).fill(typeData), r)
-              }
+              case (Some("Réactiver"),_) | (Some("Ignorer"),_) | (_,Nil) =>f(typeData)
+
+              //else print form with prefilled data and a bad request
+              case _ if data.filter(p => !(p.delete) ).size>0 =>printForm(Results.BadRequest, form.withGlobalError(Messages("inventary.typeCards.error.typeExist")).fill(typeData), r)
+
+              //else print form with prefilled data and a bad request
+              case _ => printForm(Results.BadRequest, form.withGlobalError(errorMessage).fill(typeData), r)
             }
           ).recover({
             //Send Internal Server Error if have mongoDB error

@@ -1,4 +1,4 @@
-@(modules:List[Module],listType:List[reactivemongo.bson.BSONDocument],filtre:String)(implicit request: Request[AnyContent])
+@(modules:List[Module],listType:List[reactivemongo.bson.BSONDocument],filtre:String,filtreId:String)(implicit request: Request[AnyContent])
 
 @main(Messages("inventary.module.title")){
   <script src="@routes.Assets.at("/public","javascripts/modal-delete.js")" type="text/javascript" defer></script>
@@ -38,16 +38,25 @@
           <span class="bold">@Messages("inventary.module.types")</span>
           <ul class="nav nav-pills nav-stacked">
             <li role="presentation" @if(filtre.isEmpty) {
-              class="active"}><a href="@routes.ModuleManager.inventary("")" style="padding:0px 15px !important">
+              class="active"}><a href="@routes.ModuleManager.inventary("",filtreId)" style="padding:0px 15px !important">
             @Messages("global.all")</a></li>
             @for(types <- listType) {
               @defining(types.getAs[String]("_id").get) { nomType =>
                 <li role="presentation" @if(filtre.equals(nomType)) {
-                  class="active"}><a href="@routes.ModuleManager.inventary(nomType)" style="padding:0px 15px !important">@nomType</a></li>
+                  class="active"}><a href="@routes.ModuleManager.inventary(nomType,filtreId)" style="padding:0px 15px !important">@nomType</a></li>
               }
             }
           </ul>
         }
+        <div class="search_lateral">
+        @helper.form(action=routes.ModuleManager.inventary()){
+          <div class="input-group">
+            <div class="input-group-addon"><span class="glyphicon glyphicon-search"></span></div>
+            <input type="search" name="filtreId" class="form-control" value="@filtreId" placeholder="@Messages("inventary.module.id")"/>
+            <input type="hidden" name="filtre" value="@filtre"/>
+          </div>
+        }
+        </div>
         <a href="@routes.ModuleManager.formGeneralAdd()" class="btn btn-success">
           <span class="glyphicon glyphicon-plus"></span>
           @Messages("inventary.module.addModule")

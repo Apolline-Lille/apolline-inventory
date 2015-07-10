@@ -18,6 +18,8 @@ case class TypeSensor(
      fabricant:String,
      nbSignaux:Int,
      espece:List[String],
+     min:Float,
+     max:Float,
      delete:Boolean=false
 )
 
