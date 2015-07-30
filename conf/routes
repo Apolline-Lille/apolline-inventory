@@ -72,6 +72,9 @@ GET         /inventary/modules/form/validate                   controllers.Modul
 POST        /inventary/modules/form/validate                   controllers.ModuleManager.insertModule()
 GET         /inventary/modules/form/:id                        controllers.ModuleManager.formGeneralUpdate(id)
 GET         /inventary/modules/:id/delete                      controllers.ModuleManager.deleteModule(id)
+GET         /inventary/modules/:id/configuration               controllers.ConfigurationManager.formConfiguration(id)
+POST        /inventary/modules/:id/configuration               controllers.ConfigurationManager.insertFormConfiguration(id)
+GET         /inventary/modules/:id/configuration/sensors        controllers.ConfigurationManager.listSensors(id)
 GET         /inventary/modules/:id                             controllers.ModuleManager.moreInformation(id)
 
 #Campaign page

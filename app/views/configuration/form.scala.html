@@ -1,0 +1,53 @@
+@(form:Form[ConfigurationForm],mod:Module)(implicit request: Request[AnyContent])
+
+@import models.template.InlineInput.inlineInput
+
+@main(Messages("inventary.module.title")){
+  @navigation("inventary")
+  <div class="container">
+    @inventary("module")
+    <section>
+      <article>
+        <div class="col-sm-12">
+          <h4>@mod.types / @mod.id</h4>
+        </div>
+        <div class="col-sm-11 col-sm-offset-1">
+          <div class="row"><span class="bold">@Messages("inventary.module.commentaire")</span> : @mod.commentaire</div>
+          <div class="row"><span class="bold">@Messages("inventary.module.dateAssemblage")</span> : @SensorManager.format(mod.dateAssemblage)</div>
+        </div>
+      @helper.form(action=routes.ConfigurationManager.insertFormConfiguration(mod._id.stringify)){
+        @for(error<-form.globalErrors){
+          <div class="alert alert-danger" role="alert">@error.message</div>
+        }
+        <h5 style="color:red;float:right"><em>*</em> @Messages("global.fieldRequired")</h5>
+        <div class="col-sm-12">
+          @helper.inputText(form("port"),'_label->Messages("inventary.configuration.port"),'autofocus->"autofocus",'autocomplete->"off",'required->true,'class->"form-control")
+          @helper.input(form("timeout"),'_label->Messages("inventary.configuration.timeout"),'required->true){ (id, name, value, args) =>
+            <input id="@id" name="@name" class="form-control" type="number" autocomplete="off" @if(value!=null){value="@value"}/>
+          }
+          @helper.input(form("baud"),'_label->Messages("inventary.configuration.baud"),'required->true){ (id, name, value, args) =>
+            <input id="@id" name="@name" class="form-control" type="number" autocomplete="off" @if(value!=null){value="@value"}/>
+          }
+          @helper.input(form("bits"),'_label->Messages("inventary.configuration.bits"),'required->true){ (id, name, value, args) =>
+            <input id="@id" name="@name" class="form-control" type="number" autocomplete="off" @if(value!=null){value="@value"}/>
+          }
+          @helper.select(form("parity"),Seq(("0",Messages("inventary.configuration.parity.none")),("1",Messages("inventary.configuration.parity.odd")),("2",Messages("inventary.configuration.parity.even")),("3",Messages("inventary.configuration.parity.mark")),("4",Messages("inventary.configuration.parity.space"))),'label->Messages("inventary.configuration.parity"),'class->"form-control",'required->"required")
+          @helper.input(form("stopBits"),'_label->Messages("inventary.configuration.stopBits"),'required->true){ (id, name, value, args) =>
+            <input id="@id" name="@name" class="form-control" type="number" autocomplete="off" @if(value!=null){value="@value"}/>
+          }
+          @helper.input(form("timeFilter"),'_label->Messages("inventary.configuration.timeFilter"),'required->true){ (id, name, value, args) =>
+            <input id="@id" name="@name" class="form-control" type="number" autocomplete="off" @if(value!=null){value="@value"}/>
+          }
+          @helper.inputText(form("types"),'_label->Messages("inventary.configuration.types"),'required->true,'class->"form-control")
+        </div>
+        <div class="col-sm-12">
+          <div style="float:right">
+            <input value="@Messages("global.btn.reset")" class="btn btn-default" type="reset"/>
+            <input value="@Messages("global.btn.submit")" class="btn btn-default" type="submit"/>
+          </div>
+        </div>
+      }
+      </article>
+    </section>
+  </div>
+}

@@ -5,7 +5,7 @@
   <div class="container">
     @inventary("module")
     <section>
-      <article class="col-sm-12">
+      <article class="col-sm-10">
         <a href="@previous#@mod._id.stringify"><span class="glyphicon glyphicon-arrow-left"></span> Retour</a>
         <div class="col-sm-12">
           <h4>@mod.types / @mod.id</h4>
@@ -98,6 +98,12 @@
           </div>
         </div>
       </article>
+      <nav class="col-sm-2">
+        <a href="@routes.ConfigurationManager.formConfiguration(mod._id.stringify)" class="btn btn-success">
+          <span class="glyphicon glyphicon-plus"></span>
+          @Messages("inventary.module.addConfig")
+        </a>
+      </nav>
     </section>
   </div>
 }

@@ -1139,6 +1139,30 @@ trait ModuleManagerLike extends Controller {
     //Else return the address for the inventary type sensors
     case _=>routes.ModuleManager.inventary().toString
   }
+
+  /**
+   * Verify if module found and execute a function if module found or not
+   * @param id Module id
+   * @param found Function executed if module found
+   * @param notFound Function executed if module not found
+   * @return Return the result of executed function
+   */
+  def doIfModuleFound(id:BSONObjectID)(found:Module=>Future[Result])(notFound:Unit=>Future[Result]):Future[Result]={
+    //Find the module
+    moduleDao.findOne(Json.obj("_id"->id,"delete"->false)).flatMap(
+      moduleOpt => moduleOpt match{
+
+        //If the module not found execute function not found
+        case None => notFound()
+
+        //If the module found execute function found
+        case Some(module) => found(module)
+      }
+    ).recover({
+      //Send Internal Server Error if have mongoDB error
+      case _=> InternalServerError("error")
+    })
+  }
 }
 
 @Api(value = "/module", description = "Operations for module")

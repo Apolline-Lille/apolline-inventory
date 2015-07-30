@@ -85,6 +85,7 @@ inventary.card.confirmDelete=Êtes-vous sûr de vouloir supprimer cette carte ?
 
 inventary.module.title=Inventaire des modules
 inventary.module.addModule=Nouveau module
+inventary.module.addConfig=Nouvelle configuration
 inventary.module.nextState=Passer à l''étape suivante
 inventary.module.types=Type de module
 inventary.module.id=Identifiant
@@ -97,6 +98,20 @@ inventary.module.onglet.validate=Validation
 inventary.module.error.moduleExist=Ce module existe déjà
 inventary.module.error.cardsOrSensorNotFound=Attention certaines cartes ou capteurs ne sont plus disponibles
 inventary.module.confirmDelete=Êtes-vous sûr de vouloir supprimer ce module ?
+
+inventary.configuration.port=Port
+inventary.configuration.timeout=Délai d''attente de la connection
+inventary.configuration.baud=Baud
+inventary.configuration.bits=Bits de donnée
+inventary.configuration.timeFilter=Temps de filtrage des données
+inventary.configuration.types=Type de configuration
+inventary.configuration.parity=Parité
+inventary.configuration.parity.none=None
+inventary.configuration.parity.even=Even
+inventary.configuration.parity.odd=Odd
+inventary.configuration.parity.mark=Mark
+inventary.configuration.parity.space=Space
+inventary.configuration.stopBits=Stop de bits
 
 inventary.onglet.sensor=Capteurs
 inventary.onglet.cards=Cartes
