@@ -112,6 +112,9 @@ inventary.configuration.parity.odd=Odd
 inventary.configuration.parity.mark=Mark
 inventary.configuration.parity.space=Space
 inventary.configuration.stopBits=Stop de bits
+inventary.configuration.addToConfig=Associer à la configuration
+inventary.configuration.index=Index
+inventary.configuration.id=Identifiant
 
 inventary.onglet.sensor=Capteurs
 inventary.onglet.cards=Cartes

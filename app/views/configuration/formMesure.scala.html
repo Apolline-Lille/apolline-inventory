@@ -1,0 +1,55 @@
+@(form:Form[InfoMesureForm],mod:Module,mesure:List[reactivemongo.bson.BSONDocument],unite:List[reactivemongo.bson.BSONDocument],idSensor:String)(implicit request: Request[AnyContent])
+
+@import models.template.InlineInput.inlineInput
+
+@main(Messages("inventary.module.title")){
+    @navigation("inventary")
+    <div class="container">
+        @inventary("module")
+        <section>
+            <article>
+                <div class="col-sm-12">
+                    <h4>@mod.types / @mod.id</h4>
+                </div>
+                <div class="col-sm-11 col-sm-offset-1">
+                    <div class="row"><span class="bold">@Messages("inventary.module.commentaire")</span> : @mod.commentaire</div>
+                    <div class="row"><span class="bold">@Messages("inventary.module.dateAssemblage")</span> : @SensorManager.format(mod.dateAssemblage)</div>
+                </div>
+                @helper.form(action=routes.ConfigurationManager.insertInfoMesure(mod._id.stringify,idSensor)){
+                    @for(error<-form.globalErrors){
+                        <div class="alert alert-danger" role="alert">@error.message</div>
+                    }
+                    <h5 style="color:red;float:right"><em>*</em> @Messages("global.fieldRequired")</h5>
+                    <div class="col-sm-12">
+                        @helper.input(form("index"),'_label->Messages("inventary.configuration.index"),'required->true){ (id, name, value, args) =>
+                            <input id="@id" name="@name" class="form-control" type="number" autofocus="autofocus" autocomplete="off" @if(value!=null){value="@value"}/>
+                        }
+                        @helper.inputText(form("id"),'_label->Messages("inventary.configuration.id"),'autofocus->"autofocus",'autocomplete->"off",'required->true,'class->"form-control")
+                        @helper.input(form("mesure"),'_label->Messages("inventary.typeSensor.mesure"),'required->true) { (id, name, value, args) =>
+                            <input id="@id" name="@name" class="form-control" list="list_mesure" type="text" autocomplete="off" @if(value!=null){value="@value"}/>
+                            <datalist id="list_mesure">
+                            @for(mes<-mesure){
+                                <option value="@mes.getAs[String]("_id")"></option>
+                            }
+                            </datalist>
+                        }
+                        @helper.input(form("unite"),'_label->Messages("inventary.typeSensor.unite"),'required->true) { (id, name, value, args) =>
+                            <input id="@id" name="@name" class="form-control" list="list_unite" type="text" autocomplete="off" @if(value!=null){value="@value"}/>
+                            <datalist id="list_unite">
+                            @for(u<-unite){
+                                <option value="@u.getAs[String]("_id")"></option>
+                            }
+                            </datalist>
+                        }
+                    </div>
+                    <div class="col-sm-12">
+                        <div style="float:right">
+                            <input value="@Messages("global.btn.reset")" class="btn btn-default" type="reset"/>
+                            <input value="@Messages("global.btn.submit")" class="btn btn-default" type="submit"/>
+                        </div>
+                    </div>
+                }
+            </article>
+        </section>
+    </div>
+}

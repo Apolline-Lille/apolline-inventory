@@ -1,0 +1,69 @@
+@(mod:Module,typeSensors:List[TypeSensor],typeMesure:List[TypeMesure],sensors:List[Sensor])(implicit request: Request[AnyContent])
+
+@main(Messages("inventary.module.title")){
+    @navigation("inventary")
+    <div class="container">
+        @inventary("module")
+        <section>
+            <article>
+                <div class="col-sm-12">
+                    <h4>@mod.types / @mod.id</h4>
+                </div>
+                <div class="col-sm-11 col-sm-offset-1">
+                    <div class="row"><span class="bold">@Messages("inventary.module.commentaire")</span> : @mod.commentaire</div>
+                    <div class="row"><span class="bold">@Messages("inventary.module.dateAssemblage")</span> : @SensorManager.format(mod.dateAssemblage)</div>
+                </div>
+                <div class="col-sm-12">
+                    @if(typeSensors.size>0){
+                        <ul>
+                            @for(types <- typeSensors) {
+                            <li>
+                                <h5 class="bold">@types.nomType / @types.modele</h5>
+                                <div class="row">
+                                    <div class="col-sm-11 col-sm-offset-1">
+                                        <div class="row"> <span class="bold">@Messages("inventary.typeSensor.fabricant")</span> : @types.fabricant</div>
+                                        @defining(typeMesure.filter(m => m._id == types.mesure).head) { mesure =>
+                                        <div class="row"> <span class="bold">@Messages("inventary.typeSensor.nbSignaux")</span> : @{types.nbSignaux} (@{mesure.nom})</div>
+                                        <div class="row"><span class="bold">@Messages("inventary.typeSensor.signalMin")</span> : @types.min @mesure.unite</div>
+                                        <div class="row"><span class="bold">@Messages("inventary.typeSensor.signalMax")</span> : @types.max @mesure.unite</div>
+                                        }
+                                        <div class="row"> <span class="bold">@Messages("inventary.typeSensor.espece")</span> : @types.espece.mkString(", ")</div>
+                                    </div>
+                                </div>
+                                <div class="table-responsive">
+                                    <table class="table table-hover table-bordered">
+                                        <thead>
+                                        <tr>
+                                            <th>@Messages("inventary.sensor.id")</th>
+                                            <th>@Messages("inventary.sensor.acquisition")</th>
+                                            <th>@Messages("inventary.sensor.expiration")</th>
+                                            <th>@Messages("inventary.sensor.firstUse")</th>
+                                            <th>@Messages("inventary.sensor.etat")</th>
+                                            <th></th>
+                                        </tr>
+                                        </thead>
+                                        <tbody>
+                                        @for(sensor<-sensors.filter(p=>p.types.equals(types._id))){
+                                        <tr>
+                                            <td>@sensor.id</td>
+                                            <td>@{SensorManager.format(sensor.acquisition)}</td>
+                                            <td>@if(sensor.expiration.nonEmpty){@{SensorManager.format(sensor.expiration.get)}}else{-}</td>
+                                            <td>@if(sensor.firstUse.nonEmpty){@{SensorManager.format(sensor.firstUse.get)}}else{-}</td>
+                                            <td>@if(sensor.hs){@Messages("inventary.sensor.hs")}</td>
+                                            <td style="text-align:center"><a href="@routes.ConfigurationManager.formInfoMesure(mod._id.stringify,sensor._id.stringify)" class="btn btn-success">@Messages("inventary.configuration.addToConfig")</a></td>
+                                        </tr>
+                                        }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </li>
+                            }
+                        </ul>
+                    }else{
+                        <h3 style="text-align:center">@Messages("global.error.noResult")</h3>
+                    }
+                </div>
+        </article>
+    </section>
+</div>
+}

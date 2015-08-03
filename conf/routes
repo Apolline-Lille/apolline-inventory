@@ -3,106 +3,108 @@
 # ~~~~
 
 #Swagger
-GET         /swagger                                           controllers.Application.swagger
-GET         /api-docs.json                                     controllers.ApiHelpController.getResources
-GET         /api-docs.json/user                                controllers.ApiHelpController.getResource(path = "/user")
-GET         /api-docs.json/typeSensor                          controllers.ApiHelpController.getResource(path = "/typeSensor")
-GET         /api-docs.json/sensors                             controllers.ApiHelpController.getResource(path = "/sensors")
-GET         /api-docs.json/typeCards                           controllers.ApiHelpController.getResource(path = "/typeCards")
-GET         /api-docs.json/card                                controllers.ApiHelpController.getResource(path = "/card")
-GET         /api-docs.json/module                              controllers.ApiHelpController.getResource(path = "/module")
-GET         /api-docs.json/campaign                            controllers.ApiHelpController.getResource(path = "/campaign")
+GET         /swagger                                                 controllers.Application.swagger
+GET         /api-docs.json                                           controllers.ApiHelpController.getResources
+GET         /api-docs.json/user                                      controllers.ApiHelpController.getResource(path = "/user")
+GET         /api-docs.json/typeSensor                                controllers.ApiHelpController.getResource(path = "/typeSensor")
+GET         /api-docs.json/sensors                                   controllers.ApiHelpController.getResource(path = "/sensors")
+GET         /api-docs.json/typeCards                                 controllers.ApiHelpController.getResource(path = "/typeCards")
+GET         /api-docs.json/card                                      controllers.ApiHelpController.getResource(path = "/card")
+GET         /api-docs.json/module                                    controllers.ApiHelpController.getResource(path = "/module")
+GET         /api-docs.json/campaign                                  controllers.ApiHelpController.getResource(path = "/campaign")
 
 #Dashboard page
-GET         /                                                  controllers.Dashboard.index
+GET         /                                                        controllers.Dashboard.index
 
 #User page
-GET         /login                                             controllers.UserManager.loginPage
-POST        /login                                             controllers.UserManager.loginSubmit
-GET         /disconnect                                        controllers.UserManager.disconnect
-GET         /register                                          controllers.UserManager.addUserPage
-POST        /register                                          controllers.UserManager.addUserSubmit
+GET         /login                                                   controllers.UserManager.loginPage
+POST        /login                                                   controllers.UserManager.loginSubmit
+GET         /disconnect                                              controllers.UserManager.disconnect
+GET         /register                                                controllers.UserManager.addUserPage
+POST        /register                                                controllers.UserManager.addUserSubmit
 
 #Sensor page
-GET         /inventary/sensors                                 controllers.TypeSensorManager.inventary(types:String ?= "",modele:String?="",stock:String ?= "")
-GET         /inventary/sensors/type                            controllers.TypeSensorManager.typePage
-POST        /inventary/sensors/type                            controllers.TypeSensorManager.typeInsert
-GET         /inventary/sensors/:idType                         controllers.SensorManager.inventary(idType:String,sort:String ?= "id",sens:Int ?= 1,id:String ?= "")
-GET         /inventary/sensors/:id/update                      controllers.TypeSensorManager.typeUpdatePage(id:String)
-POST        /inventary/sensors/:id/update                      controllers.TypeSensorManager.typeUpdate(id:String)
-GET         /inventary/sensors/:id/delete                      controllers.TypeSensorManager.delete(id:String)
-GET         /inventary/sensors/:id/sensor                      controllers.SensorManager.sensorPage(id:String)
-POST        /inventary/sensors/:id/sensor                      controllers.SensorManager.sensorInsert(id:String)
-GET         /inventary/sensors/:id/:id2                        controllers.SensorManager.sensorUpdatePage(id:String,id2:String)
-POST        /inventary/sensors/:id/:id2                        controllers.SensorManager.sensorUpdate(id:String,id2:String)
-GET         /inventary/sensors/:id/:id2/moreInformation        controllers.SensorManager.moreInformation(id:String,id2:String)
-GET         /inventary/sensors/:id/:id2/delete                 controllers.SensorManager.delete(id:String,id2:String)
-GET         /inventary/sensors/:id/:id2/clone                  controllers.SensorManager.sensorClonePage(id:String,id2:String)
+GET         /inventary/sensors                                       controllers.TypeSensorManager.inventary(types:String ?= "",modele:String?="",stock:String ?= "")
+GET         /inventary/sensors/type                                  controllers.TypeSensorManager.typePage
+POST        /inventary/sensors/type                                  controllers.TypeSensorManager.typeInsert
+GET         /inventary/sensors/:idType                               controllers.SensorManager.inventary(idType:String,sort:String ?= "id",sens:Int ?= 1,id:String ?= "")
+GET         /inventary/sensors/:id/update                            controllers.TypeSensorManager.typeUpdatePage(id:String)
+POST        /inventary/sensors/:id/update                            controllers.TypeSensorManager.typeUpdate(id:String)
+GET         /inventary/sensors/:id/delete                            controllers.TypeSensorManager.delete(id:String)
+GET         /inventary/sensors/:id/sensor                            controllers.SensorManager.sensorPage(id:String)
+POST        /inventary/sensors/:id/sensor                            controllers.SensorManager.sensorInsert(id:String)
+GET         /inventary/sensors/:id/:id2                              controllers.SensorManager.sensorUpdatePage(id:String,id2:String)
+POST        /inventary/sensors/:id/:id2                              controllers.SensorManager.sensorUpdate(id:String,id2:String)
+GET         /inventary/sensors/:id/:id2/moreInformation              controllers.SensorManager.moreInformation(id:String,id2:String)
+GET         /inventary/sensors/:id/:id2/delete                       controllers.SensorManager.delete(id:String,id2:String)
+GET         /inventary/sensors/:id/:id2/clone                        controllers.SensorManager.sensorClonePage(id:String,id2:String)
 
 #Cards page
-GET         /inventary/cards                                   controllers.TypeCardsManager.inventary(types:String ?= "",modele:String ?="", stock:String ?= "")
-GET         /inventary/cards/type                              controllers.TypeCardsManager.typePage
-POST        /inventary/cards/type                              controllers.TypeCardsManager.typeInsert
-GET         /inventary/cards/:id/update                        controllers.TypeCardsManager.typeUpdatePage(id:String)
-POST        /inventary/cards/:id/update                        controllers.TypeCardsManager.typeUpdate(id:String)
-GET         /inventary/cards/:id/delete                        controllers.TypeCardsManager.delete(id:String)
-GET         /inventary/cards/:idType                           controllers.CardsManager.inventary(idType:String,sort:String ?= "id",sens:Int ?= 1,id:String ?="")
-GET         /inventary/cards/:id/card                          controllers.CardsManager.cardPage(id:String)
-POST        /inventary/cards/:id/card                          controllers.CardsManager.cardInsert(id:String)
-GET         /inventary/cards/:id/:id2                          controllers.CardsManager.cardUpdatePage(id:String,id2:String)
-POST        /inventary/cards/:id/:id2                          controllers.CardsManager.cardUpdate(id:String,id2:String)
-GET         /inventary/cards/:id/:id2/moreInformation          controllers.CardsManager.moreInformation(id:String,id2:String)
-GET         /inventary/cards/:id/:id2/delete                   controllers.CardsManager.delete(id:String,id2:String)
-GET         /inventary/cards/:id/:id2/clone                    controllers.CardsManager.cardClonePage(id:String,id2:String)
+GET         /inventary/cards                                         controllers.TypeCardsManager.inventary(types:String ?= "",modele:String ?="", stock:String ?= "")
+GET         /inventary/cards/type                                    controllers.TypeCardsManager.typePage
+POST        /inventary/cards/type                                    controllers.TypeCardsManager.typeInsert
+GET         /inventary/cards/:id/update                              controllers.TypeCardsManager.typeUpdatePage(id:String)
+POST        /inventary/cards/:id/update                              controllers.TypeCardsManager.typeUpdate(id:String)
+GET         /inventary/cards/:id/delete                              controllers.TypeCardsManager.delete(id:String)
+GET         /inventary/cards/:idType                                 controllers.CardsManager.inventary(idType:String,sort:String ?= "id",sens:Int ?= 1,id:String ?="")
+GET         /inventary/cards/:id/card                                controllers.CardsManager.cardPage(id:String)
+POST        /inventary/cards/:id/card                                controllers.CardsManager.cardInsert(id:String)
+GET         /inventary/cards/:id/:id2                                controllers.CardsManager.cardUpdatePage(id:String,id2:String)
+POST        /inventary/cards/:id/:id2                                controllers.CardsManager.cardUpdate(id:String,id2:String)
+GET         /inventary/cards/:id/:id2/moreInformation                controllers.CardsManager.moreInformation(id:String,id2:String)
+GET         /inventary/cards/:id/:id2/delete                         controllers.CardsManager.delete(id:String,id2:String)
+GET         /inventary/cards/:id/:id2/clone                          controllers.CardsManager.cardClonePage(id:String,id2:String)
 
 #Module page
-GET         /inventary/modules                                 controllers.ModuleManager.inventary(filtre:String ?= "",filtreId:String ?= "")
-GET         /inventary/modules/form                            controllers.ModuleManager.formGeneralAdd()
-POST        /inventary/modules/form                            controllers.ModuleManager.addInformation()
-GET         /inventary/modules/form/update                     controllers.ModuleManager.formUpdate()
-GET         /inventary/modules/form/typeCards                  controllers.ModuleManager.formTypeCards(types:String ?= "",modele:String ?="")
-GET         /inventary/modules/form/cards/:id/delete           controllers.ModuleManager.deleteCards(id)
-GET         /inventary/modules/form/cards/:idType              controllers.ModuleManager.formCards(idType,sort:String ?= "id",sens:Int ?= 1,id:String ?="")
-POST        /inventary/modules/form/cards/:id                  controllers.ModuleManager.addCards(id)
-GET         /inventary/modules/form/typeSensors                controllers.ModuleManager.formTypeSensors(types:String ?= "",modele:String ?="")
-GET         /inventary/modules/form/sensors/:id/delete         controllers.ModuleManager.deleteSensors(id)
-GET         /inventary/modules/form/sensors/:idType            controllers.ModuleManager.formSensors(idType,sort:String ?= "id",sens:Int ?= 1,id:String ?= "")
-POST        /inventary/modules/form/sensors/:id                controllers.ModuleManager.addSensors(id)
-GET         /inventary/modules/form/validate                   controllers.ModuleManager.validate()
-POST        /inventary/modules/form/validate                   controllers.ModuleManager.insertModule()
-GET         /inventary/modules/form/:id                        controllers.ModuleManager.formGeneralUpdate(id)
-GET         /inventary/modules/:id/delete                      controllers.ModuleManager.deleteModule(id)
-GET         /inventary/modules/:id/configuration               controllers.ConfigurationManager.formConfiguration(id)
-POST        /inventary/modules/:id/configuration               controllers.ConfigurationManager.insertFormConfiguration(id)
-GET         /inventary/modules/:id/configuration/sensors        controllers.ConfigurationManager.listSensors(id)
-GET         /inventary/modules/:id                             controllers.ModuleManager.moreInformation(id)
+GET         /inventary/modules                                       controllers.ModuleManager.inventary(filtre:String ?= "",filtreId:String ?= "")
+GET         /inventary/modules/form                                  controllers.ModuleManager.formGeneralAdd()
+POST        /inventary/modules/form                                  controllers.ModuleManager.addInformation()
+GET         /inventary/modules/form/update                           controllers.ModuleManager.formUpdate()
+GET         /inventary/modules/form/typeCards                        controllers.ModuleManager.formTypeCards(types:String ?= "",modele:String ?="")
+GET         /inventary/modules/form/cards/:id/delete                 controllers.ModuleManager.deleteCards(id)
+GET         /inventary/modules/form/cards/:idType                    controllers.ModuleManager.formCards(idType,sort:String ?= "id",sens:Int ?= 1,id:String ?="")
+POST        /inventary/modules/form/cards/:id                        controllers.ModuleManager.addCards(id)
+GET         /inventary/modules/form/typeSensors                      controllers.ModuleManager.formTypeSensors(types:String ?= "",modele:String ?="")
+GET         /inventary/modules/form/sensors/:id/delete               controllers.ModuleManager.deleteSensors(id)
+GET         /inventary/modules/form/sensors/:idType                  controllers.ModuleManager.formSensors(idType,sort:String ?= "id",sens:Int ?= 1,id:String ?= "")
+POST        /inventary/modules/form/sensors/:id                      controllers.ModuleManager.addSensors(id)
+GET         /inventary/modules/form/validate                         controllers.ModuleManager.validate()
+POST        /inventary/modules/form/validate                         controllers.ModuleManager.insertModule()
+GET         /inventary/modules/form/:id                              controllers.ModuleManager.formGeneralUpdate(id)
+GET         /inventary/modules/:id/delete                            controllers.ModuleManager.deleteModule(id)
+GET         /inventary/modules/:id/configuration                     controllers.ConfigurationManager.formConfiguration(id)
+POST        /inventary/modules/:id/configuration                     controllers.ConfigurationManager.insertFormConfiguration(id)
+GET         /inventary/modules/:id/configuration/sensors             controllers.ConfigurationManager.listSensors(id)
+GET         /inventary/modules/:id/configuration/sensors/:id2        controllers.ConfigurationManager.formInfoMesure(id,id2)
+POST        /inventary/modules/:id/configuration/sensors/:id2       controllers.ConfigurationManager.insertInfoMesure(id,id2)
+GET         /inventary/modules/:id                                   controllers.ModuleManager.moreInformation(id)
 
 #Campaign page
-GET         /campaigns                                         controllers.CampagneManager.listCampaign()
-GET         /campaigns/campaign                                controllers.CampagneManager.addCampaign()
-POST        /campaigns/campaign                                controllers.CampagneManager.insertCampaign()
-GET         /campaigns/campaign/:id/update                     controllers.CampagneManager.updateCampaignPage(id)
-POST        /campaigns/campaign/:id/update                     controllers.CampagneManager.updateCampaign(id)
-GET         /campaigns/campaign/:id                            controllers.ConditionsManager.listConditions(id,filtre ?="")
-GET         /campaigns/campaign/:id/form                       controllers.ConditionsManager.formGeneral(id)
-GET         /campaigns/campaign/:id/form/update                controllers.ConditionsManager.formGeneralUpdateInput(id)
-POST        /campaigns/campaign/:id/form                       controllers.ConditionsManager.addGeneralInformation(id)
-GET         /campaigns/campaign/:id/form/module                controllers.ConditionsManager.formModule(id,filtre ?= "",filtreId:String ?= "")
-POST        /campaigns/campaign/:id/form/module                controllers.ConditionsManager.addSelectedModule(id)
-GET         /campaigns/campaign/:id/form/localisation          controllers.ConditionsManager.formLocalisation(id)
-POST        /campaigns/campaign/:id/form/localisation          controllers.ConditionsManager.addLocalisation(id)
-GET         /campaigns/campaign/:id/form/validate              controllers.ConditionsManager.formValidate(id)
-POST        /campaigns/campaign/:id/form/validate              controllers.ConditionsManager.validate(id)
-GET         /campaigns/campaign/:id/form/picture/delete        controllers.ConditionsManager.removeImageCondition(id,id2="",filename?="")
-GET         /campaigns/campaign/:id/:id2                       controllers.ConditionsManager.moreInformation(id,id2)
-GET         /campaigns/campaign/:id/:id2/form                  controllers.ConditionsManager.formGeneralUpdate(id,id2)
-GET         /campaigns/campaign/:id/:id2/finish                controllers.ConditionsManager.finishCondition(id,id2)
-GET         /campaigns/campaign/:id/:id2/picture/delete        controllers.ConditionsManager.removeImageCondition(id,id2,filename?="")
+GET         /campaigns                                               controllers.CampagneManager.listCampaign()
+GET         /campaigns/campaign                                      controllers.CampagneManager.addCampaign()
+POST        /campaigns/campaign                                      controllers.CampagneManager.insertCampaign()
+GET         /campaigns/campaign/:id/update                           controllers.CampagneManager.updateCampaignPage(id)
+POST        /campaigns/campaign/:id/update                           controllers.CampagneManager.updateCampaign(id)
+GET         /campaigns/campaign/:id                                  controllers.ConditionsManager.listConditions(id,filtre ?="")
+GET         /campaigns/campaign/:id/form                             controllers.ConditionsManager.formGeneral(id)
+GET         /campaigns/campaign/:id/form/update                      controllers.ConditionsManager.formGeneralUpdateInput(id)
+POST        /campaigns/campaign/:id/form                             controllers.ConditionsManager.addGeneralInformation(id)
+GET         /campaigns/campaign/:id/form/module                      controllers.ConditionsManager.formModule(id,filtre ?= "",filtreId:String ?= "")
+POST        /campaigns/campaign/:id/form/module                      controllers.ConditionsManager.addSelectedModule(id)
+GET         /campaigns/campaign/:id/form/localisation                controllers.ConditionsManager.formLocalisation(id)
+POST        /campaigns/campaign/:id/form/localisation                controllers.ConditionsManager.addLocalisation(id)
+GET         /campaigns/campaign/:id/form/validate                    controllers.ConditionsManager.formValidate(id)
+POST        /campaigns/campaign/:id/form/validate                    controllers.ConditionsManager.validate(id)
+GET         /campaigns/campaign/:id/form/picture/delete              controllers.ConditionsManager.removeImageCondition(id,id2="",filename?="")
+GET         /campaigns/campaign/:id/:id2                             controllers.ConditionsManager.moreInformation(id,id2)
+GET         /campaigns/campaign/:id/:id2/form                        controllers.ConditionsManager.formGeneralUpdate(id,id2)
+GET         /campaigns/campaign/:id/:id2/finish                      controllers.ConditionsManager.finishCondition(id,id2)
+GET         /campaigns/campaign/:id/:id2/picture/delete              controllers.ConditionsManager.removeImageCondition(id,id2,filename?="")
 
 
 # Map static resources from the /public folder to the /assets URL path
-GET         /assets/*file                                      controllers.Assets.at(path="/public", file)
+GET         /assets/*file                                            controllers.Assets.at(path="/public", file)
 
-GET         /api/*file                                         controllers.Assets.at(path="/public/api",file)
+GET         /api/*file                                               controllers.Assets.at(path="/public/api",file)
 
-GET         /*path                                             controllers.Dashboard.notFound(path)
+GET         /*path                                                   controllers.Dashboard.notFound(path)
