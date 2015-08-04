@@ -13,6 +13,7 @@
                     <div class="row"><span class="bold">@Messages("inventary.module.commentaire")</span> : @mod.commentaire</div>
                     <div class="row"><span class="bold">@Messages("inventary.module.dateAssemblage")</span> : @SensorManager.format(mod.dateAssemblage)</div>
                 </div>
+                @configuration.stateForm("sensors",mod._id.stringify)
                 <div class="col-sm-12">
                     @if(typeSensors.size>0){
                         <ul>
@@ -62,6 +63,7 @@
                     }else{
                         <h3 style="text-align:center">@Messages("global.error.noResult")</h3>
                     }
+                    <a href="@routes.ConfigurationManager.formValidation(mod._id.stringify)" class="btn btn-default">Passer à l'étape suivante</a>
                 </div>
         </article>
     </section>

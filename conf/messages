@@ -115,6 +115,14 @@ inventary.configuration.stopBits=Stop de bits
 inventary.configuration.addToConfig=Associer à la configuration
 inventary.configuration.index=Index
 inventary.configuration.id=Identifiant
+inventary.configuration.mesure=Type de signaux
+inventary.configuration.unite=Unité
+inventary.configuration.sensor=Capteur
+inventary.configuration.configuration=Configuration
+inventary.configuration.sensors=Capteurs
+inventary.configuration.validate=Validation
+inventary.configuration.error.portOrTypeEmpty=Le port ou le type configuration ne sont pas définis
+inventary.configuration.error.noSensor=La configuration doit contenir au moins une information de mesure
 
 inventary.onglet.sensor=Capteurs
 inventary.onglet.cards=Cartes

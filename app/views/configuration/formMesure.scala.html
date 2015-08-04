@@ -15,6 +15,7 @@
                     <div class="row"><span class="bold">@Messages("inventary.module.commentaire")</span> : @mod.commentaire</div>
                     <div class="row"><span class="bold">@Messages("inventary.module.dateAssemblage")</span> : @SensorManager.format(mod.dateAssemblage)</div>
                 </div>
+                @configuration.stateForm("sensors",mod._id.stringify)
                 @helper.form(action=routes.ConfigurationManager.insertInfoMesure(mod._id.stringify,idSensor)){
                     @for(error<-form.globalErrors){
                         <div class="alert alert-danger" role="alert">@error.message</div>

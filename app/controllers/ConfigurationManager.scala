@@ -6,6 +6,7 @@ import com.wordnik.swagger.annotations._
 import models._
 import play.api.data.Form
 import play.api.data.Forms._
+import play.api.i18n.Messages
 import play.api.libs.json.{JsObject, JsValue, JsArray, Json}
 import play.api.mvc._
 import play.modules.reactivemongo.json.BSONFormats.BSONObjectIDFormat
@@ -288,6 +289,65 @@ trait ConfigurationManagerLike extends Controller{
   }
 
   /**
+   * Display the summary of the configuration before validate and insert it in mongoDB
+   * @param id Module id
+   * @return Redirect if user is not log in or if module is not found
+   *         Ok with the summary if the configuration haven't got errors
+   *         Bad request  with the summary and error message
+   */
+  @ApiOperation(
+    nickname = "inventary/modules/:id/configuration/validation",
+    value = "Display the summary of the configuration before insert it to mongoDB",
+    notes = "Display the summary of the configuration before insert it to mongoDB",
+    httpMethod = "GET")
+  @ApiResponses(Array(
+    new ApiResponse(code=303,message="<ul><li>Move resource to the login page at /login if the user is not log</li><li>Move resource to modules inventary at /inventary/modules if module not found</li></ul>"),
+    new ApiResponse(code=400,message="The configuration contains an error")
+  ))
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(value = "Module id",required=true,name="id", dataType = "String", paramType = "path"),
+    new ApiImplicitParam(value = "Sensor id",required=true,name="id2", dataType = "String", paramType = "path"),
+    new ApiImplicitParam(value = "Index where get the sensor valure",required=true,name="index", dataType = "Int", paramType = "body"),
+    new ApiImplicitParam(value = "Mesure information id",required=true,name="id", dataType = "String", paramType = "body"),
+    new ApiImplicitParam(value = "Name of the mesure",required=true,name="mesure", dataType = "String", paramType = "body"),
+    new ApiImplicitParam(value = "Unity of the mesure",required=true,name="unite", dataType = "String", paramType = "body")
+  ))
+  def formValidation(id:String)=Action.async{
+    implicit request =>
+      //Verify if user is connect
+      UserManager.doIfconnectAsync(request) {
+
+        //Verify if module exists
+        moduleManager.doIfModuleFound(BSONObjectID(id)) {
+
+          module =>{
+            //Find the configuration
+            val config=getConfiguration
+
+            //Find mesure informations
+            val infoMesure=getInfoMesure
+
+            //Verify configuration and mesure informations
+            val errors=verifyInfoMesure(infoMesure,verifyConfiguration(config,List()))
+
+            //Find sensors with type associat
+            findListSensor(infoMesure.foldLeft(List[BSONObjectID]()){
+              (list,couple)=>list :+ couple._1
+            }).map(data => data match {
+
+              //Display the summary of the configuration
+              case (typeSensor, typeMesure, sensor) => (if(errors.isEmpty){Ok}else{BadRequest})(views.html.configuration.validation(module,config,typeSensor,sensor,infoMesure,errors))
+            })
+          }
+        }{
+
+          //Redirect to the list of modules
+          _ =>future{Redirect(routes.ModuleManager.inventary())}
+        }
+      }
+  }
+
+  /**
    * Find the list of sensors, type sensors and type mesure for sensors associat to the module
    * @param listSensors List of sensors associat to the module
    * @return The list of sensors, type sensors and type mesure
@@ -362,6 +422,78 @@ trait ConfigurationManagerLike extends Controller{
     }{
       //Redirect to the list of modules
       _ =>future{Redirect(routes.ModuleManager.inventary())}
+    }
+  }
+
+  /**
+   * Find the configuration in session
+   * @param request HTTPRequest received
+   * @return The configuration in session or the default configuration
+   */
+  def getConfiguration(implicit request:Request[AnyContent]):ConfigurationForm=
+  //Find the configuration in session
+  request.session.get("config") match{
+
+      //If configuration is not found, return default configuration
+    case None=>ConfigurationForm(port="",types="")
+
+      //If configuration is found return it
+    case Some(config)=>formatsForm.reads(Json.parse(config)).getOrElse(ConfigurationForm(port="",types=""))
+  }
+
+  /**
+   * Find mesure informations in session
+   * @param request HTTPRequest received
+   * @return Mesure informations in session or an empty list
+   */
+  def getInfoMesure(implicit request:Request[AnyContent]):List[(BSONObjectID,InfoMesureForm)]=
+  //Find mesure informations
+  request.session.get("infoMesure") match{
+
+      //If mesure informations are not found, return an empty list
+    case None=>List()
+
+      //If mesure informations are found, return their
+    case Some(data)=>Json.parse(data).as[List[JsObject]].foldLeft(List[(BSONObjectID,InfoMesureForm)]()){
+      (list,obj)=>list :+ (BSONObjectID((obj\"sensor").as[String]),(obj\"info").as[InfoMesureForm])
+    }
+  }
+
+  /**
+   * Verify if configuration is valid
+   * @param config The configuration
+   * @param errors List of errors
+   * @return A list of errors
+   */
+  def verifyConfiguration(config: ConfigurationForm,errors:List[String]):List[String]={
+    //If the port or the type of configuration is not defined
+    if(config.port.isEmpty || config.types.isEmpty){
+
+      //return a new list of errors
+      errors :+ Messages("inventary.configuration.error.portOrTypeEmpty")
+    }else{
+
+      //Return the list of errors
+      errors
+    }
+  }
+
+  /**
+   * Verify if mesure informations are valid
+   * @param infos List of mesure informations
+   * @param errors List of errors
+   * @return A list of errors
+   */
+  def verifyInfoMesure(infos:List[(BSONObjectID,InfoMesureForm)],errors:List[String]):List[String]={
+    //If the list of mesure informations is empty
+    if(infos.isEmpty){
+
+      //return a new list of errors
+      errors :+ Messages("inventary.configuration.error.noSensor")
+    }else{
+
+      //return the list of errors
+      errors
     }
   }
 }
