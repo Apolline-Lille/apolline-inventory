@@ -1,5 +1,8 @@
 package controllers
 
+import java.lang.annotation.Annotation
+
+import com.wordnik.swagger.annotations._
 import models._
 import play.api.data.Form
 import play.api.data.Forms._
@@ -60,6 +63,17 @@ trait ConfigurationManagerLike extends Controller{
    * @return A 200 OK page, with the form for insert module configuration
    *         Redirect if module not found or if the user is not log in
    */
+  @ApiOperation(
+    nickname = "inventary/modules/:id/configuration",
+    value = "Display form for insert module configuration",
+    notes = "Display form for insert module configuration",
+    httpMethod = "GET")
+  @ApiResponses(Array(
+    new ApiResponse(code=303,message="<ul><li>Move resource to the login page at /login if the user is not log</li></ul>")
+  ))
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(value = "Module id",required=true,name="id", dataType = "String", paramType = "path")
+  ))
   def formConfiguration(id:String)=Action.async{
     implicit request =>
       //Verify if user is connect
@@ -84,6 +98,26 @@ trait ConfigurationManagerLike extends Controller{
    * @return Redirect if module not found or if the user is not log in
    *         Bad request with a prefilled form if form contains errors
    */
+  @ApiOperation(
+    nickname = "inventary/modules/:id/configuration",
+    value = "Insert module configuration",
+    notes = "Insert module configuration",
+    httpMethod = "POST")
+  @ApiResponses(Array(
+    new ApiResponse(code=303,message="<ul><li>Move resource to the login page at /login if the user is not log</li><li>Move resource to the list of sensors at /inventary/modules/:id/configuration/sensors</li></ul>"),
+    new ApiResponse(code=400,message="Form was submit with an error")
+  ))
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(value = "Module id",required=true,name="id", dataType = "String", paramType = "path"),
+    new ApiImplicitParam(value = "Port name",required=true,name="port", dataType = "String", paramType = "body"),
+    new ApiImplicitParam(value = "Connection timeout to the port",required=true,name="timeout", dataType = "Int", paramType = "body"),
+    new ApiImplicitParam(value = "Baud number",required=true,name="baud", dataType = "Int", paramType = "body"),
+    new ApiImplicitParam(value = "Bits number",required=true,name="bits", dataType = "Int", paramType = "body"),
+    new ApiImplicitParam(value = "Parity",required=true,name="parity", dataType = "Int", paramType = "body"),
+    new ApiImplicitParam(value = "Stop bits",required=true,name="stopBits", dataType = "Int", paramType = "body"),
+    new ApiImplicitParam(value = "Time for filter data received",required=true,name="timeFilter", dataType = "Int", paramType = "body"),
+    new ApiImplicitParam(value = "Type name of datalogger",required=true,name="types", dataType = "String", paramType = "body")
+  ))
   def insertFormConfiguration(id:String)=Action.async{
     implicit request =>
       //Verify if user is connect
@@ -114,6 +148,17 @@ trait ConfigurationManagerLike extends Controller{
    * @return Redirect if user is not log in or if module not found
    *         200 OK page with the list of sensors
    */
+  @ApiOperation(
+    nickname = "inventary/modules/:id/configuration/sensors",
+    value = "Display the list of sensors in the module",
+    notes = "Display the list of sensors in the module",
+    httpMethod = "GET")
+  @ApiResponses(Array(
+    new ApiResponse(code=303,message="<ul><li>Move resource to the login page at /login if the user is not log</li><li>Move resource to modules inventary at /inventary/modules if module not found</li></ul>")
+  ))
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(value = "Module id",required=true,name="id", dataType = "String", paramType = "path")
+  ))
   def listSensors(id:String)=Action.async{
     implicit request =>
       //Verify if user is connect
@@ -150,6 +195,18 @@ trait ConfigurationManagerLike extends Controller{
    * @return Redirect if user is not log in or if module not found
    *         200 Ok page with the form
    */
+  @ApiOperation(
+    nickname = "inventary/modules/:id/configuration/sensors/:id",
+    value = "Display form for insert mesure information",
+    notes = "Display form for insert mesure information",
+    httpMethod = "GET")
+  @ApiResponses(Array(
+    new ApiResponse(code=303,message="<ul><li>Move resource to the login page at /login if the user is not log</li><li>Move resource to modules inventary at /inventary/modules if module not found</li><li>Move resouce to the list of sensors at /inventary/modules/:id/configuration/sensors/:id2 if sensor not found</li></ul>")
+  ))
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(value = "Module id",required=true,name="id", dataType = "String", paramType = "path"),
+    new ApiImplicitParam(value = "Sensor id",required=true,name="id2", dataType = "String", paramType = "path")
+  ))
   def formInfoMesure(id:String,idSensor:String)=Action.async{
     implicit request =>
       //Verify if user is connect
@@ -183,6 +240,22 @@ trait ConfigurationManagerLike extends Controller{
    * @return Redirect if user is not log in, if module not found or after insert mesure information to the session
    *         Bad request if data received ara not valid
    */
+  @ApiOperation(
+    nickname = "inventary/modules/:id/configuration/sensors/:id",
+    value = "Insert mesure information in the session",
+    notes = "Insert mesure information in the session",
+    httpMethod = "GET")
+  @ApiResponses(Array(
+    new ApiResponse(code=303,message="<ul><li>Move resource to the login page at /login if the user is not log</li><li>Move resource to modules inventary at /inventary/modules if module not found</li><li>Move resouce to the list of sensors at /inventary/modules/:id/configuration/sensors/:id2 if sensors not found or after insert module information</li></ul>")
+  ))
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(value = "Module id",required=true,name="id", dataType = "String", paramType = "path"),
+    new ApiImplicitParam(value = "Sensor id",required=true,name="id2", dataType = "String", paramType = "path"),
+    new ApiImplicitParam(value = "Index where get the sensor valure",required=true,name="index", dataType = "Int", paramType = "body"),
+    new ApiImplicitParam(value = "Mesure information id",required=true,name="id", dataType = "String", paramType = "body"),
+    new ApiImplicitParam(value = "Name of the mesure",required=true,name="mesure", dataType = "String", paramType = "body"),
+    new ApiImplicitParam(value = "Unity of the mesure",required=true,name="unite", dataType = "String", paramType = "body")
+  ))
   def insertInfoMesure(id:String,idSensor:String) = Action.async{
     implicit request =>
       //Verify if user is connect
@@ -292,4 +365,6 @@ trait ConfigurationManagerLike extends Controller{
     }
   }
 }
+
+@Api(value = "/configuration", description = "Operations for modules configuration")
 object ConfigurationManager extends ConfigurationManagerLike

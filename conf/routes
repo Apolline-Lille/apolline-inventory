@@ -12,6 +12,7 @@ GET         /api-docs.json/typeCards                                 controllers
 GET         /api-docs.json/card                                      controllers.ApiHelpController.getResource(path = "/card")
 GET         /api-docs.json/module                                    controllers.ApiHelpController.getResource(path = "/module")
 GET         /api-docs.json/campaign                                  controllers.ApiHelpController.getResource(path = "/campaign")
+GET         /api-docs.json/configuration                            controllers.ApiHelpController.getResource(path="/configuration")
 
 #Dashboard page
 GET         /                                                        controllers.Dashboard.index
@@ -76,7 +77,7 @@ GET         /inventary/modules/:id/configuration                     controllers
 POST        /inventary/modules/:id/configuration                     controllers.ConfigurationManager.insertFormConfiguration(id)
 GET         /inventary/modules/:id/configuration/sensors             controllers.ConfigurationManager.listSensors(id)
 GET         /inventary/modules/:id/configuration/sensors/:id2        controllers.ConfigurationManager.formInfoMesure(id,id2)
-POST        /inventary/modules/:id/configuration/sensors/:id2       controllers.ConfigurationManager.insertInfoMesure(id,id2)
+POST        /inventary/modules/:id/configuration/sensors/:id2        controllers.ConfigurationManager.insertInfoMesure(id,id2)
 GET         /inventary/modules/:id                                   controllers.ModuleManager.moreInformation(id)
 
 #Campaign page
