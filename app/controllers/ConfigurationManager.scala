@@ -56,6 +56,12 @@ trait ConfigurationManagerLike extends Controller{
 
   val typeMesureDao:TypeMesureDao=TypeMesureDaoObj
 
+  val moduleDao:ModuleDao=ModuleDaoObj
+
+  val informationMesureDao:InformationMesureDao=InformationMesureDaoObj
+
+  val configurationDao:ConfigurationDao=ConfigurationDaoObj
+
   val moduleManager:ModuleManagerLike=ModuleManager
 
   /**
@@ -305,12 +311,7 @@ trait ConfigurationManagerLike extends Controller{
     new ApiResponse(code=400,message="The configuration contains an error")
   ))
   @ApiImplicitParams(Array(
-    new ApiImplicitParam(value = "Module id",required=true,name="id", dataType = "String", paramType = "path"),
-    new ApiImplicitParam(value = "Sensor id",required=true,name="id2", dataType = "String", paramType = "path"),
-    new ApiImplicitParam(value = "Index where get the sensor valure",required=true,name="index", dataType = "Int", paramType = "body"),
-    new ApiImplicitParam(value = "Mesure information id",required=true,name="id", dataType = "String", paramType = "body"),
-    new ApiImplicitParam(value = "Name of the mesure",required=true,name="mesure", dataType = "String", paramType = "body"),
-    new ApiImplicitParam(value = "Unity of the mesure",required=true,name="unite", dataType = "String", paramType = "body")
+    new ApiImplicitParam(value = "Module id",required=true,name="id", dataType = "String", paramType = "path")
   ))
   def formValidation(id:String)=Action.async{
     implicit request =>
@@ -330,14 +331,8 @@ trait ConfigurationManagerLike extends Controller{
             //Verify configuration and mesure informations
             val errors=verifyInfoMesure(infoMesure,verifyConfiguration(config,List()))
 
-            //Find sensors with type associat
-            findListSensor(infoMesure.foldLeft(List[BSONObjectID]()){
-              (list,couple)=>list :+ couple._1
-            }).map(data => data match {
-
-              //Display the summary of the configuration
-              case (typeSensor, typeMesure, sensor) => (if(errors.isEmpty){Ok}else{BadRequest})(views.html.configuration.validation(module,config,typeSensor,sensor,infoMesure,errors))
-            })
+            //Display the summary of the configuration
+            display_validation((if(errors.isEmpty){Results.Ok}else{Results.BadRequest}),module,config,infoMesure,errors)
           }
         }{
 
@@ -345,6 +340,162 @@ trait ConfigurationManagerLike extends Controller{
           _ =>future{Redirect(routes.ModuleManager.inventary())}
         }
       }
+  }
+
+  /**
+   * Validate the configuration and insert it in mongoDB
+   * @param id Module id
+   * @return Bad request if configuration is not valid
+   *         Redirect after insert the configuration in mongoDB or if user is not log or if module not found
+   */
+  @ApiOperation(
+    nickname = "inventary/modules/:id/configuration/validation",
+    value = "Validate and insert the configuration",
+    notes = "Validate and insert the configuration",
+    httpMethod = "POST")
+  @ApiResponses(Array(
+    new ApiResponse(code=303,message="<ul><li>Move resource to the login page at /login if the user is not log</li><li>Move resource to modules inventary at /inventary/modules if module not found</li><li>The configuration is valid and insert in mongoDB then redirect to module informations</li></ul>"),
+    new ApiResponse(code=400,message="The configuration contains an error")
+  ))
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(value = "Module id",required=true,name="id", dataType = "String", paramType = "path"),
+    new ApiImplicitParam(value = "Sensor id",required=true,name="id2", dataType = "String", paramType = "path"),
+    new ApiImplicitParam(value = "Index where get the sensor valure",required=true,name="index", dataType = "Int", paramType = "body"),
+    new ApiImplicitParam(value = "Mesure information id",required=true,name="id", dataType = "String", paramType = "body"),
+    new ApiImplicitParam(value = "Name of the mesure",required=true,name="mesure", dataType = "String", paramType = "body"),
+    new ApiImplicitParam(value = "Unity of the mesure",required=true,name="unite", dataType = "String", paramType = "body")
+  ))
+  def validation(id:String)=Action.async{
+    implicit request =>
+      //Verify if user is connect
+      UserManager.doIfconnectAsync(request) {
+
+        //Verify if module exists
+        moduleManager.doIfModuleFound(BSONObjectID(id)) {
+
+          module => {
+            //Find the configuration
+            val config = getConfiguration
+
+            //Find mesure informations
+            val infoMesure = getInfoMesure
+
+            //Verify configuration and mesure informations
+            val errors = verifyInfoMesure(infoMesure, verifyConfiguration(config, List()))
+            if(errors.nonEmpty){
+
+              //Display the summary of the configuration
+              display_validation(Results.BadRequest,module,config,infoMesure,errors)
+            }else{
+
+              //Insert the configuration to mongoDB
+              insertConfiguration(id,config,infoMesure)
+            }
+          }
+        }{
+
+          //Redirect to the list of modules
+          _ =>future{Redirect(routes.ModuleManager.inventary())}
+        }
+      }
+  }
+
+  /**
+   * Insert mesure informations in mongoDB
+   * @param infos List of mesure informations
+   * @return Informations _id
+   */
+  def insertInformation(infos:List[(BSONObjectID,InfoMesureForm)]):List[Future[BSONObjectID]]=infos match{
+    //If not have informations
+    case Nil=>List()
+
+    //If have informations, Find the mesure type
+    case h::t=>typeMesureDao.findOne(Json.obj("nom"->h._2.mesure,"unite"->h._2.unite)).flatMap(
+      data=> {
+        //Find the type mesure id
+        val id = findIdTypeMesure(data,h._2)
+
+        //Create the mesure information
+        val info=InformationMesure(index=h._2.index,id=h._2.id,sensor=h._1,mesure=id)
+
+        //Insert the mesure information
+        informationMesureDao.insert(info).map(
+          data=>info._id
+        )
+      }
+    ) :: insertInformation(t)
+  }
+
+  /**
+   * Find the type mesure _id of the information
+   * @param data The type mesure
+   * @param infoMesure The mesure information
+   * @return The type mesure _id
+   */
+  def findIdTypeMesure(data:Option[TypeMesure],infoMesure:InfoMesureForm)=data match {
+    //if type mesure not exist
+    case None => {
+
+      //Create the type mesure
+      val mesure = TypeMesure(nom = infoMesure.mesure, unite = infoMesure.unite)
+
+      //Insert the type mesure
+      typeMesureDao.insert(mesure)
+
+      //Return the type mesure _id
+      mesure._id
+    }
+
+    //If the type mesure exist, return the _id
+    case Some(mesure)=>mesure._id
+  }
+
+  /**
+   * Insert the module configuration in mongoDB
+   * @param id Module id
+   * @param config Module configuration
+   * @param infoMesure Mesure informations
+   * @return Redirect after insert configuration in mongoDB
+   */
+  def insertConfiguration(id:String,config:ConfigurationForm,infoMesure:List[(BSONObjectID,InfoMesureForm)])(implicit request:Request[AnyContent]):Future[Result]={
+    //Transform the List[Future] to Future[List] after insert mesure information
+    Future.sequence(insertInformation(infoMesure)).flatMap(list=> {
+
+      //Create the configuration
+      val configFinal = Configuration(port = config.port, timeout = config.timeout, baud = config.baud, bits = config.bits, parity = config.parity, stopBits = config.stopBits, timeFilter = config.timeFilter, types = config.types, infoMesure = list)
+
+      //Insert the configuration
+      configurationDao.insert(configFinal).flatMap(
+
+        //Update the module for associat the configuration to it
+        data => moduleDao.updateById(BSONObjectID(id), Json.obj("$push" -> Json.obj("configuration" ->configFinal._id))).map(
+
+          //Redirect to module informations
+          data => Redirect(routes.ModuleManager.moreInformation(id)).withSession(request.session - "configForm" - "config" - "infoMesure")
+        )
+      )
+    })
+  }
+
+  /**
+   * Display the summary of the configuration
+   * @param status Status of the response
+   * @param module Module associat to the configuration
+   * @param config The configuration
+   * @param infoMesure Mesure informations
+   * @param errors Errors messages of the configuration
+   * @param request HTTPRequest received
+   * @return The summary of the configuration
+   */
+  def display_validation(status:Results.Status,module:Module,config:ConfigurationForm,infoMesure:List[(BSONObjectID,InfoMesureForm)],errors:List[String])(implicit request:Request[AnyContent]):Future[Result]={
+    //Find sensors with type associat
+    findListSensor(infoMesure.foldLeft(List[BSONObjectID]()){
+      (list,couple)=>list :+ couple._1
+    }).map(data => data match {
+
+      //Display the summary of the configuration
+      case (typeSensor, typeMesure, sensor) => status(views.html.configuration.validation(module,config,typeSensor,sensor,infoMesure,errors))
+    })
   }
 
   /**
