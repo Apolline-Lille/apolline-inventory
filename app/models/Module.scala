@@ -22,7 +22,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
  * @param commentaire Comment about the module
  * @param delete Flag to indicate if the module was delete
  */
-case class Module(_id:BSONObjectID=BSONObjectID.generate,id:String,types:String,dateAssemblage:Date,cartes:List[BSONObjectID],capteurs:List[BSONObjectID],commentaire:Option[String],delete:Boolean=false) extends Serializable
+case class Module(_id:BSONObjectID=BSONObjectID.generate,id:String,types:String,dateAssemblage:Date,cartes:List[BSONObjectID],capteurs:List[BSONObjectID],commentaire:Option[String],configuration:List[BSONObjectID]=List(),delete:Boolean=false) extends Serializable
 
 /**
  * Object used for module class
@@ -39,7 +39,7 @@ object Module{
    * @return Return a string represent the module
    */
   def toStrings(module:Module)=module match{
-    case Module(_,_,_,_,_,_,_,_) =>Json.stringify(Json.toJson(module))
+    case Module(_,_,_,_,_,_,_,_,_) =>Json.stringify(Json.toJson(module))
     case _ => Json.stringify(Json.toJson(Module(id="",types="",dateAssemblage=new Date,cartes=List(),capteurs=List(),commentaire=None)))
   }
 

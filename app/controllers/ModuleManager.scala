@@ -923,10 +923,10 @@ trait ModuleManagerLike extends Controller {
     mod match{
 
       //If module id is empty
-      case Module(_,"",_,_,_,_,_,_) =>future{Redirect(routes.ModuleManager.formUpdate())}
+      case Module(_,"",_,_,_,_,_,_,_) =>future{Redirect(routes.ModuleManager.formUpdate())}
 
       //If module type is empty
-      case Module(_,_,"",_,_,_,_,_) =>future{Redirect(routes.ModuleManager.formUpdate())}
+      case Module(_,_,"",_,_,_,_,_,_) =>future{Redirect(routes.ModuleManager.formUpdate())}
 
       //If module haven't got cards
       case _ if cards.size==0 =>future{Redirect(routes.ModuleManager.formTypeCards())}

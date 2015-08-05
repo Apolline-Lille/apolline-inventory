@@ -18,13 +18,13 @@ class ModuleSpec extends Specification{
       val bson_sensor2=BSONObjectID.generate
       val date=new Date
       val mod=Module(id="id",types="type",dateAssemblage=date,cartes=List(bson_card1,bson_card2),capteurs=List(bson_sensor1,bson_sensor2),commentaire=Some("un com"))
-      Module.toStrings(mod) must equalTo("{\"_id\":{\"$oid\":\""+mod._id.stringify+"\"},\"id\":\"id\",\"types\":\"type\",\"dateAssemblage\":"+date.getTime+",\"cartes\":[{\"$oid\":\""+bson_card1.stringify+"\"},{\"$oid\":\""+bson_card2.stringify+"\"}],\"capteurs\":[{\"$oid\":\""+bson_sensor1.stringify+"\"},{\"$oid\":\""+bson_sensor2.stringify+"\"}],\"commentaire\":\"un com\",\"delete\":false}")
+      Module.toStrings(mod) must equalTo("{\"_id\":{\"$oid\":\""+mod._id.stringify+"\"},\"id\":\"id\",\"types\":\"type\",\"dateAssemblage\":"+date.getTime+",\"cartes\":[{\"$oid\":\""+bson_card1.stringify+"\"},{\"$oid\":\""+bson_card2.stringify+"\"}],\"capteurs\":[{\"$oid\":\""+bson_sensor1.stringify+"\"},{\"$oid\":\""+bson_sensor2.stringify+"\"}],\"commentaire\":\"un com\",\"configuration\":[],\"delete\":false}")
     }
 
     "return string represent an empty module" in {
       val mod=Module.toStrings(Module(id="",types="",dateAssemblage = new Date,cartes=List(),capteurs=List(),commentaire=None))
       mod must contain("\"id\":\"\",\"types\":\"\"")
-      mod must contain("\"cartes\":[],\"capteurs\":[],\"delete\":false")
+      mod must contain("\"cartes\":[],\"capteurs\":[],\"configuration\":[],\"delete\":false")
     }
   }
 
@@ -38,7 +38,7 @@ class ModuleSpec extends Specification{
       val date=new Date
       val mod=Module(_id=bson,id="id",types="type",dateAssemblage=date,cartes=List(bson_card1,bson_card2),capteurs=List(bson_sensor1,bson_sensor2),commentaire=Some("un com"))
 
-      val mod_string="{\"_id\":{\"$oid\":\""+bson.stringify+"\"},\"id\":\"id\",\"types\":\"type\",\"dateAssemblage\":"+date.getTime+",\"cartes\":[{\"$oid\":\""+bson_card1.stringify+"\"},{\"$oid\":\""+bson_card2.stringify+"\"}],\"capteurs\":[{\"$oid\":\""+bson_sensor1.stringify+"\"},{\"$oid\":\""+bson_sensor2.stringify+"\"}],\"commentaire\":\"un com\",\"delete\":false}"
+      val mod_string="{\"_id\":{\"$oid\":\""+bson.stringify+"\"},\"id\":\"id\",\"types\":\"type\",\"dateAssemblage\":"+date.getTime+",\"cartes\":[{\"$oid\":\""+bson_card1.stringify+"\"},{\"$oid\":\""+bson_card2.stringify+"\"}],\"capteurs\":[{\"$oid\":\""+bson_sensor1.stringify+"\"},{\"$oid\":\""+bson_sensor2.stringify+"\"}],\"commentaire\":\"un com\",\"configuration\":[],\"delete\":false}"
       Module.toModule(Some(mod_string)) must equalTo(mod)
     }
 
