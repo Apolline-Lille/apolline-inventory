@@ -46,6 +46,7 @@ class ModuleManagerSpec extends Specification with Mockito {
     val sensorsDaoMock: SensorDao = mock[SensorDao]
     val typeSensorsDaoMock: TypeSensorDao = mock[TypeSensorDao]
     val typeMesureDaoMock: TypeMesureDao = mock[TypeMesureDao]
+    val configurationDaoMock:ConfigurationDao=mock[ConfigurationDao]
     val configMock=mock[Configuration]
     val conditionDaoMock:ConditionDao = mock[ConditionDao]
     val controller=new ModuleManagerTest{
@@ -60,6 +61,7 @@ class ModuleManagerSpec extends Specification with Mockito {
       override val sensorsDao: SensorDao = sensorsDaoMock
       override val typeSensorsDao: TypeSensorDao = typeSensorsDaoMock
       override val typeMesureDao: TypeMesureDao = typeMesureDaoMock
+      override val configurationDao:ConfigurationDao=configurationDaoMock
       override val config=configMock
       override val conditionDao:ConditionDao=conditionDaoMock
     }
@@ -303,6 +305,7 @@ class ModuleManagerSpec extends Specification with Mockito {
       val cards=Cards(bson, "Id2", bson2, bson3, date, Some(date2), false, Some("v03"), false, Some("un com"))
       val module=Module(bson4,"id","types",date,List(bson),List(bson),Some("un com"))
       val url="http://hostname/inventary/modules?types=typ"
+      val config=List(models.Configuration(port="/dev/ttyUSB0",types="ADC",timeFilter=9000,infoMesure=List(bson3)),models.Configuration(port="/dev/ttyUSB1",types="wasp",infoMesure=List(bson4)))
 
       f.configMock.getString(org.mockito.Matchers.eq("hostname"),any[Option[Set[String]]]) returns Some("http://hostname/")
       f.sensorsDaoMock.fold(org.mockito.Matchers.eq(matcher),any[JsObject],org.mockito.Matchers.eq(HashSet[BSONObjectID]()))(any[(HashSet[BSONObjectID],Sensor)=>HashSet[BSONObjectID]])(any[ExecutionContext]) returns future{HashSet(bson2)}
@@ -315,6 +318,7 @@ class ModuleManagerSpec extends Specification with Mockito {
       f.cardsDaoMock.findAll(org.mockito.Matchers.eq(matcher),any[JsObject])(any[ExecutionContext]) returns future{List(cards)}
       f.moduleDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->bson4)))(any[ExecutionContext]) returns future{Some(module)}
       f.conditionDaoMock.findModulesState(org.mockito.Matchers.eq(List(bson4))) returns future{Map(bson4->"Terrain")}
+      f.configurationDaoMock.findAll(any[JsObject],any[JsObject])(any[ExecutionContext]) returns future{config}
 
       val req=FakeRequest("GET","/inventary/modules/"+bson4.stringify).withHeaders(("Referer"->url)).withSession("user" -> """{"login":"test"}""")
       val r=f.controller.moreInformation(bson4.stringify).apply(req)
@@ -340,6 +344,12 @@ class ModuleManagerSpec extends Specification with Mockito {
       content must contain("<div class=\"row\"> <span class=\"bold\">Espèces</span> : esp1</div>")
       content must contain("<td>Id</td>")
       content must contain("<td>Hors service<br/>Terrain</td>")
+      content must contain("<td>/dev/ttyUSB0</td>")
+      content must contain("<td>/dev/ttyUSB1</td>")
+      content must contain("<td>ADC</td>")
+      content must contain("<td>wasp</td>")
+      content must contain("<td>9000</td>")
+      content must contain("<td>1000</td>")
       session(r).get("previous") must beSome(url)
 
       there was one(f.sensorsDaoMock).fold(org.mockito.Matchers.eq(matcher),any[JsObject],org.mockito.Matchers.eq(HashSet[BSONObjectID]()))(any[(HashSet[BSONObjectID],Sensor)=>HashSet[BSONObjectID]])(any[ExecutionContext])
@@ -352,6 +362,7 @@ class ModuleManagerSpec extends Specification with Mockito {
       there was one(f.cardsDaoMock).findAll(org.mockito.Matchers.eq(matcher),any[JsObject])(any[ExecutionContext])
       there was one(f.moduleDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->bson4)))(any[ExecutionContext])
       there was one(f.configMock).getString(org.mockito.Matchers.eq("hostname"),any[Option[Set[String]]])
+      there was one(f.configurationDaoMock).findAll(any[JsObject],any[JsObject])(any[ExecutionContext])
     }
   }
 

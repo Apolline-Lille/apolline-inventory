@@ -98,6 +98,7 @@ inventary.module.onglet.validate=Validation
 inventary.module.error.moduleExist=Ce module existe déjà
 inventary.module.error.cardsOrSensorNotFound=Attention certaines cartes ou capteurs ne sont plus disponibles
 inventary.module.confirmDelete=Êtes-vous sûr de vouloir supprimer ce module ?
+inventary.module.configuration=Configurations
 
 inventary.configuration.port=Port
 inventary.configuration.timeout=Délai d''attente de la connection

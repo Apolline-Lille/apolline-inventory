@@ -1,4 +1,4 @@
-@(mod:Module,state:String,typesCards:List[TypeCards],cards:List[Cards],listFirmware:List[Firmware],typeSensors:List[TypeSensor],typeMesure:List[TypeMesure],sensors:List[Sensor],previous:String)(implicit request:Request[AnyContent])
+@(mod:Module,state:String,typesCards:List[TypeCards],cards:List[Cards],listFirmware:List[Firmware],typeSensors:List[TypeSensor],typeMesure:List[TypeMesure],sensors:List[Sensor],previous:String,configurations:List[Configuration])(implicit request:Request[AnyContent])
 
 @main(Messages("inventary.module.title")) {
   @navigation("inventary")
@@ -95,6 +95,30 @@
               </li>
             }
             </ul>
+          </div>
+          <div class="row">
+            <span class="bold">@Messages("inventary.module.configuration")</span> :
+            <div class="table-responsive">
+              <table class="table table-hover table-bordered">
+                <thead>
+                  <tr>
+                    <th>@Messages("inventary.configuration.port")</th>
+                    <th>@Messages("inventary.configuration.types")</th>
+                    <th>@Messages("inventary.configuration.timeFilter")</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for(config<-configurations){
+                    <tr>
+                      <td>@config.port</td>
+                      <td>@config.types</td>
+                      <td>@config.timeFilter</td>
+                      <td></td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
           </div>
         </div>
       </article>

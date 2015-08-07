@@ -81,6 +81,8 @@ trait ModuleManagerLike extends Controller {
    */
   val sensorsDao: SensorDao = SensorDaoObj
 
+  val configurationDao: ConfigurationDao=ConfigurationDaoObj
+
   val conditionDao:ConditionDao = ConditionDaoObj
 
   /**
@@ -186,10 +188,13 @@ trait ModuleManagerLike extends Controller {
                         case (typesCards, cards,firmware) =>
                           val previous=previousPage
                           //Find the state of the module
-                          conditionDao.findModulesState(List(module._id)).map(
+                          conditionDao.findModulesState(List(module._id)).flatMap(
                             data =>
-                              //Print module information
-                              Ok(views.html.module.moreInfo(module,data.getOrElse(module._id,""),typesCards,cards,firmware,typeSensors,typeMesure,sensors,previous)).withSession(request.session + ("previous"->previous))
+                              configurationDao.findAll(Json.obj("_id"->Json.obj("$in"->module.configuration))).map(
+                                configs=>
+                                  //Print module information
+                                  Ok(views.html.module.moreInfo(module,data.getOrElse(module._id,""),typesCards,cards,firmware,typeSensors,typeMesure,sensors,previous,configs)).withSession(request.session + ("previous"->previous))
+                              )
                           )
                       }
                     )
