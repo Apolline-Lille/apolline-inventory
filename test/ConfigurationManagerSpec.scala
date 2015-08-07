@@ -1,4 +1,6 @@
+import java.io.{ByteArrayOutputStream, OutputStream}
 import java.util.Date
+import java.util.zip.{ZipEntry, ZipOutputStream}
 
 import controllers.{InfoMesureForm, ModuleManagerLike, ConfigurationForm, ConfigurationManagerLike}
 import models._
@@ -42,6 +44,7 @@ class ConfigurationManagerSpec extends Specification with Mockito{
     val configurationDaoMock=mock[ConfigurationDao]
     val moduleDaoMock=mock[ModuleDao]
     val moduleManagerMock = mock[ModuleManagerLike]
+    val zipOutputStreamBuilderMock=mock[ZipOutputStreamBuilder]
     val controller = new ConfigurationManagerTest{
       override val sensorsDao=sensorDaoMock
       override val typeSensorsDao=typeSensorDaoMock
@@ -50,6 +53,7 @@ class ConfigurationManagerSpec extends Specification with Mockito{
       override val informationMesureDao=informationMesureDaoMock
       override val configurationDao=configurationDaoMock
       override val moduleDao=moduleDaoMock
+      override val zipOutputStreamBuilder=zipOutputStreamBuilderMock
     }
 
     def applyFoundFunction() {
@@ -593,6 +597,87 @@ class ConfigurationManagerSpec extends Specification with Mockito{
     }
   }
 
+  "When user is on resource /inventary/modules/:id/configuration/download, ConfigurationManager" should{
+    "return 404 not found if module not found" in new WithApplication{
+      val f=fixture
+
+      f.applyNotFoundFunction()
+
+      val r=f.controller.downloadConfiguration(bson.stringify).apply(FakeRequest(GET,"/inventary/modules/"+bson.stringify+"/configuration/download").withSession("user" -> """{"login":"test"}"""))
+
+      status(r) must equalTo(NOT_FOUND)
+
+      there was one(f.moduleManagerMock).doIfModuleFound(org.mockito.Matchers.eq(bson))(any[Module=>Future[Result]])(any[Unit=>Future[Result]])
+    }
+
+    "return a result with a configurations zip" in new WithApplication{
+      val f=fixture
+      val zip=mock[ZipOutputStream]
+      val config=List(Configuration(port="/dev/ttyUSB0",types="ADC",infoMesure=List(bson3)),Configuration(port="/dev/ttyUSB0",types="wasp",infoMesure=List(bson4)))
+      val info=List(InformationMesure(bson3,0,"id",bson2,bson3),InformationMesure(bson4,0,"id2",bson3,bson2))
+
+      f.applyFoundFunction()
+      f.configurationDaoMock.findAll(any[JsObject],any[JsObject])(any[ExecutionContext]) returns future{config}
+      f.informationMesureDaoMock.findAll(any[JsObject],any[JsObject])(any[ExecutionContext]) returns future{info}
+      f.zipOutputStreamBuilderMock.createZipOutputStream(any[OutputStream]) returns zip
+      org.mockito.Mockito.doNothing().when(zip).putNextEntry(org.mockito.Matchers.eq(new ZipEntry("ADC.properties")))
+      org.mockito.Mockito.doNothing().when(zip).putNextEntry(org.mockito.Matchers.eq(new ZipEntry("wasp.properties")))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("device=/dev/ttyUSB0\n").getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq("timeout=10000\n".getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("baud=9600\n").getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("bits=8\n").getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("stopBits=1\n").getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("parity=0\n").getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("timeFilter=1000\n").getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("type=ADC\n").getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("type=wasp\n").getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("moduleId="+bson.stringify+"\n").getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("sensors={\\\n").getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("\""+bson3.stringify+"\":[\\\n").getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("\""+bson2.stringify+"\":[\\\n").getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq("{\"index\":0,".getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("\"infoId\":\""+bson3.stringify+"\"}").getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("\"infoId\":\""+bson4.stringify+"\"}").getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq("\\\n]".getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("}").getBytes))
+      org.mockito.Mockito.doNothing().when(zip).closeEntry()
+      org.mockito.Mockito.doNothing().when(zip).close()
+
+      val r=f.controller.downloadConfiguration(bson.stringify).apply(FakeRequest(GET,"/inventary/modules/"+bson.stringify+"/configuration/download").withSession("user" -> """{"login":"test"}"""))
+
+      status(r) must equalTo(OK)
+      contentAsBytes(r) must equalTo((new ByteArrayOutputStream).toByteArray)
+      header("Content-Type",r) must beSome("application/zip")
+      header("Content-Disposition",r) must beSome("attachment; filename=configuration.zip")
+
+      there was one(f.configurationDaoMock).findAll(any[JsObject],any[JsObject])(any[ExecutionContext])
+      there was one(f.informationMesureDaoMock).findAll(any[JsObject],any[JsObject])(any[ExecutionContext])
+      there was one(f.zipOutputStreamBuilderMock).createZipOutputStream(any[OutputStream])
+      there was 2.times(zip).putNextEntry(any[ZipEntry])
+      there was 2.times(zip).write(org.mockito.Matchers.eq(("device=/dev/ttyUSB0\n").getBytes))
+      there was 2.times(zip).write(org.mockito.Matchers.eq("timeout=10000\n".getBytes))
+      there was 2.times(zip).write(org.mockito.Matchers.eq(("baud=9600\n").getBytes))
+      there was 2.times(zip).write(org.mockito.Matchers.eq(("bits=8\n").getBytes))
+      there was 2.times(zip).write(org.mockito.Matchers.eq(("stopBits=1\n").getBytes))
+      there was 2.times(zip).write(org.mockito.Matchers.eq(("parity=0\n").getBytes))
+      there was 2.times(zip).write(org.mockito.Matchers.eq(("timeFilter=1000\n").getBytes))
+      there was one(zip).write(org.mockito.Matchers.eq(("type=ADC\n").getBytes))
+      there was one(zip).write(org.mockito.Matchers.eq(("type=wasp\n").getBytes))
+      there was 2.times(zip).write(org.mockito.Matchers.eq(("moduleId="+bson.stringify+"\n").getBytes))
+      there was 2.times(zip).write(org.mockito.Matchers.eq(("sensors={\\\n").getBytes))
+      there was one(zip).write(org.mockito.Matchers.eq(("\""+bson3.stringify+"\":[\\\n").getBytes))
+      there was one(zip).write(org.mockito.Matchers.eq(("\""+bson2.stringify+"\":[\\\n").getBytes))
+      there was 2.times(zip).write(org.mockito.Matchers.eq("{\"index\":0,".getBytes))
+      there was one(zip).write(org.mockito.Matchers.eq(("\"infoId\":\""+bson3.stringify+"\"}").getBytes))
+      there was one(zip).write(org.mockito.Matchers.eq(("\"infoId\":\""+bson4.stringify+"\"}").getBytes))
+      there was 2.times(zip).write(org.mockito.Matchers.eq("\\\n]".getBytes))
+      there was 2.times(zip).write(org.mockito.Matchers.eq(("}").getBytes))
+      there was 2.times(zip).closeEntry()
+      there was one(zip).close()
+      there was one(f.moduleManagerMock).doIfModuleFound(org.mockito.Matchers.eq(bson))(any[Module=>Future[Result]])(any[Unit=>Future[Result]])
+    }
+  }
+
   "When method createJsonInfoMesure is called, ConfigurationManager" should{
     "send new JsArray with mesure information" in new WithApplication{
       val f=fixture
@@ -929,6 +1014,239 @@ class ConfigurationManagerSpec extends Specification with Mockito{
       val configCapt=captorConfig.getValue
       configCapt must equalTo(Configuration(_id=configCapt._id,port="/dev/ttyUSB0",types="ADC",infoMesure=List(args.get(0)._id,args.get(1)._id)))
       captorObj.getValue must equalTo(Json.obj("$push"->Json.obj("configuration"->configCapt._id)))
+    }
+  }
+
+  "When method write_info_mesure_properties is called, ConfigurationManager" should{
+    "do nothing if the list is empty" in new WithApplication{
+      val f=fixture
+      val zip=mock[ZipOutputStream]
+
+      f.controller.write_info_mesure_properties(zip,List(),null,0)
+
+      there was no(zip).write(any[Array[Byte]])
+    }
+
+    "write informations mesure if sensor is equal to previous sensor" in new WithApplication{
+      val f=fixture
+      val zip=mock[ZipOutputStream]
+      val listInfo=List(InformationMesure(bson,0,"id",bson2,bson3))
+
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq("{\"index\":0,".getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("\"infoId\":\""+bson.stringify+"\"}").getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq("\\\n]".getBytes))
+
+      f.controller.write_info_mesure_properties(zip,listInfo,bson2,0)
+
+      there was one(zip).write(org.mockito.Matchers.eq("{\"index\":0,".getBytes))
+      there was one(zip).write(org.mockito.Matchers.eq(("\"infoId\":\""+bson.stringify+"\"}").getBytes))
+      there was one(zip).write(org.mockito.Matchers.eq("\\\n]".getBytes))
+    }
+
+    "write informations mesure if sensor is equal to previous sensor with 2 elements in the list" in new WithApplication{
+      val f=fixture
+      val zip=mock[ZipOutputStream]
+      val listInfo=List(InformationMesure(bson,0,"id",bson2,bson3),InformationMesure(bson4,1,"id2",bson2,bson3))
+
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq("{\"index\":0,".getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("\"infoId\":\""+bson.stringify+"\"}").getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(",\\\n".getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq("{\"index\":1,".getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("\"infoId\":\""+bson4.stringify+"\"}").getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq("\\\n]".getBytes))
+
+      f.controller.write_info_mesure_properties(zip,listInfo,bson2,0)
+
+      there was one(zip).write(org.mockito.Matchers.eq("{\"index\":0,".getBytes))
+      there was one(zip).write(org.mockito.Matchers.eq(("\"infoId\":\""+bson.stringify+"\"}").getBytes))
+      there was one(zip).write(org.mockito.Matchers.eq(",\\\n".getBytes))
+      there was one(zip).write(org.mockito.Matchers.eq("{\"index\":1,".getBytes))
+      there was one(zip).write(org.mockito.Matchers.eq(("\"infoId\":\""+bson4.stringify+"\"}").getBytes))
+      there was one(zip).write(org.mockito.Matchers.eq("\\\n]".getBytes))
+    }
+
+    "write informations mesure if sensor is not equal to previous sensor" in new WithApplication{
+      val f=fixture
+      val zip=mock[ZipOutputStream]
+      val listInfo=List(InformationMesure(bson,0,"id",bson2,bson3))
+
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("\\\n],\\\n\""+bson2.stringify+"\":[\\\n").getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq("{\"index\":0,".getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("\"infoId\":\""+bson.stringify+"\"}").getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq("\\\n]".getBytes))
+
+      f.controller.write_info_mesure_properties(zip,listInfo,bson4,0)
+
+      there was one(zip).write(org.mockito.Matchers.eq(("\\\n],\\\n\""+bson2.stringify+"\":[\\\n").getBytes))
+      there was one(zip).write(org.mockito.Matchers.eq("{\"index\":0,".getBytes))
+      there was one(zip).write(org.mockito.Matchers.eq(("\"infoId\":\""+bson.stringify+"\"}").getBytes))
+      there was one(zip).write(org.mockito.Matchers.eq("\\\n]".getBytes))
+    }
+  }
+
+  "When method write_sensors_properties is called, ConfigurationManager" should{
+    "do nothing if the list is empty" in new WithApplication{
+      val f=fixture
+      val zip=mock[ZipOutputStream]
+
+      f.controller.write_sensors_properties(zip,List(),null)
+
+      there was no(zip).write(any[Array[Byte]])
+    }
+
+    "write the end of an array if the list is empty and sensors informations are write" in new WithApplication{
+      val f=fixture
+      val zip=mock[ZipOutputStream]
+
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("\\\n]").getBytes))
+
+      f.controller.write_sensors_properties(zip,List(),bson)
+
+      there was one(zip).write(org.mockito.Matchers.eq(("\\\n]").getBytes))
+    }
+
+    "write sensor informations if have one elements in the list" in new WithApplication{
+      val f=fixture
+      val zip=mock[ZipOutputStream]
+      val listInfo=List(InformationMesure(bson,0,"id",bson2,bson3))
+
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("\""+bson2.stringify+"\":[\\\n").getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq("{\"index\":0,".getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("\"infoId\":\""+bson.stringify+"\"}").getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq("\\\n]".getBytes))
+
+      f.controller.write_sensors_properties(zip,listInfo,null)
+
+      there was one(zip).write(org.mockito.Matchers.eq(("\""+bson2.stringify+"\":[\\\n").getBytes))
+      there was one(zip).write(org.mockito.Matchers.eq("{\"index\":0,".getBytes))
+      there was one(zip).write(org.mockito.Matchers.eq(("\"infoId\":\""+bson.stringify+"\"}").getBytes))
+      there was one(zip).write(org.mockito.Matchers.eq("\\\n]".getBytes))
+    }
+
+    "write sensor informations if have many elements in the list" in new WithApplication{
+      val f=fixture
+      val zip=mock[ZipOutputStream]
+      val listInfo=List(InformationMesure(bson,0,"id",bson2,bson3),InformationMesure(bson4,1,"id2",bson3,bson2))
+
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("\""+bson2.stringify+"\":[\\\n").getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq("{\"index\":0,".getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("\"infoId\":\""+bson.stringify+"\"}").getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("\\\n],\\\n\""+bson3.stringify+"\":[\\\n").getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq("{\"index\":1,".getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("\"infoId\":\""+bson4.stringify+"\"}").getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq("\\\n]".getBytes))
+
+      f.controller.write_sensors_properties(zip,listInfo,null)
+
+      there was one(zip).write(org.mockito.Matchers.eq(("\""+bson2.stringify+"\":[\\\n").getBytes))
+      there was one(zip).write(org.mockito.Matchers.eq("{\"index\":0,".getBytes))
+      there was one(zip).write(org.mockito.Matchers.eq(("\"infoId\":\""+bson.stringify+"\"}").getBytes))
+      there was one(zip).write(org.mockito.Matchers.eq(("\\\n],\\\n\""+bson3.stringify+"\":[\\\n").getBytes))
+      there was one(zip).write(org.mockito.Matchers.eq("{\"index\":1,".getBytes))
+      there was one(zip).write(org.mockito.Matchers.eq(("\"infoId\":\""+bson4.stringify+"\"}").getBytes))
+      there was one(zip).write(org.mockito.Matchers.eq("\\\n]".getBytes))
+    }
+  }
+
+  "When method write_configuration is called, ConfigurationManager" should{
+    "Write all configuration informations in the zip" in new WithApplication{
+      val f=fixture
+      val zip=mock[ZipOutputStream]
+      val config=Configuration(port="/dev/ttyUSB0",types="ADC",infoMesure = List())
+
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("device=/dev/ttyUSB0\n").getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq("timeout=10000\n".getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("baud=9600\n").getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("bits=8\n").getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("stopBits=1\n").getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("parity=0\n").getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("timeFilter=1000\n").getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("type=ADC\n").getBytes))
+
+      f.controller.write_configuration(zip,config)
+
+      there was one(zip).write(org.mockito.Matchers.eq(("device=/dev/ttyUSB0\n").getBytes))
+      there was one(zip).write(org.mockito.Matchers.eq("timeout=10000\n".getBytes))
+      there was one(zip).write(org.mockito.Matchers.eq(("baud=9600\n").getBytes))
+      there was one(zip).write(org.mockito.Matchers.eq(("bits=8\n").getBytes))
+      there was one(zip).write(org.mockito.Matchers.eq(("stopBits=1\n").getBytes))
+      there was one(zip).write(org.mockito.Matchers.eq(("parity=0\n").getBytes))
+      there was one(zip).write(org.mockito.Matchers.eq(("timeFilter=1000\n").getBytes))
+      there was one(zip).write(org.mockito.Matchers.eq(("type=ADC\n").getBytes))
+    }
+  }
+
+  "When method create_zip is called, ConfigurationManager" should{
+    "create an empty zip if not have configuration" in new WithApplication{
+      val f=fixture
+      val zip=mock[ZipOutputStream]
+
+      f.zipOutputStreamBuilderMock.createZipOutputStream(any) returns zip
+      org.mockito.Mockito.doNothing().when(zip).close()
+
+      f.controller.create_zip(bson.stringify,List(),List())
+
+      there was one(f.zipOutputStreamBuilderMock).createZipOutputStream(any)
+      there was no(zip).write(any[Array[Byte]])
+      there was no(zip).putNextEntry(any[ZipEntry])
+      there was no(zip).closeEntry()
+      there was one(zip).close()
+    }
+
+    "create a zip with files generate by the configurations" in new WithApplication{
+      val f=fixture
+      val zip=mock[ZipOutputStream]
+      val config=List(Configuration(port="/dev/ttyUSB0",types="ADC",infoMesure=List(bson3)),Configuration(port="/dev/ttyUSB0",types="wasp",infoMesure=List(bson4)))
+      val info=List(InformationMesure(bson3,0,"id",bson2,bson3),InformationMesure(bson4,0,"id2",bson3,bson2))
+
+      f.zipOutputStreamBuilderMock.createZipOutputStream(any[OutputStream]) returns zip
+      org.mockito.Mockito.doNothing().when(zip).putNextEntry(org.mockito.Matchers.eq(new ZipEntry("ADC.properties")))
+      org.mockito.Mockito.doNothing().when(zip).putNextEntry(org.mockito.Matchers.eq(new ZipEntry("wasp.properties")))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("device=/dev/ttyUSB0\n").getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq("timeout=10000\n".getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("baud=9600\n").getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("bits=8\n").getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("stopBits=1\n").getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("parity=0\n").getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("timeFilter=1000\n").getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("type=ADC\n").getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("type=wasp\n").getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("moduleId="+bson.stringify+"\n").getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("sensors={\\\n").getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("\""+bson3.stringify+"\":[\\\n").getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("\""+bson2.stringify+"\":[\\\n").getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq("{\"index\":0,".getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("\"infoId\":\""+bson3.stringify+"\"}").getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("\"infoId\":\""+bson4.stringify+"\"}").getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq("\\\n]".getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("}").getBytes))
+      org.mockito.Mockito.doNothing().when(zip).closeEntry()
+      org.mockito.Mockito.doNothing().when(zip).close()
+
+      f.controller.create_zip(bson.stringify,config,info)
+
+      there was one(f.zipOutputStreamBuilderMock).createZipOutputStream(any[OutputStream])
+      there was 2.times(zip).putNextEntry(any[ZipEntry])
+      there was 2.times(zip).write(org.mockito.Matchers.eq(("device=/dev/ttyUSB0\n").getBytes))
+      there was 2.times(zip).write(org.mockito.Matchers.eq("timeout=10000\n".getBytes))
+      there was 2.times(zip).write(org.mockito.Matchers.eq(("baud=9600\n").getBytes))
+      there was 2.times(zip).write(org.mockito.Matchers.eq(("bits=8\n").getBytes))
+      there was 2.times(zip).write(org.mockito.Matchers.eq(("stopBits=1\n").getBytes))
+      there was 2.times(zip).write(org.mockito.Matchers.eq(("parity=0\n").getBytes))
+      there was 2.times(zip).write(org.mockito.Matchers.eq(("timeFilter=1000\n").getBytes))
+      there was one(zip).write(org.mockito.Matchers.eq(("type=ADC\n").getBytes))
+      there was one(zip).write(org.mockito.Matchers.eq(("type=wasp\n").getBytes))
+      there was 2.times(zip).write(org.mockito.Matchers.eq(("moduleId="+bson.stringify+"\n").getBytes))
+      there was 2.times(zip).write(org.mockito.Matchers.eq(("sensors={\\\n").getBytes))
+      there was one(zip).write(org.mockito.Matchers.eq(("\""+bson3.stringify+"\":[\\\n").getBytes))
+      there was one(zip).write(org.mockito.Matchers.eq(("\""+bson2.stringify+"\":[\\\n").getBytes))
+      there was 2.times(zip).write(org.mockito.Matchers.eq("{\"index\":0,".getBytes))
+      there was one(zip).write(org.mockito.Matchers.eq(("\"infoId\":\""+bson3.stringify+"\"}").getBytes))
+      there was one(zip).write(org.mockito.Matchers.eq(("\"infoId\":\""+bson4.stringify+"\"}").getBytes))
+      there was 2.times(zip).write(org.mockito.Matchers.eq("\\\n]".getBytes))
+      there was 2.times(zip).write(org.mockito.Matchers.eq(("}").getBytes))
+      there was 2.times(zip).closeEntry()
+      there was one(zip).close()
     }
   }
 }

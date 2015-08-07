@@ -1,12 +1,14 @@
 package controllers
 
-import java.lang.annotation.Annotation
+import java.io.ByteArrayOutputStream
+import java.util.zip.{ZipEntry, ZipOutputStream}
 
 import com.wordnik.swagger.annotations._
 import models._
 import play.api.data.Form
 import play.api.data.Forms._
 import play.api.i18n.Messages
+import play.api.libs.iteratee.Enumerator
 import play.api.libs.json.{JsObject, JsValue, JsArray, Json}
 import play.api.mvc._
 import play.modules.reactivemongo.json.BSONFormats.BSONObjectIDFormat
@@ -63,6 +65,8 @@ trait ConfigurationManagerLike extends Controller{
   val configurationDao:ConfigurationDao=ConfigurationDaoObj
 
   val moduleManager:ModuleManagerLike=ModuleManager
+
+  val zipOutputStreamBuilder=new ZipOutputStreamBuilder
 
   /**
    * Display a form for insert module configuration
@@ -398,6 +402,189 @@ trait ConfigurationManagerLike extends Controller{
           _ =>future{Redirect(routes.ModuleManager.inventary())}
         }
       }
+  }
+
+  /**
+   * Create and download a zip with module configurations
+   * @param id Module id
+   * @return 404 Not found if module not exist
+   *         Generate ZIP with module configurations
+   */
+  @ApiOperation(
+    nickname = "inventary/modules/:id/configuration/download",
+    value = "Create and download a zip with module configurations",
+    notes = "Create and download a zip with module configurations",
+    httpMethod = "GET")
+  @ApiResponses(Array(
+    new ApiResponse(code=303,message="Move resource to the login page at /login if the user is not log"),
+    new ApiResponse(code=404,message="Module not found")
+  ))
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(value = "Module id",required=true,name="id", dataType = "String", paramType = "path")
+  ))
+  def downloadConfiguration(id:String)= Action.async{
+    implicit request =>
+      //Verify if user is connect
+      UserManager.doIfconnectAsync(request) {
+
+        //Verify if module exists
+        moduleManager.doIfModuleFound(BSONObjectID(id)) {
+
+          module => {
+
+            //Find module configuration
+            configurationDao.findAll(Json.obj("_id"->Json.obj("$in"->module.configuration))).flatMap(
+              config=>
+
+                //Find mesure informations associat to module configurations
+                informationMesureDao.findAll(Json.obj("_id"->Json.obj("$in"->config.foldLeft(List[BSONObjectID]())((list,conf)=>list ++ conf.infoMesure)))).map(
+                  infos=>{
+
+                    //Create a zip with configurations file
+                    val zip = create_zip(id,config,infos)
+
+                    //Return the zip
+                    Result(
+                      header = ResponseHeader(200),
+                      body = Enumerator(zip)
+                    ).withHeaders(
+                      "Content-Type"->"application/zip",
+                      "Content-Disposition"->"attachment; filename=configuration.zip"
+                    )
+                  }
+                )
+            )
+          }
+        }{
+
+          //Redirect to the list of modules
+          _ =>future{NotFound}
+        }
+      }
+  }
+
+  /**
+   * Create a zip with file of module configurations
+   * @param id Module id
+   * @param config Module configurations
+   * @param infos Mesure informations associat to the configuration
+   * @return Byte code of the zip
+   */
+  def create_zip(id:String,config:List[Configuration],infos:List[InformationMesure])={
+    //Initialize byte array for save zip informations
+    val os=new ByteArrayOutputStream
+
+    //Create a zip file
+    val zip = zipOutputStreamBuilder.createZipOutputStream(os)
+
+    //For each module configurations
+    config.foreach{ conf =>
+
+      //Find mesure informations associat to the configuration
+      val infoConfig=infos.filter(i=>conf.infoMesure.contains(i._id))
+
+      //Create new file in the zip
+      zip.putNextEntry(new ZipEntry(conf.types+".properties"))
+
+      //Write configuration in the file
+      write_configuration(zip,conf)
+
+      //Write module id in the file
+      zip.write(("moduleId="+id+"\n").getBytes)
+
+      //Write mesure informations
+      zip.write(("sensors={\\\n").getBytes)
+      write_sensors_properties(zip,infoConfig.sortWith((info1,info2)=>info1.sensor.stringify.compareTo(info2.sensor.stringify)<0))
+      zip.write(("}").getBytes)
+
+      //End of the file
+      zip.closeEntry()
+    }
+
+    //End of the zip
+    zip.close()
+
+    //Return byte code of the zip
+    os.toByteArray
+  }
+
+  /**
+   * Write module configurations on the file in the zip
+   * @param zip Zip with module configurations
+   * @param conf Module configuration
+   */
+  def write_configuration(zip:ZipOutputStream,conf:Configuration): Unit ={
+    //Write the port
+    zip.write(("device="+conf.port+"\n").getBytes)
+    //Write the connection timeout
+    zip.write(("timeout="+conf.timeout+"\n").getBytes)
+    //Write the baud number
+    zip.write(("baud="+conf.baud+"\n").getBytes)
+    //Write the bits number
+    zip.write(("bits="+conf.bits+"\n").getBytes)
+    //Write the stop bits
+    zip.write(("stopBits="+conf.stopBits+"\n").getBytes)
+    //Write the parity
+    zip.write(("parity="+conf.parity+"\n").getBytes)
+    //Write the data time filter
+    zip.write(("timeFilter="+conf.timeFilter+"\n").getBytes)
+    //Write the type of datalogger
+    zip.write(("type="+conf.types+"\n").getBytes)
+  }
+
+  /**
+   * Write sensors informations associat to a configuration
+   * @param zip Zip with module configurations
+   * @param sensors List of mesure informations
+   * @param current Id of the current sensor
+   */
+  def write_sensors_properties(zip:ZipOutputStream,sensors:List[InformationMesure],current:BSONObjectID=null)=(sensors,current) match{
+    //If not have mesure information
+    case (Nil,null)=>
+    //If is the end of mesure informations, write end of the array
+    case (Nil,_)=>zip.write("\\\n]".getBytes)
+    //If is the first mesure informations
+    case (h::t,null) => {
+      //Write sensor id and begin of the array
+      zip.write(("\""+h.sensor.stringify+"\":[\\\n").getBytes)
+      //Write mesure informations associat to the sensor
+      write_info_mesure_properties(zip,sensors,h.sensor,0)
+    }
+    //If is a new mesure id
+    case (h::t,_)=>{
+      //Write end of the previous array, the sensor id and begin of the array
+      zip.write(("\\\n],\\\n\""+h.sensor.stringify+"\":[\\\n").getBytes)
+      //Write mesure informations associat to the sensor
+      write_info_mesure_properties(zip,sensors,h.sensor,0)
+    }
+  }
+
+  /**
+   * Write mesure informations associat to a sensors
+   * @param zip Zip with module configurations
+   * @param sensors List of mesure informations
+   * @param current Id of the current sensor
+   * @param value Index of the mesure information
+   */
+  def write_info_mesure_properties(zip:ZipOutputStream,sensors:List[InformationMesure],current:BSONObjectID,value:Int):Unit=(sensors,current) match{
+    //If not have mesure informations, write the end of mesure informations
+    case (Nil,_)=>write_sensors_properties(zip,sensors,current)
+    //If is a new sensor, write the end of the previous sensor and begin the new sensor
+    case(h::t,bson) if ! bson.equals(h.sensor) =>write_sensors_properties(zip,sensors,current)
+      //Write mesure information
+    case (h::t,_) => {
+      //If is a new mesure informations, write a comma
+      if(value!=0) zip.write(",\\\n".getBytes)
+
+      //Write index of the information
+      zip.write(("{\"index\":"+h.index+",").getBytes)
+
+      //Write id of the mesure information
+      zip.write(("\"infoId\":\""+h._id.stringify+"\"}").getBytes)
+
+      //Write new mesure information
+      write_info_mesure_properties(zip,t,current,value+1)
+    }
   }
 
   /**

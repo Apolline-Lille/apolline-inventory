@@ -99,9 +99,13 @@
         </div>
       </article>
       <nav class="col-sm-2">
-        <a href="@routes.ConfigurationManager.formConfiguration(mod._id.stringify)" class="btn btn-success">
+        <a href="@routes.ConfigurationManager.formConfiguration(mod._id.stringify)" class="btn btn-success btn-sm">
           <span class="glyphicon glyphicon-plus"></span>
           @Messages("inventary.module.addConfig")
+        </a>
+        <a href="@routes.ConfigurationManager.downloadConfiguration(mod._id.stringify)" class="btn btn-default btn-sm">
+          <span class="glyphicon glyphicon-cloud-download"></span>
+          Télécharger configurations
         </a>
       </nav>
     </section>

@@ -80,6 +80,7 @@ GET         /inventary/modules/:id/configuration/sensors/:id2        controllers
 POST        /inventary/modules/:id/configuration/sensors/:id2        controllers.ConfigurationManager.insertInfoMesure(id,id2)
 GET         /inventary/modules/:id/configuration/validation          controllers.ConfigurationManager.formValidation(id)
 POST        /inventary/modules/:id/configuration/validation          controllers.ConfigurationManager.validation(id)
+GET         /inventary/modules/:id/configuration/download           controllers.ConfigurationManager.downloadConfiguration(id)
 GET         /inventary/modules/:id                                   controllers.ModuleManager.moreInformation(id)
 
 #Campaign page
