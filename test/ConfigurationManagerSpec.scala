@@ -326,6 +326,48 @@ class ConfigurationManagerSpec extends Specification with Mockito{
     }
   }
 
+  "When user is on resource /inventary/modules/:id/configuration/update, ConfigurationManager" should {
+    "send 200 Ok page with a prefilled form" in new WithApplication {
+      val f = fixture
+      val data="""{"port":"/dev/ttyUSB0","timeout":10000,"baud":9600,"bits":8,"stopBits":1,"parity":0,"timeFilter":1000,"types":"ADC"}"""
+
+      f.applyFoundFunction()
+
+      val r = f.controller.formUpdateCurrent(bson.stringify).apply(FakeRequest(GET, "/inventary/modules/" + bson.stringify + "/configuration/update").withSession("user" -> """{"login":"test"}""", "config"->data))
+      status(r) must equalTo(OK)
+      val content = contentAsString(r)
+      content must contain("<h4>type / id</h4>")
+      content must contain("<span class=\"bold\">Commentaires</span> : un com")
+      content must matchRegex("<span class=\"bold\">Date d&#x27;assemblage</span> : \\d{2}/\\d{2}/\\d{4}")
+      content must contain("<input type=\"text\" id=\"port\" name=\"port\" value=\"/dev/ttyUSB0\" autofocus=\"autofocus\" autocomplete=\"off\" class=\"form-control\"/>")
+      content must contain("<input id=\"timeout\" name=\"timeout\" class=\"form-control\" type=\"number\" autocomplete=\"off\" value=\"10000\"/>")
+      content must contain("<input id=\"baud\" name=\"baud\" class=\"form-control\" type=\"number\" autocomplete=\"off\" value=\"9600\"/>")
+      content must contain("<input id=\"bits\" name=\"bits\" class=\"form-control\" type=\"number\" autocomplete=\"off\" value=\"8\"/>")
+      content must contain("<option value=\"0\" selected=\"selected\">None</option>")
+      content must contain("<option value=\"1\" >Odd</option>")
+      content must contain("<option value=\"2\" >Even</option>")
+      content must contain("<option value=\"3\" >Mark</option>")
+      content must contain("<option value=\"4\" >Space</option>")
+      content must contain("<input id=\"stopBits\" name=\"stopBits\" class=\"form-control\" type=\"number\" autocomplete=\"off\" value=\"1\"/>")
+      content must contain("<input id=\"timeFilter\" name=\"timeFilter\" class=\"form-control\" type=\"number\" autocomplete=\"off\" value=\"1000\"/>")
+      content must contain("<input type=\"text\" id=\"types\" name=\"types\" value=\"ADC\" class=\"form-control\"/>")
+
+      there was one(f.moduleManagerMock).doIfModuleFound(org.mockito.Matchers.eq(bson))(any[Module => Future[Result]])(any[Unit => Future[Result]])
+    }
+
+    "send redirect if module not found" in new WithApplication {
+      val f = fixture
+
+      f.applyNotFoundFunction()
+
+      val r = f.controller.formUpdateCurrent(bson.stringify).apply(FakeRequest(GET, "/inventary/modules/" + bson.stringify + "/configuration/update").withSession("user" -> """{"login":"test"}"""))
+      status(r) must equalTo(SEE_OTHER)
+      header("Location", r) must beSome("/inventary/modules")
+
+      there was one(f.moduleManagerMock).doIfModuleFound(org.mockito.Matchers.eq(bson))(any[Module => Future[Result]])(any[Unit => Future[Result]])
+    }
+  }
+
   "When user is on resource /inventary/modules/:id/configuration/sensors, ConfigurationManager" should{
     "send 200 OK page with the message 'Aucun résultat trouvé'" in new WithApplication{
       val f=fixture

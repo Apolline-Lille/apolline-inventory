@@ -159,6 +159,41 @@ trait ConfigurationManagerLike extends Controller{
   }
 
   /**
+   * Display a form for update current module configuration
+   * @param id Module id
+   * @return A 200 OK page, with the form for update current module configuration
+   *         Redirect if module not found or if the user is not log in
+   */
+  @ApiOperation(
+    nickname = "inventary/modules/:id/configuration/update",
+    value = "Display form for update current module configuration",
+    notes = "Display form for update current module configuration",
+    httpMethod = "GET")
+  @ApiResponses(Array(
+    new ApiResponse(code=303,message="<ul><li>Move resource to the login page at /login if the user is not log</li><li>Move resource to the module inventary at /inventary/modules if module not found</li></ul>")
+  ))
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(value = "Module id",required=true,name="id", dataType = "String", paramType = "path")
+  ))
+  def formUpdateCurrent(id:String)=Action.async{
+    implicit request =>
+      //Verify if user is connect
+      UserManager.doIfconnectAsync(request) {
+
+        //Verify if module exists
+        moduleManager.doIfModuleFound(BSONObjectID(id)){
+
+          //Display the form
+          module=> future{Ok(views.html.configuration.form(form.fill(getConfiguration),module))}
+        }{
+          //Redirect to the list of modules
+          _ =>
+            future{Redirect(routes.ModuleManager.inventary())}
+        }
+      }
+  }
+
+  /**
    * Insert module configuration to the session and redirect to the page for set index associat to data receive
    * @param id Module id
    * @return Redirect if module not found or if the user is not log in

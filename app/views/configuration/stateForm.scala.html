@@ -1,7 +1,7 @@
 @(activ:String,id:String)
 <nav class="row col-sm-12">
   <ol class="breadcrumb">
-    <li @if(activ.equals("infoConfig")){class="active"}><a href="@routes.ConfigurationManager.formConfiguration(id)">@Messages("inventary.configuration.configuration")</a></li>
+    <li @if(activ.equals("infoConfig")){class="active"}><a href="@routes.ConfigurationManager.formUpdateCurrent(id)">@Messages("inventary.configuration.configuration")</a></li>
     <li @if(activ.equals("sensors")){class="active"}><a href="@routes.ConfigurationManager.listSensors(id)">@Messages("inventary.configuration.sensors")</a></li>
     <li @if(activ.equals("validate")){class="active"}><a href="@routes.ConfigurationManager.formValidation(id)">@Messages("inventary.configuration.validate")</a></li>
   </ol>
