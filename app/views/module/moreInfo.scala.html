@@ -114,7 +114,12 @@
                       <td>@config.port</td>
                       <td>@config.types</td>
                       <td>@config.timeFilter</td>
-                      <td></td>
+                      <td>
+                        <a href="@routes.ConfigurationManager.formUpdate(mod._id.stringify,config._id.stringify)" data-toggle-tooltip title="@Messages("global.tooltip.update")"><span class="glyphicon glyphicon-pencil"></span></a>
+                        <a data-toggle="modal" href="#modal-delete" data-toggle-tooltip title="@Messages("global.tooltip.delete")" data-title="@mod.id" data-link="#">
+                          <span class="glyphicon glyphicon-trash"></span>
+                        </a>
+                      </td>
                     </tr>
                   }
                 </tbody>

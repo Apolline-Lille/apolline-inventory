@@ -23,3 +23,11 @@ libraryDependencies ++= Seq(
 fork := false
 
 fork in Test := false
+
+parallelExecution := true
+
+parallelExecution in Test := true
+
+concurrentRestrictions in Test := Seq(
+  Tags.limit(Tags.Test, 4)
+)

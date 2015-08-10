@@ -1,6 +1,7 @@
 package controllers
 
 import java.io.ByteArrayOutputStream
+import java.lang.annotation.Annotation
 import java.util.zip.{ZipEntry, ZipOutputStream}
 
 import com.wordnik.swagger.annotations._
@@ -94,13 +95,67 @@ trait ConfigurationManagerLike extends Controller{
         moduleManager.doIfModuleFound(BSONObjectID(id)){
 
           //Display the form for insert module configuration
-          module=> future{Ok(views.html.configuration.form(form.fill(ConfigurationForm(port="",types = "")),module))}
+          module=> future{Ok(views.html.configuration.form(form.fill(ConfigurationForm(port="",types = "")),module)).withSession(request.session + ("configForm"->"insert") + ("config"->Json.stringify(formatsForm.writes(ConfigurationForm(port="",types="")))))}
         }{
            //Redirect to the list of modules
           _ =>
             future{Redirect(routes.ModuleManager.inventary())}
         }
       }
+  }
+
+  /**
+   * Display a form for update a module configuration
+   * @param id Module id
+   * @param id2 Configuration id
+   * @return A 200 OK page, with the form for update module configuration
+   *         Redirect if the module is not found, if the user is not log in, or if the configuration is not found
+   */
+  @ApiOperation(
+    nickname = "inventary/modules/:id/configuration/:id2/update",
+    value = "Display form for update a module configuration",
+    notes = "Display form for update a module configuration",
+    httpMethod = "GET")
+  @ApiResponses(Array(
+    new ApiResponse(code=303,message="<ul><li>Move resource to the login page at /login if the user is not log</li><li>Move resource to module inventary at /inventary/modules if module is not found</li><li>Move resource to module information at /inventary/modules/:id if configuration is not found</li></ul>")
+  ))
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(value = "Module id",required=true,name="id", dataType = "String", paramType = "path"),
+    new ApiImplicitParam(value = "Configuration id", required=true,name="id2",dataType="String",paramType="path")
+  ))
+  def formUpdate(id:String,id2:String)=Action.async{
+    implicit request =>
+    //Verify if user is connect
+    UserManager.doIfconnectAsync(request) {
+
+      //Verify if module exists
+      moduleManager.doIfModuleFound(BSONObjectID(id)){
+
+        module=>
+          //Find the configuration
+          configurationDao.findOne(Json.obj("_id"->BSONObjectID(id2))).flatMap(
+            configOpt=>configOpt match{
+
+              //If configuration is not found redirect
+              case None=>future{Redirect(routes.ModuleManager.moreInformation(id))}
+
+              //If configuration is found, find tis mesure informations
+              case Some(config)=>findInformationForForm(config.infoMesure).map(
+                infos=>{
+                  val configForm=ConfigurationForm(config.port,config.timeout,config.baud,config.bits,config.stopBits,config.parity,config.timeFilter,config.types)
+
+                  //Display the form
+                  Results.Ok(views.html.configuration.form(form.fill(configForm),module)).withSession(request.session + ("configForm"->"update") + ("config"->Json.stringify(formatsForm.writes(configForm))) + ("configUpdate"->config._id.stringify) + ("infoMesure"->Json.stringify(JsArray(infos))))
+                }
+              )
+            }
+          )
+      }{
+        //Redirect to the list of modules
+        _ =>
+          future{Redirect(routes.ModuleManager.inventary())}
+      }
+    }
   }
 
   /**
@@ -143,7 +198,7 @@ trait ConfigurationManagerLike extends Controller{
             formWithError =>future{BadRequest(views.html.configuration.form(formWithError,module))},
 
             //If contains not errors, redirect to the list of sensors contains in the module
-            data=>future{Redirect(routes.ConfigurationManager.listSensors(id)).withSession(request.session + ("configForm"->"insert") + ("config"->Json.stringify(formatsForm.writes(data))))}
+            data=>future{Redirect(routes.ConfigurationManager.listSensors(id)).withSession(request.session + ("config"->Json.stringify(formatsForm.writes(data))))}
           )
         }{
 
@@ -391,9 +446,12 @@ trait ConfigurationManagerLike extends Controller{
               //Display the summary of the configuration
               display_validation(Results.BadRequest,module,config,infoMesure,errors)
             }else{
-
-              //Insert the configuration to mongoDB
-              insertConfiguration(id,config,infoMesure)
+              if(request.session.get("configForm").equals(Some("update"))) {
+                updateConfiguration(id,request.session.get("configUpdate").getOrElse(""),config,infoMesure)
+              }else{
+                //Insert the configuration to mongoDB
+                insertConfiguration(id, config, infoMesure)
+              }
             }
           }
         }{
@@ -461,6 +519,34 @@ trait ConfigurationManagerLike extends Controller{
           _ =>future{NotFound}
         }
       }
+  }
+
+  /**
+   * Find mesure informations associat to a module and format its informations for set in session
+   * @param infos List of informations id
+   * @return Return a list of mesure informations format for set in session
+   */
+  def findInformationForForm(infos:List[BSONObjectID]):Future[List[JsObject]]=infos match{
+    //If the list is empty return an empty list
+    case Nil => future{List()}
+
+    //Else find mesure informations
+    case _ => informationMesureDao.findAll(Json.obj("_id"->Json.obj("$in"->infos))).flatMap(
+      data=>
+
+        //Find type mesure
+        typeMesureDao.findAll(Json.obj("_id"->Json.obj("$in"->data.foldLeft(List[BSONObjectID]())((list,info)=>info.mesure :: list)))).map(
+          listMesure=>
+            //for each mesure information
+            data.foldLeft(List[JsObject]())((list,info)=>{
+              //Find the type mesure
+              val mesure=listMesure.filter(m=>m._id.equals(info.mesure))(0)
+
+              //Insert to the list a Json represent the mesure information
+              Json.obj("sensor"->info.sensor.stringify,"info"->InfoMesureForm(info.index,info.id,mesure.nom,mesure.unite)) :: list
+            })
+        )
+    )
   }
 
   /**
@@ -602,12 +688,19 @@ trait ConfigurationManagerLike extends Controller{
         //Find the type mesure id
         val id = findIdTypeMesure(data,h._2)
 
-        //Create the mesure information
-        val info=InformationMesure(index=h._2.index,id=h._2.id,sensor=h._1,mesure=id)
+        informationMesureDao.findOne(Json.obj("index"->h._2.index,"id"->h._2.id,"sensor"->h._1,"mesure"->id)).flatMap(
+          data => data match{
+            case None=>{
+              //Create the mesure information
+              val info=InformationMesure(index=h._2.index,id=h._2.id,sensor=h._1,mesure=id)
 
-        //Insert the mesure information
-        informationMesureDao.insert(info).map(
-          data=>info._id
+              //Insert the mesure information
+              informationMesureDao.insert(info).map(
+                data=>info._id
+              )
+            }
+            case Some(info)=>future{info._id}
+          }
         )
       }
     ) :: insertInformation(t)
@@ -635,6 +728,31 @@ trait ConfigurationManagerLike extends Controller{
 
     //If the type mesure exist, return the _id
     case Some(mesure)=>mesure._id
+  }
+
+  /**
+   * Update a module configuration in mongoDB
+   * @param idModule Module id
+   * @param id Configuration id
+   * @param config The new configuration
+   * @param infoMesure The list of mesure informations associat to the module
+   * @param request HTTPRequest received
+   * @return
+   */
+  def updateConfiguration(idModule:String,id:String,config:ConfigurationForm,infoMesure:List[(BSONObjectID,InfoMesureForm)])(implicit request:Request[AnyContent]):Future[Result]={
+    //Transform the List[Future] to Future[List] after insert mesure information
+    Future.sequence(insertInformation(infoMesure)).flatMap(list=> {
+
+      //Create the configuration
+      val configFinal = Configuration(BSONObjectID(id),config.port,config.timeout,config.baud,config.bits,config.stopBits,config.parity,config.timeFilter,config.types, list)
+
+      //Update the configuration
+      configurationDao.updateById(BSONObjectID(id),configFinal).map(
+
+        //redirect to the module informations
+        data => Redirect(routes.ModuleManager.moreInformation(idModule)).withSession(request.session - "configForm" - "config" - "infoMesure" - "configUpdate")
+      )
+    })
   }
 
   /**
