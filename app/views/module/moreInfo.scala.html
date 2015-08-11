@@ -115,10 +115,11 @@
                       <td>@config.types</td>
                       <td>@config.timeFilter</td>
                       <td>
+                        <a href="@routes.ConfigurationManager.configuration(mod._id.stringify,config._id.stringify)" data-toggle-tooltip title="@Messages("global.tooltip.detail")"><span class="glyphicon glyphicon-info-sign"></span></a>
                         <a href="@routes.ConfigurationManager.formUpdate(mod._id.stringify,config._id.stringify)" data-toggle-tooltip title="@Messages("global.tooltip.update")"><span class="glyphicon glyphicon-pencil"></span></a>
-                        <a data-toggle="modal" href="#modal-delete" data-toggle-tooltip title="@Messages("global.tooltip.delete")" data-title="@mod.id" data-link="#">
+                        @*<a data-toggle="modal" href="#modal-delete" data-toggle-tooltip title="@Messages("global.tooltip.delete")" data-title="@mod.id" data-link="#">
                           <span class="glyphicon glyphicon-trash"></span>
-                        </a>
+                        </a>*@
                       </td>
                     </tr>
                   }

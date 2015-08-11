@@ -717,6 +717,91 @@ class ConfigurationManagerSpec extends Specification with Mockito{
     }
   }
 
+  "When user is on resource /inventary/modules/:id/configuration/:id2, ConfigurationManager" should {
+    "send redirect if module not found" in new WithApplication {
+      val f = fixture
+
+      f.applyNotFoundFunction()
+
+      val r = f.controller.configuration(bson.stringify,bson2.stringify).apply(FakeRequest(GET, "/inventary/modules/" + bson.stringify + "/configuration/"+bson2.stringify).withSession("user" -> """{"login":"test"}"""))
+
+      status(r) must equalTo(SEE_OTHER)
+      header("Location", r) must beSome("/inventary/modules")
+
+      there was one(f.moduleManagerMock).doIfModuleFound(org.mockito.Matchers.eq(bson))(any[Module => Future[Result]])(any[Unit => Future[Result]])
+    }
+
+    "send redirect if configuration not found" in new WithApplication{
+      val f = fixture
+
+      f.applyFoundFunction()
+      f.configurationDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("_id"->bson2)))(any[ExecutionContext]) returns future{None}
+
+      val r = f.controller.configuration(bson.stringify,bson2.stringify).apply(FakeRequest(GET, "/inventary/modules/" + bson.stringify + "/configuration/"+bson2.stringify).withSession("user" -> """{"login":"test"}"""))
+
+      status(r) must equalTo(SEE_OTHER)
+      header("Location", r) must beSome("/inventary/modules/"+bson.stringify)
+
+      there was one(f.moduleManagerMock).doIfModuleFound(org.mockito.Matchers.eq(bson))(any[Module => Future[Result]])(any[Unit => Future[Result]])
+      there was one(f.configurationDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("_id"->bson2)))(any[ExecutionContext])
+    }
+
+    "send 200 Ok page with configuration informations" in new WithApplication {
+      val f = fixture
+      val config=Configuration(_id=bson2,port="/dev/ttyUSB0",types="ADC",infoMesure=List(bson3))
+      val info=InformationMesure(bson3,0,"id",bson,bson4)
+      val typeSensor = List(TypeSensor(bson3, "typeSensor2", "nomTypeSensor2", bson4, "fab2", 2, List("esp2"), 3.4f, 2.3f))
+      val typeMesure = List(TypeMesure(bson4, "mesure", "unite"))
+      val sensor = List(Sensor(bson, "id", bson3, None, date, None, true, None))
+
+      f.applyFoundFunction()
+      f.sensorDaoMock.fold(any[JsObject], any[JsObject], org.mockito.Matchers.eq(HashSet[BSONObjectID]()))(any[(HashSet[BSONObjectID], Sensor) => HashSet[BSONObjectID]])(any[ExecutionContext]) returns future {
+        HashSet[BSONObjectID]()
+      }
+      f.typeSensorDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns future {
+        typeSensor
+      }
+      f.sensorDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns future {
+        sensor
+      }
+      f.typeMesureDaoMock.findAll(any[JsObject], any[JsObject])(any[ExecutionContext]) returns future {
+        typeMesure
+      }
+      f.configurationDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("_id"->bson2)))(any[ExecutionContext]) returns future{Some(config)}
+      f.informationMesureDaoMock.findAll(org.mockito.Matchers.eq(Json.obj("_id"->Json.obj("$in"->List(bson3)))),any[JsObject])(any[ExecutionContext]) returns future{List(info)}
+
+      val req = FakeRequest(GET, "/inventary/modules/" + bson.stringify + "/configuration/"+bson2.stringify).withSession(("user" -> """{"login":"test"}"""))
+      val r = f.controller.configuration(bson.stringify,bson2.stringify).apply(req)
+
+      status(r) must equalTo(OK)
+      val content = contentAsString(r)
+      content must contain("<h4>type / id</h4>")
+      content must contain("<span class=\"bold\">Commentaires</span> : un com")
+      content must matchRegex("<span class=\"bold\">Date d&#x27;assemblage</span> : \\d{2}/\\d{2}/\\d{4}")
+      content must contain("<span class=\"bold\">Port</span> : /dev/ttyUSB0")
+      content must contain("<span class=\"bold\">Délai d&#x27;attente de la connection</span> : 10000")
+      content must contain("<span class=\"bold\">Baud</span> : 9600")
+      content must contain("<span class=\"bold\">Bits de donnée</span> : 8")
+      content must contain("<span class=\"bold\">Parité</span> : 0")
+      content must contain("<span class=\"bold\">Stop de bits</span> : 1")
+      content must contain("<span class=\"bold\">Temps de filtrage des données</span> : 1000")
+      content must contain("<span class=\"bold\">Type de configuration</span> : ADC")
+      content must contain("<td>0</td>")
+      content must contain("<td>id</td>")
+      content must contain("<td>mesure</td>")
+      content must contain("<td>unite</td>")
+      content must contain("<span class=\"bold\">typeSensor2 / nomTypeSensor2</span><br/>id")
+
+      there was one(f.moduleManagerMock).doIfModuleFound(org.mockito.Matchers.eq(bson))(any[Module => Future[Result]])(any[Unit => Future[Result]])
+      there was one(f.sensorDaoMock).fold(any[JsObject], any[JsObject], org.mockito.Matchers.eq(HashSet[BSONObjectID]()))(any[(HashSet[BSONObjectID], Sensor) => HashSet[BSONObjectID]])(any[ExecutionContext])
+      there was one(f.typeSensorDaoMock).findAll(any[JsObject], any[JsObject])(any[ExecutionContext])
+      there was one(f.sensorDaoMock).findAll(any[JsObject], any[JsObject])(any[ExecutionContext])
+      there was 2.times(f.typeMesureDaoMock).findAll(any[JsObject], any[JsObject])(any[ExecutionContext])
+      there was one(f.configurationDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("_id"->bson2)))(any[ExecutionContext])
+      there was one(f.informationMesureDaoMock).findAll(org.mockito.Matchers.eq(Json.obj("_id"->Json.obj("$in"->List(bson3)))),any[JsObject])(any[ExecutionContext])
+    }
+  }
+
   "When user is on resource /inventary/modules/:id/configuration/download, ConfigurationManager" should{
     "return 404 not found if module not found" in new WithApplication{
       val f=fixture

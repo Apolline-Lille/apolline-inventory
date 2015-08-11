@@ -70,6 +70,74 @@ trait ConfigurationManagerLike extends Controller{
   val zipOutputStreamBuilder=new ZipOutputStreamBuilder
 
   /**
+   * Display information about the configuration
+   * @param id Module id
+   * @param id2 Configuration id
+   * @return Redirect if the user is not log in, if the module is not found or if the configuration is not found
+   *         200 OK page with configuration information
+   */
+  @ApiOperation(
+    nickname = "inventary/modules/:id/configuration/:id2",
+    value = "Display a configuration",
+    notes = "Display a configuration",
+    httpMethod = "GET")
+  @ApiResponses(Array(
+    new ApiResponse(code=303,message="<ul><li>Move resource to the login page at /login if the user is not log</li><li>Move resouce to the module inventary at /inventary/modules if the module is not found</li><li>Move resource to module information if the configuration is not found</li></ul>")
+  ))
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(value = "Module id",required=true,name="id", dataType = "String", paramType = "path"),
+    new ApiImplicitParam(value = "configuration id",required=true,name="id",dataType="String",paramType="path")
+  ))
+  def configuration(id:String,id2:String)=Action.async {
+    implicit request =>
+      //Verify if user is connect
+      UserManager.doIfconnectAsync(request) {
+
+        //Verify if module exists
+        moduleManager.doIfModuleFound(BSONObjectID(id)) {
+
+          //Find the configuration
+          module => configurationDao.findOne(Json.obj("_id" -> BSONObjectID(id2))).flatMap(
+            configOpt => configOpt match {
+
+              //If the configuration is not found
+              case None => future{Redirect(routes.ModuleManager.moreInformation(id))}
+
+              //if the configuration is found, find mesure informations
+              case Some(config) => informationMesureDao.findAll(Json.obj("_id"->Json.obj("$in"->config.infoMesure))).flatMap(
+                infos=>{
+
+                  //Find id of sensors and mesure type
+                  val ids=infos.foldLeft((HashSet[BSONObjectID](),HashSet[BSONObjectID]())){(set,info)=>(set._1 + info.sensor,set._2+info.mesure)}
+
+                  //Find type mesure
+                  typeMesureDao.findAll(Json.obj("_id"->Json.obj("$in"->ids._2))).flatMap(
+                    mesures=>
+
+                      //Find sensors information
+                      findListSensor(ids._1.toList).map(
+                      data=>data match{
+
+                          //Display the configuration information
+                        case (typeSensor, typeMesure, sensor)=>Ok(views.html.configuration.showConfiguration(module, config,infos,mesures,typeSensor,sensor))
+                      }
+                    )
+                  )
+                }
+              )
+            }
+          )
+        } {
+          //Redirect to the list of modules
+          _ =>
+            future {
+              Redirect(routes.ModuleManager.inventary())
+            }
+        }
+      }
+  }
+
+  /**
    * Display a form for insert module configuration
    * @param id Module id
    * @return A 200 OK page, with the form for insert module configuration
