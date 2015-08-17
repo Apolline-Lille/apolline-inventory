@@ -40,6 +40,9 @@
             <input id="@id" name="@name" class="form-control" type="number" autocomplete="off" @if(value!=null){value="@value"}/>
           }
           @helper.inputText(form("types"),'_label->Messages("inventary.configuration.types"),'required->true,'class->"form-control")
+          @helper.input(form("numberOfValue"),'_label->Messages("inventary.configuration.numberOfValue"),'required->true){ (id, name, value, args) =>
+            <input id="@id" name="@name" class="form-control" type="number" autocomplete="off" @if(value!=null){value="@value"}/>
+          }
         </div>
         <div class="col-sm-12">
           <div style="float:right">

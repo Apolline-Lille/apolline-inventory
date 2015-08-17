@@ -180,6 +180,7 @@ class ConfigurationManagerSpec extends Specification with Mockito{
       content must contain("<input id=\"stopBits\" name=\"stopBits\" class=\"form-control\" type=\"number\" autocomplete=\"off\" value=\"1\"/>")
       content must contain("<input id=\"timeFilter\" name=\"timeFilter\" class=\"form-control\" type=\"number\" autocomplete=\"off\" value=\"1000\"/>")
       content must contain("<input type=\"text\" id=\"types\" name=\"types\" value=\"\" class=\"form-control\"/>")
+      content must contain("<input id=\"numberOfValue\" name=\"numberOfValue\" class=\"form-control\" type=\"number\" autocomplete=\"off\" value=\"0\"/>")
       val s=session(r)
       s.get("configForm") must beSome("insert")
 
@@ -199,7 +200,7 @@ class ConfigurationManagerSpec extends Specification with Mockito{
     }
 
     "send redirect after insert configuration" in new WithApplication{
-      val data=Json.obj("port"->"/dev/ttyUSB0","timeout"->10000,"baud"->9600,"bits"->8,"stopBits"->1,"parity"->0,"timeFilter"->1000,"types"->"ADC")
+      val data=Json.obj("port"->"/dev/ttyUSB0","timeout"->10000,"baud"->9600,"bits"->8,"stopBits"->1,"parity"->0,"timeFilter"->1000,"types"->"ADC","numberOfValue"->6)
       val f=fixture
 
       f.applyFoundFunction()
@@ -220,20 +221,20 @@ class ConfigurationManagerSpec extends Specification with Mockito{
 
       val r=f.controller.insertFormConfiguration(bson.stringify).apply(FakeRequest(POST, "/inventary/modules/"+bson.stringify+"/configuration").withSession("user" -> """{"login":"test"}"""))
       status(r) must equalTo(BAD_REQUEST)
-      contentAsString(r) must contains("<span class=\"control-label errors\">This field is required</span>",8)
+      contentAsString(r) must contains("<span class=\"control-label errors\">This field is required</span>",9)
 
       there was one(f.moduleManagerMock).doIfModuleFound(org.mockito.Matchers.eq(bson))(any[Module=>Future[Result]])(any[Unit=>Future[Result]])
     }
 
     "send bad request if number ar not valid" in new WithApplication{
-      val data=Json.obj("port"->"/dev/ttyUSB0","timeout"->"a","baud"->"a","bits"->"a","stopBits"->"a","parity"->"a","timeFilter"->"a","types"->"ADC")
+      val data=Json.obj("port"->"/dev/ttyUSB0","timeout"->"a","baud"->"a","bits"->"a","stopBits"->"a","parity"->"a","timeFilter"->"a","types"->"ADC","numberOfValue"->"a")
       val f=fixture
 
       f.applyFoundFunction()
 
       val r=f.controller.insertFormConfiguration(bson.stringify).apply(FakeRequest(POST, "/inventary/modules/"+bson.stringify+"/configuration").withJsonBody(data).withSession("user" -> """{"login":"test"}"""))
       status(r) must equalTo(BAD_REQUEST)
-      contentAsString(r) must contains("<span class=\"control-label errors\">Numeric value expected</span>",6)
+      contentAsString(r) must contains("<span class=\"control-label errors\">Numeric value expected</span>",7)
 
       there was one(f.moduleManagerMock).doIfModuleFound(org.mockito.Matchers.eq(bson))(any[Module=>Future[Result]])(any[Unit=>Future[Result]])
     }
@@ -269,7 +270,7 @@ class ConfigurationManagerSpec extends Specification with Mockito{
         )
       }
       f.applyFoundFunction()
-      f.configurationDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("_id"->bson2)))(any[ExecutionContext]) returns future{Some(Configuration(_id=bson2,port="/dev/ttyUSB0",types="ADC",infoMesure=infos))}
+      f.configurationDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("_id"->bson2)))(any[ExecutionContext]) returns future{Some(Configuration(_id=bson2,port="/dev/ttyUSB0",types="ADC",infoMesure=infos,numberOfValue=6))}
 
       val r = controller.formUpdate(bson.stringify,bson2.stringify).apply(FakeRequest(GET, "/inventary/modules/" + bson.stringify + "/configuration/"+bson2.stringify+"/update").withSession("user" -> """{"login":"test"}"""))
       status(r) must equalTo(OK)
@@ -289,9 +290,10 @@ class ConfigurationManagerSpec extends Specification with Mockito{
       content must contain("<input id=\"stopBits\" name=\"stopBits\" class=\"form-control\" type=\"number\" autocomplete=\"off\" value=\"1\"/>")
       content must contain("<input id=\"timeFilter\" name=\"timeFilter\" class=\"form-control\" type=\"number\" autocomplete=\"off\" value=\"1000\"/>")
       content must contain("<input type=\"text\" id=\"types\" name=\"types\" value=\"ADC\" class=\"form-control\"/>")
+      content must contain("<input id=\"numberOfValue\" name=\"numberOfValue\" class=\"form-control\" type=\"number\" autocomplete=\"off\" value=\"6\"/>")
       val s = session(r)
       s.get("configForm") must beSome("update")
-      s.get("config") must beSome("""{"port":"/dev/ttyUSB0","timeout":10000,"baud":9600,"bits":8,"stopBits":1,"parity":0,"timeFilter":1000,"types":"ADC"}""")
+      s.get("config") must beSome("""{"port":"/dev/ttyUSB0","timeout":10000,"baud":9600,"bits":8,"stopBits":1,"parity":0,"timeFilter":1000,"types":"ADC","numberOfValue":6}""")
       s.get("infoMesure") must beSome("[{\"sensor\":\""+bson4.stringify+"\",\"info\":{\"index\":1,\"id\":\"id2\",\"mesure\":\"Tension2\",\"unite\":\"Volt2\"}},{\"sensor\":\""+bson3.stringify+"\",\"info\":{\"index\":0,\"id\":\"id\",\"mesure\":\"Tension\",\"unite\":\"Volt\"}}]")
       s.get("configUpdate") must beSome(bson2.stringify)
 
@@ -329,7 +331,7 @@ class ConfigurationManagerSpec extends Specification with Mockito{
   "When user is on resource /inventary/modules/:id/configuration/update, ConfigurationManager" should {
     "send 200 Ok page with a prefilled form" in new WithApplication {
       val f = fixture
-      val data="""{"port":"/dev/ttyUSB0","timeout":10000,"baud":9600,"bits":8,"stopBits":1,"parity":0,"timeFilter":1000,"types":"ADC"}"""
+      val data="""{"port":"/dev/ttyUSB0","timeout":10000,"baud":9600,"bits":8,"stopBits":1,"parity":0,"timeFilter":1000,"types":"ADC","numberOfValue":6}"""
 
       f.applyFoundFunction()
 
@@ -351,6 +353,7 @@ class ConfigurationManagerSpec extends Specification with Mockito{
       content must contain("<input id=\"stopBits\" name=\"stopBits\" class=\"form-control\" type=\"number\" autocomplete=\"off\" value=\"1\"/>")
       content must contain("<input id=\"timeFilter\" name=\"timeFilter\" class=\"form-control\" type=\"number\" autocomplete=\"off\" value=\"1000\"/>")
       content must contain("<input type=\"text\" id=\"types\" name=\"types\" value=\"ADC\" class=\"form-control\"/>")
+      content must contain("<input id=\"numberOfValue\" name=\"numberOfValue\" class=\"form-control\" type=\"number\" autocomplete=\"off\" value=\"6\"/>")
 
       there was one(f.moduleManagerMock).doIfModuleFound(org.mockito.Matchers.eq(bson))(any[Module => Future[Result]])(any[Unit => Future[Result]])
     }
@@ -570,7 +573,7 @@ class ConfigurationManagerSpec extends Specification with Mockito{
 
     "send 200 Ok page with the summary of the validation" in new WithApplication{
       val f=fixture
-      val sessionConfig="""{"port":"/dev/ttyUSB0","timeout":10,"baud":9600,"bits":8,"parity":0,"stopBits":1,"timeFilter":1000,"types":"ADC"}"""
+      val sessionConfig="""{"port":"/dev/ttyUSB0","timeout":10,"baud":9600,"bits":8,"parity":0,"stopBits":1,"timeFilter":1000,"types":"ADC","numberOfValue":6}"""
       val sessionInfoMesure="""[{"sensor":""""+bson2.stringify+"""","info":{"index":0,"id":"id","mesure":"mesure","unite":"unite"}}]"""
       val typeSensor=List(TypeSensor(bson3,"typeSensor2","nomTypeSensor2",bson2,"fab2",2,List("esp2"),3.4f,2.3f))
       val typeMesure=List(TypeMesure(bson2,"mesure2","unite2"))
@@ -598,6 +601,7 @@ class ConfigurationManagerSpec extends Specification with Mockito{
       content must contain("<span class=\"bold\">Stop de bits</span> : 1")
       content must contain("<span class=\"bold\">Temps de filtrage des données</span> : 1000")
       content must contain("<span class=\"bold\">Type de configuration</span> : ADC")
+      content must contain("<span class=\"bold\">Nombre de valeurs reçue</span> : 6")
       content must contain("<td>0</td>")
       content must contain("<td>id</td>")
       content must contain("<td>mesure</td>")
@@ -613,7 +617,7 @@ class ConfigurationManagerSpec extends Specification with Mockito{
 
     "send bad request with errors" in new WithApplication{
       val f=fixture
-      val sessionConfig="""{"port":"","timeout":10,"baud":9600,"bits":8,"parity":0,"stopBits":1,"timeFilter":1000,"types":""}"""
+      val sessionConfig="""{"port":"","timeout":10,"baud":9600,"bits":8,"parity":0,"stopBits":1,"timeFilter":1000,"types":"","numberOfValue":6}"""
 
       f.applyFoundFunction()
       f.sensorDaoMock.fold(any[JsObject],any[JsObject],org.mockito.Matchers.eq(HashSet[BSONObjectID]()))(any[(HashSet[BSONObjectID],Sensor)=>HashSet[BSONObjectID]])(any[ExecutionContext]) returns future{HashSet[BSONObjectID]()}
@@ -638,7 +642,7 @@ class ConfigurationManagerSpec extends Specification with Mockito{
 
     "send bad request if validate configuration with error" in new WithApplication{
       val f=fixture
-      val sessionConfig="""{"port":"","timeout":10,"baud":9600,"bits":8,"parity":0,"stopBits":1,"timeFilter":1000,"types":""}"""
+      val sessionConfig="""{"port":"","timeout":10,"baud":9600,"bits":8,"parity":0,"stopBits":1,"timeFilter":1000,"types":"","numberOfValue":6}"""
 
       f.applyFoundFunction()
       f.sensorDaoMock.fold(any[JsObject],any[JsObject],org.mockito.Matchers.eq(HashSet[BSONObjectID]()))(any[(HashSet[BSONObjectID],Sensor)=>HashSet[BSONObjectID]])(any[ExecutionContext]) returns future{HashSet[BSONObjectID]()}
@@ -663,7 +667,7 @@ class ConfigurationManagerSpec extends Specification with Mockito{
 
     "send redirect after insert configuration" in new WithApplication{
       val f=fixture
-      val sessionConfig="""{"port":"/dev/ttyUSB0","timeout":10000,"baud":9600,"bits":8,"parity":0,"stopBits":1,"timeFilter":1000,"types":"ADC"}"""
+      val sessionConfig="""{"port":"/dev/ttyUSB0","timeout":10000,"baud":9600,"bits":8,"parity":0,"stopBits":1,"timeFilter":1000,"types":"ADC","numberOfValue":6}"""
       val sessionInfoMesure="""[{"sensor":""""+bson2.stringify+"""","info":{"index":0,"id":"id","mesure":"mesure","unite":"unite"}}]"""
       val lastError=mock[LastError]
 
@@ -699,7 +703,7 @@ class ConfigurationManagerSpec extends Specification with Mockito{
       arg must equalTo(InformationMesure(arg._id,0,"id",bson2,bson2))
 
       val configCapt=captorConfig.getValue
-      configCapt must equalTo(Configuration(_id=configCapt._id,port="/dev/ttyUSB0",types="ADC",infoMesure=List(arg._id)))
+      configCapt must equalTo(Configuration(_id=configCapt._id,port="/dev/ttyUSB0",types="ADC",infoMesure=List(arg._id),numberOfValue=6))
       captorObj.getValue must equalTo(Json.obj("$push"->Json.obj("configuration"->configCapt._id)))
     }
 
@@ -748,7 +752,7 @@ class ConfigurationManagerSpec extends Specification with Mockito{
 
     "send 200 Ok page with configuration informations" in new WithApplication {
       val f = fixture
-      val config=Configuration(_id=bson2,port="/dev/ttyUSB0",types="ADC",infoMesure=List(bson3))
+      val config=Configuration(_id=bson2,port="/dev/ttyUSB0",types="ADC",infoMesure=List(bson3),numberOfValue=6)
       val info=InformationMesure(bson3,0,"id",bson,bson4)
       val typeSensor = List(TypeSensor(bson3, "typeSensor2", "nomTypeSensor2", bson4, "fab2", 2, List("esp2"), 3.4f, 2.3f))
       val typeMesure = List(TypeMesure(bson4, "mesure", "unite"))
@@ -786,6 +790,7 @@ class ConfigurationManagerSpec extends Specification with Mockito{
       content must contain("<span class=\"bold\">Stop de bits</span> : 1")
       content must contain("<span class=\"bold\">Temps de filtrage des données</span> : 1000")
       content must contain("<span class=\"bold\">Type de configuration</span> : ADC")
+      content must contain("<span class=\"bold\">Nombre de valeurs reçue</span> : 6")
       content must contain("<td>0</td>")
       content must contain("<td>id</td>")
       content must contain("<td>mesure</td>")
@@ -818,7 +823,7 @@ class ConfigurationManagerSpec extends Specification with Mockito{
     "return a result with a configurations zip" in new WithApplication{
       val f=fixture
       val zip=mock[ZipOutputStream]
-      val config=List(Configuration(port="/dev/ttyUSB0",types="ADC",infoMesure=List(bson3)),Configuration(port="/dev/ttyUSB0",types="wasp",infoMesure=List(bson4)))
+      val config=List(Configuration(port="/dev/ttyUSB0",types="ADC",infoMesure=List(bson3),numberOfValue=6),Configuration(port="/dev/ttyUSB0",types="wasp",infoMesure=List(bson4),numberOfValue=8))
       val info=List(InformationMesure(bson3,0,"id",bson2,bson3),InformationMesure(bson4,0,"id2",bson3,bson2))
 
       f.applyFoundFunction()
@@ -836,6 +841,8 @@ class ConfigurationManagerSpec extends Specification with Mockito{
       org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("timeFilter=1000\n").getBytes))
       org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("type=ADC\n").getBytes))
       org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("type=wasp\n").getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("numberOfValue=6\n").getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("numberOfValue=8\n").getBytes))
       org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("moduleId="+bson.stringify+"\n").getBytes))
       org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("sensors={\\\n").getBytes))
       org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("\""+bson3.stringify+"\":[\\\n").getBytes))
@@ -868,6 +875,8 @@ class ConfigurationManagerSpec extends Specification with Mockito{
       there was 2.times(zip).write(org.mockito.Matchers.eq(("timeFilter=1000\n").getBytes))
       there was one(zip).write(org.mockito.Matchers.eq(("type=ADC\n").getBytes))
       there was one(zip).write(org.mockito.Matchers.eq(("type=wasp\n").getBytes))
+      there was one(zip).write(org.mockito.Matchers.eq(("numberOfValue=6\n").getBytes))
+      there was one(zip).write(org.mockito.Matchers.eq(("numberOfValue=8\n").getBytes))
       there was 2.times(zip).write(org.mockito.Matchers.eq(("moduleId="+bson.stringify+"\n").getBytes))
       there was 2.times(zip).write(org.mockito.Matchers.eq(("sensors={\\\n").getBytes))
       there was one(zip).write(org.mockito.Matchers.eq(("\""+bson3.stringify+"\":[\\\n").getBytes))
@@ -959,7 +968,7 @@ class ConfigurationManagerSpec extends Specification with Mockito{
 
       val r=f.controller.getConfiguration(FakeRequest(GET,"url"))
 
-      r must equalTo(ConfigurationForm(port="",types=""))
+      r must equalTo(ConfigurationForm(port="",types="",numberOfValue=0))
     }
 
     "return the default configuration if configuration is not valid" in new WithApplication{
@@ -967,16 +976,16 @@ class ConfigurationManagerSpec extends Specification with Mockito{
 
       val r=f.controller.getConfiguration(FakeRequest(GET,"url").withSession("config"->"{}"))
 
-      r must equalTo(ConfigurationForm(port="",types=""))
+      r must equalTo(ConfigurationForm(port="",types="",numberOfValue=0))
     }
 
     "return the configuration in session" in new WithApplication{
       val f=fixture
-      val session="""{"port":"/dev/ttyUSB0","timeout":10,"baud":9600,"bits":8,"parity":0,"stopBits":1,"timeFilter":1000,"types":"ADC"}"""
+      val session="""{"port":"/dev/ttyUSB0","timeout":10,"baud":9600,"bits":8,"parity":0,"stopBits":1,"timeFilter":1000,"types":"ADC","numberOfValue":6}"""
 
       val r=f.controller.getConfiguration(FakeRequest(GET,"url").withSession("config"->session))
 
-      r must equalTo(ConfigurationForm("/dev/ttyUSB0",10,9600,8,1,0,1000,"ADC"))
+      r must equalTo(ConfigurationForm("/dev/ttyUSB0",10,9600,8,1,0,1000,"ADC",6))
     }
   }
 
@@ -1004,7 +1013,7 @@ class ConfigurationManagerSpec extends Specification with Mockito{
       val f=fixture
       val errors=List("une erreur")
 
-      val r=f.controller.verifyConfiguration(ConfigurationForm(port="/dev/ttyUSB0",types="ADC"),errors)
+      val r=f.controller.verifyConfiguration(ConfigurationForm(port="/dev/ttyUSB0",types="ADC",numberOfValue = 6),errors)
 
       r must equalTo(errors)
     }
@@ -1013,7 +1022,7 @@ class ConfigurationManagerSpec extends Specification with Mockito{
       val f=fixture
       val errors=List("une erreur","Le port ou le type configuration ne sont pas définis")
 
-      val r=f.controller.verifyConfiguration(ConfigurationForm(port="",types="ADC"),List("une erreur"))
+      val r=f.controller.verifyConfiguration(ConfigurationForm(port="",types="ADC",numberOfValue=6),List("une erreur"))
 
       r must equalTo(errors)
     }
@@ -1022,7 +1031,7 @@ class ConfigurationManagerSpec extends Specification with Mockito{
       val f=fixture
       val errors=List("une erreur","Le port ou le type configuration ne sont pas définis")
 
-      val r=f.controller.verifyConfiguration(ConfigurationForm(port="/dev/ttyUSB0",types=""),List("une erreur"))
+      val r=f.controller.verifyConfiguration(ConfigurationForm(port="/dev/ttyUSB0",types="",numberOfValue=6),List("une erreur"))
 
       r must equalTo(errors)
     }
@@ -1052,7 +1061,7 @@ class ConfigurationManagerSpec extends Specification with Mockito{
   "When method display_validation is called, ConfigurationManager" should{
     "send page with the summary of the validation" in new WithApplication{
       val f=fixture
-      val config=ConfigurationForm("/dev/ttyUSB0",10,9600,8,1,0,1000,"ADC")
+      val config=ConfigurationForm("/dev/ttyUSB0",10,9600,8,1,0,1000,"ADC",6)
       val infoMesure=List((bson2,InfoMesureForm(0,"id","mesure","unite")))
       val typeSensor=List(TypeSensor(bson3,"typeSensor2","nomTypeSensor2",bson2,"fab2",2,List("esp2"),3.4f,2.3f))
       val typeMesure=List(TypeMesure(bson2,"mesure2","unite2"))
@@ -1080,6 +1089,7 @@ class ConfigurationManagerSpec extends Specification with Mockito{
       content must contain("<span class=\"bold\">Stop de bits</span> : 1")
       content must contain("<span class=\"bold\">Temps de filtrage des données</span> : 1000")
       content must contain("<span class=\"bold\">Type de configuration</span> : ADC")
+      content must contain("<span class=\"bold\">Nombre de valeurs reçue</span> : 6")
       content must contain("<td>0</td>")
       content must contain("<td>id</td>")
       content must contain("<td>mesure</td>")
@@ -1094,7 +1104,7 @@ class ConfigurationManagerSpec extends Specification with Mockito{
 
     "send page with errors" in new WithApplication{
       val f=fixture
-      val config=ConfigurationForm(port="",types="")
+      val config=ConfigurationForm(port="",types="",numberOfValue=0)
       val module=Module(bson2,"idMod","typMod",date,List(),List(),Some("un com"))
 
       f.sensorDaoMock.fold(any[JsObject],any[JsObject],org.mockito.Matchers.eq(HashSet[BSONObjectID]()))(any[(HashSet[BSONObjectID],Sensor)=>HashSet[BSONObjectID]])(any[ExecutionContext]) returns future{HashSet[BSONObjectID]()}
@@ -1185,7 +1195,7 @@ class ConfigurationManagerSpec extends Specification with Mockito{
         (bson,InfoMesureForm(0,"id","Tension","Volt")),
         (bson2,InfoMesureForm(1,"id2","Tension2","Volt2"))
       )
-      val config=ConfigurationForm(port="/dev/ttyUSB0",types="ADC")
+      val config=ConfigurationForm(port="/dev/ttyUSB0",types="ADC",numberOfValue=6)
       val lastError=mock[LastError]
 
       f.typeMesureDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("nom"->"Tension","unite"->"Volt")))(any[ExecutionContext]) returns future{Some(TypeMesure(bson,"Tension","Volt"))}
@@ -1221,7 +1231,7 @@ class ConfigurationManagerSpec extends Specification with Mockito{
       args.get(1) must equalTo(InformationMesure(args.get(1)._id,1,"id2",bson2,bson2)) or equalTo(InformationMesure(args.get(1)._id,0,"id",bson,bson))
 
       val configCapt=captorConfig.getValue
-      configCapt must equalTo(Configuration(_id=configCapt._id,port="/dev/ttyUSB0",types="ADC",infoMesure=List(args.get(0)._id,args.get(1)._id))) or equalTo(Configuration(_id=configCapt._id,port="/dev/ttyUSB0",types="ADC",infoMesure=List(args.get(1)._id,args.get(0)._id)))
+      configCapt must equalTo(Configuration(_id=configCapt._id,port="/dev/ttyUSB0",types="ADC",infoMesure=List(args.get(0)._id,args.get(1)._id),numberOfValue=6)) or equalTo(Configuration(_id=configCapt._id,port="/dev/ttyUSB0",types="ADC",infoMesure=List(args.get(1)._id,args.get(0)._id),numberOfValue=6))
       captorObj.getValue must equalTo(Json.obj("$push"->Json.obj("configuration"->configCapt._id)))
     }
   }
@@ -1233,7 +1243,7 @@ class ConfigurationManagerSpec extends Specification with Mockito{
         (bson,InfoMesureForm(0,"id","Tension","Volt")),
         (bson2,InfoMesureForm(1,"id2","Tension2","Volt2"))
       )
-      val config=ConfigurationForm(port="/dev/ttyUSB0",types="ADC")
+      val config=ConfigurationForm(port="/dev/ttyUSB0",types="ADC",numberOfValue=6)
       val lastError=mock[LastError]
 
       f.typeMesureDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("nom"->"Tension","unite"->"Volt")))(any[ExecutionContext]) returns future{Some(TypeMesure(bson,"Tension","Volt"))}
@@ -1266,7 +1276,7 @@ class ConfigurationManagerSpec extends Specification with Mockito{
       args.get(1) must equalTo(InformationMesure(args.get(1)._id,1,"id2",bson2,bson2)) or equalTo(InformationMesure(args.get(1)._id,0,"id",bson,bson))
 
       val configCapt=captorConfig.getValue
-      configCapt must equalTo(Configuration(_id=configCapt._id,port="/dev/ttyUSB0",types="ADC",infoMesure=List(args.get(0)._id,args.get(1)._id))) or equalTo(Configuration(_id=configCapt._id,port="/dev/ttyUSB0",types="ADC",infoMesure=List(args.get(1)._id,args.get(0)._id)))
+      configCapt must equalTo(Configuration(_id=configCapt._id,port="/dev/ttyUSB0",types="ADC",infoMesure=List(args.get(0)._id,args.get(1)._id),numberOfValue=6)) or equalTo(Configuration(_id=configCapt._id,port="/dev/ttyUSB0",types="ADC",infoMesure=List(args.get(1)._id,args.get(0)._id),numberOfValue=6))
     }
   }
 
@@ -1405,7 +1415,7 @@ class ConfigurationManagerSpec extends Specification with Mockito{
     "Write all configuration informations in the zip" in new WithApplication{
       val f=fixture
       val zip=mock[ZipOutputStream]
-      val config=Configuration(port="/dev/ttyUSB0",types="ADC",infoMesure = List())
+      val config=Configuration(port="/dev/ttyUSB0",types="ADC",infoMesure = List(),numberOfValue=6)
 
       org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("device=/dev/ttyUSB0\n").getBytes))
       org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq("timeout=10000\n".getBytes))
@@ -1415,6 +1425,7 @@ class ConfigurationManagerSpec extends Specification with Mockito{
       org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("parity=0\n").getBytes))
       org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("timeFilter=1000\n").getBytes))
       org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("type=ADC\n").getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("numberOfValue=6\n").getBytes))
 
       f.controller.write_configuration(zip,config)
 
@@ -1426,6 +1437,7 @@ class ConfigurationManagerSpec extends Specification with Mockito{
       there was one(zip).write(org.mockito.Matchers.eq(("parity=0\n").getBytes))
       there was one(zip).write(org.mockito.Matchers.eq(("timeFilter=1000\n").getBytes))
       there was one(zip).write(org.mockito.Matchers.eq(("type=ADC\n").getBytes))
+      there was one(zip).write(org.mockito.Matchers.eq(("numberOfValue=6\n").getBytes))
     }
   }
 
@@ -1449,7 +1461,7 @@ class ConfigurationManagerSpec extends Specification with Mockito{
     "create a zip with files generate by the configurations" in new WithApplication{
       val f=fixture
       val zip=mock[ZipOutputStream]
-      val config=List(Configuration(port="/dev/ttyUSB0",types="ADC",infoMesure=List(bson3)),Configuration(port="/dev/ttyUSB0",types="wasp",infoMesure=List(bson4)))
+      val config=List(Configuration(port="/dev/ttyUSB0",types="ADC",infoMesure=List(bson3),numberOfValue=6),Configuration(port="/dev/ttyUSB0",types="wasp",infoMesure=List(bson4),numberOfValue=12))
       val info=List(InformationMesure(bson3,0,"id",bson2,bson3),InformationMesure(bson4,0,"id2",bson3,bson2))
 
       f.zipOutputStreamBuilderMock.createZipOutputStream(any[OutputStream]) returns zip
@@ -1464,6 +1476,8 @@ class ConfigurationManagerSpec extends Specification with Mockito{
       org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("timeFilter=1000\n").getBytes))
       org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("type=ADC\n").getBytes))
       org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("type=wasp\n").getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("numberOfValue=6\n").getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("numberOfValue=12\n").getBytes))
       org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("moduleId="+bson.stringify+"\n").getBytes))
       org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("sensors={\\\n").getBytes))
       org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("\""+bson3.stringify+"\":[\\\n").getBytes))
@@ -1489,6 +1503,8 @@ class ConfigurationManagerSpec extends Specification with Mockito{
       there was 2.times(zip).write(org.mockito.Matchers.eq(("timeFilter=1000\n").getBytes))
       there was one(zip).write(org.mockito.Matchers.eq(("type=ADC\n").getBytes))
       there was one(zip).write(org.mockito.Matchers.eq(("type=wasp\n").getBytes))
+      there was one(zip).write(org.mockito.Matchers.eq(("numberOfValue=6\n").getBytes))
+      there was one(zip).write(org.mockito.Matchers.eq(("numberOfValue=12\n").getBytes))
       there was 2.times(zip).write(org.mockito.Matchers.eq(("moduleId="+bson.stringify+"\n").getBytes))
       there was 2.times(zip).write(org.mockito.Matchers.eq(("sensors={\\\n").getBytes))
       there was one(zip).write(org.mockito.Matchers.eq(("\""+bson3.stringify+"\":[\\\n").getBytes))

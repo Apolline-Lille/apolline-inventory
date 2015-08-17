@@ -305,7 +305,7 @@ class ModuleManagerSpec extends Specification with Mockito {
       val cards=Cards(bson, "Id2", bson2, bson3, date, Some(date2), false, Some("v03"), false, Some("un com"))
       val module=Module(bson4,"id","types",date,List(bson),List(bson),Some("un com"))
       val url="http://hostname/inventary/modules?types=typ"
-      val config=List(models.Configuration(port="/dev/ttyUSB0",types="ADC",timeFilter=9000,infoMesure=List(bson3)),models.Configuration(port="/dev/ttyUSB1",types="wasp",infoMesure=List(bson4)))
+      val config=List(models.Configuration(port="/dev/ttyUSB0",types="ADC",timeFilter=9000,infoMesure=List(bson3),numberOfValue=6),models.Configuration(port="/dev/ttyUSB1",types="wasp",infoMesure=List(bson4),numberOfValue=12))
 
       f.configMock.getString(org.mockito.Matchers.eq("hostname"),any[Option[Set[String]]]) returns Some("http://hostname/")
       f.sensorsDaoMock.fold(org.mockito.Matchers.eq(matcher),any[JsObject],org.mockito.Matchers.eq(HashSet[BSONObjectID]()))(any[(HashSet[BSONObjectID],Sensor)=>HashSet[BSONObjectID]])(any[ExecutionContext]) returns future{HashSet(bson2)}
@@ -350,6 +350,8 @@ class ModuleManagerSpec extends Specification with Mockito {
       content must contain("<td>wasp</td>")
       content must contain("<td>9000</td>")
       content must contain("<td>1000</td>")
+      content must contain("<td>6</td>")
+      content must contain("<td>12</td>")
       session(r).get("previous") must beSome(url)
 
       there was one(f.sensorsDaoMock).fold(org.mockito.Matchers.eq(matcher),any[JsObject],org.mockito.Matchers.eq(HashSet[BSONObjectID]()))(any[(HashSet[BSONObjectID],Sensor)=>HashSet[BSONObjectID]])(any[ExecutionContext])

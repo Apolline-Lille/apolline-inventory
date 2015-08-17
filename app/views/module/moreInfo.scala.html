@@ -104,6 +104,7 @@
                   <tr>
                     <th>@Messages("inventary.configuration.port")</th>
                     <th>@Messages("inventary.configuration.types")</th>
+                    <th>@Messages("inventary.configuration.numberOfValue")</th>
                     <th>@Messages("inventary.configuration.timeFilter")</th>
                     <th></th>
                   </tr>
@@ -113,6 +114,7 @@
                     <tr>
                       <td>@config.port</td>
                       <td>@config.types</td>
+                      <td>@config.numberOfValue</td>
                       <td>@config.timeFilter</td>
                       <td>
                         <a href="@routes.ConfigurationManager.configuration(mod._id.stringify,config._id.stringify)" data-toggle-tooltip title="@Messages("global.tooltip.detail")"><span class="glyphicon glyphicon-info-sign"></span></a>

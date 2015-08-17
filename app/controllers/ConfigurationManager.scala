@@ -20,7 +20,7 @@ import scala.concurrent._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
-case class ConfigurationForm(port:String,timeout:Int=10000,baud:Int=9600,bits:Int=8,stopBits:Int=1,parity:Int=0,timeFilter:Int=1000,types:String)
+case class ConfigurationForm(port:String,timeout:Int=10000,baud:Int=9600,bits:Int=8,stopBits:Int=1,parity:Int=0,timeFilter:Int=1000,types:String,numberOfValue:Int)
 
 case class InfoMesureForm(index:Int,id:String,mesure:String,unite:String)
 /**
@@ -40,7 +40,8 @@ trait ConfigurationManagerLike extends Controller{
       "stopBits"->number(min=1,max=3),
       "parity"->number(min=0,max=4),
       "timeFilter"->number(min=0),
-      "types"->nonEmptyText
+      "types"->nonEmptyText,
+      "numberOfValue"->number(min=0)
     )(ConfigurationForm.apply)(ConfigurationForm.unapply)
   )
 
@@ -163,7 +164,7 @@ trait ConfigurationManagerLike extends Controller{
         moduleManager.doIfModuleFound(BSONObjectID(id)){
 
           //Display the form for insert module configuration
-          module=> future{Ok(views.html.configuration.form(form.fill(ConfigurationForm(port="",types = "")),module)).withSession(request.session + ("configForm"->"insert") + ("config"->Json.stringify(formatsForm.writes(ConfigurationForm(port="",types="")))))}
+          module=> future{Ok(views.html.configuration.form(form.fill(ConfigurationForm(port="",types = "",numberOfValue=0)),module)).withSession(request.session + ("configForm"->"insert") + ("config"->Json.stringify(formatsForm.writes(ConfigurationForm(port="",types="",numberOfValue=0)))))}
         }{
            //Redirect to the list of modules
           _ =>
@@ -210,7 +211,7 @@ trait ConfigurationManagerLike extends Controller{
               //If configuration is found, find tis mesure informations
               case Some(config)=>findInformationForForm(config.infoMesure).map(
                 infos=>{
-                  val configForm=ConfigurationForm(config.port,config.timeout,config.baud,config.bits,config.stopBits,config.parity,config.timeFilter,config.types)
+                  val configForm=ConfigurationForm(config.port,config.timeout,config.baud,config.bits,config.stopBits,config.parity,config.timeFilter,config.types,config.numberOfValue)
 
                   //Display the form
                   Results.Ok(views.html.configuration.form(form.fill(configForm),module)).withSession(request.session + ("configForm"->"update") + ("config"->Json.stringify(formatsForm.writes(configForm))) + ("configUpdate"->config._id.stringify) + ("infoMesure"->Json.stringify(JsArray(infos))))
@@ -719,6 +720,7 @@ trait ConfigurationManagerLike extends Controller{
     zip.write(("timeFilter="+conf.timeFilter+"\n").getBytes)
     //Write the type of datalogger
     zip.write(("type="+conf.types+"\n").getBytes)
+    zip.write(("numberOfValue="+conf.numberOfValue+"\n").getBytes)
   }
 
   /**
@@ -847,7 +849,7 @@ trait ConfigurationManagerLike extends Controller{
     Future.sequence(insertInformation(infoMesure)).flatMap(list=> {
 
       //Create the configuration
-      val configFinal = Configuration(BSONObjectID(id),config.port,config.timeout,config.baud,config.bits,config.stopBits,config.parity,config.timeFilter,config.types, list)
+      val configFinal = Configuration(BSONObjectID(id),config.port,config.timeout,config.baud,config.bits,config.stopBits,config.parity,config.timeFilter,config.types,config.numberOfValue, list)
 
       //Update the configuration
       configurationDao.updateById(BSONObjectID(id),configFinal).map(
@@ -870,7 +872,7 @@ trait ConfigurationManagerLike extends Controller{
     Future.sequence(insertInformation(infoMesure)).flatMap(list=> {
 
       //Create the configuration
-      val configFinal = Configuration(port = config.port, timeout = config.timeout, baud = config.baud, bits = config.bits, parity = config.parity, stopBits = config.stopBits, timeFilter = config.timeFilter, types = config.types, infoMesure = list)
+      val configFinal = Configuration(port = config.port, timeout = config.timeout, baud = config.baud, bits = config.bits, parity = config.parity, stopBits = config.stopBits, timeFilter = config.timeFilter, types = config.types,numberOfValue=config.numberOfValue, infoMesure = list)
 
       //Insert the configuration
       configurationDao.insert(configFinal).flatMap(
@@ -994,10 +996,10 @@ trait ConfigurationManagerLike extends Controller{
   request.session.get("config") match{
 
       //If configuration is not found, return default configuration
-    case None=>ConfigurationForm(port="",types="")
+    case None=>ConfigurationForm(port="",types="",numberOfValue=0)
 
       //If configuration is found return it
-    case Some(config)=>formatsForm.reads(Json.parse(config)).getOrElse(ConfigurationForm(port="",types=""))
+    case Some(config)=>formatsForm.reads(Json.parse(config)).getOrElse(ConfigurationForm(port="",types="",numberOfValue=0))
   }
 
   /**
