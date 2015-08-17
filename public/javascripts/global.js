@@ -2,6 +2,15 @@ function addField(id,classe) {
     $("#" + id).append($($("." + classe + ":first")[0]).clone().append(""));
 }
 
+function setLocalisation(){
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(function(pos){
+            $("#lat").val(pos.coords.latitude);
+            $("#lon").val(pos.coords.longitude);
+        });
+    }
+}
+
 webshims.setOptions('forms-ext', {types: 'date'});
 webshims.polyfill('forms forms-ext');
 
@@ -15,4 +24,7 @@ $(function () {
             elem.attr("readonly","readonly")
         }
     })
+    if(!navigator.geolocation){
+        $('#generateLoc').hide()
+    }
 })
