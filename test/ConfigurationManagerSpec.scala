@@ -1159,7 +1159,7 @@ class ConfigurationManagerSpec extends Specification with Mockito{
       args.get(0) must equalTo(InformationMesure(args.get(0)._id,1,"id2",bson2,bson2)) or equalTo(InformationMesure(args.get(0)._id,0,"id",bson,bson))
       args.get(1) must equalTo(InformationMesure(args.get(1)._id,1,"id2",bson2,bson2)) or equalTo(InformationMesure(args.get(1)._id,0,"id",bson,bson))
 
-      Await.result(Future.sequence(res),Duration.Inf) must equalTo(List(args.get(0)._id,args.get(1)._id))
+      Await.result(Future.sequence(res),Duration.Inf) must equalTo(List(args.get(0)._id,args.get(1)._id)) or equalTo(List(args.get(1)._id,args.get(0)._id))
     }
   }
 

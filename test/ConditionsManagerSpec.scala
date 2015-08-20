@@ -217,7 +217,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
   "When user is on resource /campaigns/campaign/:id, ConditionsManager" should{
     "send 200 Ok page with the message 'Aucun résultat trouvé'" in new WithApplication {
       val f=fixture
-      val camp=Campagne(bson,"camp","type",List())
+      val camp=Campagne(bson,"camp","type","",1,"",List())
 
       f.campaignManagerMock.doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]]) answers {(params,_) => params match{
         case Array(_,p:(Campagne=>Future[Result]),_) => p.apply(camp)
@@ -245,7 +245,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
       val f=fixture
       val idCond=List(Json.toJson(bson2))
       val idMod=List(Json.toJson(bson3))
-      val camp=Campagne(bson,"camp","Terrain",List(bson2))
+      val camp=Campagne(bson,"camp","Terrain","",1,"",List(bson2))
       val cond=Condition(bson2,date,Some(date2),Some("unCom"),bson3)
       val module=Module(bson3,"idMod","typeMod",date,List(),List(),None)
       val localisation=Localisation(bson4,bson2,"loc",Some(1.2f),Some(3.4f),None,List())
@@ -279,7 +279,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
     "send 200 Ok page with 2 result" in new WithApplication {
       val f=fixture
       val idCond=List(Json.toJson(bson2),Json.toJson(bson3))
-      val camp=Campagne(bson,"camp","Test",List(bson2,bson3))
+      val camp=Campagne(bson,"camp","Test","",1,"",List(bson2,bson3))
       val cond=List(Condition(bson2,date,Some(date2),Some("unCom"),bson3),Condition(bson3,date,Some(date2),Some("unCom"),bson4))
       val module=List(Module(bson3,"idMod","typeMod",date,List(),List(),None),Module(bson4,"idMod2","typeMod2",date,List(),List(),None))
 
@@ -347,7 +347,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
       val loc=Localisation(bson2,bson3,"loc",Some(1.2f),Some(3.4f),Some("un com"),List("img.jpg"))
       val condition=Condition(bson3,date,Some(date2),Some("unCom"),bson4)
       val module=Module(bson4,"idMod","typeMod",date,List(),List(),Some("moduleCom"))
-      val camp=Campagne(nom="camp",types="Terrain",conditions=List())
+      val camp=Campagne(nom="camp",types="Terrain",collectUrl="",version=1,dataToken="",conditions=List())
 
       f.campaignManagerMock.doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]]) answers {(params,_) => params match{
         case Array(_,p:(Campagne=>Future[Result]),_) => p.apply(camp)
@@ -387,7 +387,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
 
     "send redirect if condition not found" in new WithApplication{
       val f = fixture
-      val camp=Campagne(nom="camp",types="Terrain",conditions=List())
+      val camp=Campagne(nom="camp",types="Terrain",collectUrl="",version=1,dataToken="",conditions=List())
 
       f.campaignManagerMock.doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]]) answers {(params,_) => params match{
         case Array(_,p:(Campagne=>Future[Result]),_) => p.apply(camp)
@@ -410,7 +410,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
     "send redirect if module not found" in new WithApplication{
       val f = fixture
       val condition=Condition(bson3,date,Some(date2),Some("unCom"),bson4)
-      val camp=Campagne(nom="camp",types="Terrain",conditions=List())
+      val camp=Campagne(nom="camp",types="Terrain",collectUrl="",version=1,dataToken="",conditions=List())
 
       f.campaignManagerMock.doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]]) answers {(params,_) => params match{
         case Array(_,p:(Campagne=>Future[Result]),_) => p.apply(camp)
@@ -436,7 +436,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
   "When user is on resource /campaigns/campaign/:id/form, ConditionsManager" should{
     "send 200 Ok page with an empty form" in new WithApplication {
       val f=fixture
-      val camp=Campagne(bson,"camp","type",List())
+      val camp=Campagne(bson,"camp","type","",1,"",List())
 
       f.campaignManagerMock.doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]]) answers {(params,_) => params match{
         case Array(_,p:(Campagne=>Future[Result]),_) => p.apply(camp)
@@ -485,7 +485,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
 
     "send bad request if the form is send with empty field" in new WithApplication{
       val f=fixture
-      val camp=Campagne(bson,"camp","type",List())
+      val camp=Campagne(bson,"camp","type","",1,"",List())
 
       f.campaignManagerMock.doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]]) answers {(params,_) => params match{
         case Array(_,p:(Campagne=>Future[Result]),_) => p.apply(camp)
@@ -503,7 +503,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
 
     "send Redirect if data are valid" in new WithApplication{
       val f=fixture
-      val camp=Campagne(bson,"camp","type",List())
+      val camp=Campagne(bson,"camp","type","",1,"",List())
       val data=Json.parse("""{"debut":"22/04/2015 00:00:00","fin":"23/04/2015 00:00:00","commentaire":"un com"}""")
 
       f.campaignManagerMock.doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]]) answers {(params,_) => params match{
@@ -527,7 +527,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
 
     "send bad request with the form if begin date is not valid" in new WithApplication{
       val f=fixture
-      val camp=Campagne(bson,"camp","type",List())
+      val camp=Campagne(bson,"camp","type","",1,"",List())
       val data=Json.parse("""{"debut":"52/04/2015 00:00:00"}""")
 
       f.campaignManagerMock.doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]]) answers {(params,_) => params match{
@@ -549,7 +549,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
 
     "send bad request with the form if end date is not valid" in new WithApplication{
       val f=fixture
-      val camp=Campagne(bson,"camp","type",List())
+      val camp=Campagne(bson,"camp","type","",1,"",List())
       val data=Json.parse("""{"debut":"22/04/2015 00:00:00","fin":"52/04/2015 00:00:00"}""")
 
       f.campaignManagerMock.doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]]) answers {(params,_) => params match{
@@ -571,7 +571,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
 
     "send bad request with the form if end date is before begin date" in new WithApplication{
       val f=fixture
-      val camp=Campagne(bson,"camp","type",List())
+      val camp=Campagne(bson,"camp","type","",1,"",List())
       val data=Json.parse("""{"debut":"23/04/2015 00:00:00","fin":"22/04/2015 00:00:00"}""")
 
       f.campaignManagerMock.doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]]) answers {(params,_) => params match{
@@ -595,7 +595,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
   "When user is on resource /campaigns/campaign/:id/:id2/form, ConditionsManager" should{
     "send 200 Ok page with a prefilled form" in new WithApplication {
       val f=fixture
-      val camp=Campagne(bson,"camp","type",List())
+      val camp=Campagne(bson,"camp","type","",1,"",List())
       val cond=Condition(bson2,date,Some(date2),Some("un com"),bson3)
       val loc=Localisation(bson4,bson2,"loc",Some(1.2f),Some(3.4f),Some("un com"),List("img.jpg"))
       val sessionObj=Json.obj("form"->"update","id"->bson2.stringify,"debut"->date,"fin"->date2,"commentaire"->"un com","module"->bson3.stringify,"localisation"->Json.toJson(loc))
@@ -623,7 +623,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
 
     "send redirect if condition not found" in new WithApplication {
       val f=fixture
-      val camp=Campagne(bson,"camp","type",List())
+      val camp=Campagne(bson,"camp","type","",1,"",List())
       f.campaignManagerMock.doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]]) answers {(params,_) => params match{
         case Array(_,p:(Campagne=>Future[Result]),_) => p.apply(camp)
       }}
@@ -658,7 +658,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
   "When user is on resource /campaigns/campaign/:id/:id2/form, ConditionsManager" should{
     "send 200 Ok page with a prefilled form" in new WithApplication {
       val f=fixture
-      val camp=Campagne(bson,"camp","type",List())
+      val camp=Campagne(bson,"camp","type","",1,"",List())
       val cond=Condition(bson2,date,Some(date2),Some("un com"),bson3)
       val loc=Localisation(bson4,bson2,"loc",Some(1.2f),Some(3.4f),Some("un com"),List("img.jpg"))
       val sessionObj=Json.obj("form"->"update","id"->bson2.stringify,"debut"->date,"fin"->date2,"commentaire"->"un com","module"->bson3.stringify,"localisation"->Json.toJson(loc))
@@ -697,7 +697,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
   "When user is on resource /campaigns/campaign/:id/form/module, ConditionsManager" should{
     "send 200 Ok page with message 'Aucun résultat trouvé'" in new WithApplication {
       val f=fixture
-      val camp=Campagne(bson,"camp","type",List())
+      val camp=Campagne(bson,"camp","type","",1,"",List())
 
       f.campaignManagerMock.doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]]) answers {(params,_) => params match{
         case Array(_,p:(Campagne=>Future[Result]),_) => p.apply(camp)
@@ -718,7 +718,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
 
     "send 200 Ok page with 1 result" in new WithApplication {
       val f=fixture
-      val camp=Campagne(bson,"camp","type",List())
+      val camp=Campagne(bson,"camp","type","",1,"",List())
       val modules=List(
         Module(bson,"idMod","typesMod",date,List(bson),List(bson),Some("un com"))
       )
@@ -748,7 +748,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
 
     "send 200 Ok page with 2 result" in new WithApplication {
       val f=fixture
-      val camp=Campagne(bson,"camp","type",List())
+      val camp=Campagne(bson,"camp","type","",1,"",List())
       val modules=List(
         Module(bson,"idMod","typesMod",date,List(bson),List(bson),Some("un com")),
         Module(bson,"idMod2","typesMod2",date,List(bson,bson2),List(bson,bson2,bson3),Some("un com2"))
@@ -814,7 +814,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
 
     "send bad request with the list of modules if have error in data received" in new WithApplication{
       val f=fixture
-      val camp=Campagne(bson,"camp","type",List())
+      val camp=Campagne(bson,"camp","type","",1,"",List())
       val modules=List(
         Module(bson,"idMod","typesMod",date,List(bson),List(bson),Some("un com"))
       )
@@ -844,7 +844,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
 
     "send bad request with the list of modules if module not found" in new WithApplication{
       val f=fixture
-      val camp=Campagne(bson,"camp","type",List())
+      val camp=Campagne(bson,"camp","type","",1,"",List())
       val modules=List(
         Module(bson,"idMod","typesMod",date,List(bson),List(bson),Some("un com"))
       )
@@ -879,7 +879,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
 
     "send bad request with the list of modules if module not found" in new WithApplication{
       val f=fixture
-      val camp=Campagne(bson,"camp","type",List())
+      val camp=Campagne(bson,"camp","type","",1,"",List())
       val module=Module(bson2,"idMod","typesMod",date,List(bson),List(bson),Some("un com"))
       val data=Json.obj("id"->bson2.stringify)
 
@@ -917,7 +917,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
 
     "send redirect if campaign type is not equal to 'Terrain'" in new WithApplication{
       val f=fixture
-      val camp=Campagne(nom="camp",types="Test",conditions=List())
+      val camp=Campagne(nom="camp",types="Test",collectUrl="",version=1,dataToken="",conditions=List())
 
       f.campaignManagerMock.doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]]) answers {(params,_) => params match{
         case Array(_,p:(Campagne=>Future[Result]),_) => p.apply(camp)
@@ -933,7 +933,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
 
     "send 200 Ok page with an empty form" in new WithApplication{
       val f=fixture
-      val camp=Campagne(nom="camp",types="Terrain",conditions=List())
+      val camp=Campagne(nom="camp",types="Terrain",collectUrl="",version=1,dataToken="",conditions=List())
 
       f.campaignManagerMock.doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]]) answers {(params,_) => params match{
         case Array(_,p:(Campagne=>Future[Result]),_) => p.apply(camp)
@@ -954,7 +954,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
 
     "send 200 Ok page with prefilled input" in new WithApplication{
       val f=fixture
-      val camp=Campagne(nom="camp",types="Terrain",conditions=List())
+      val camp=Campagne(nom="camp",types="Terrain",collectUrl="",version=1,dataToken="",conditions=List())
       val locObj=Localisation(bson2,bson3,"loc",Some(1.2f),Some(3.4f),Some("un com"),List("img.jpg"))
       val session=Json.obj("debut"->date,"fin"->date2,"commentaire"->"unCom","module"->bson4.stringify,"localisation"->Json.toJson(locObj))
 
@@ -994,7 +994,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
 
     "send redirect if campaign type is not equal to 'Terrain'" in new WithApplication{
       val f=fixture
-      val camp=Campagne(nom="camp",types="Test",conditions=List())
+      val camp=Campagne(nom="camp",types="Test",collectUrl="",version=1,dataToken="",conditions=List())
       val formData=MultipartFormData[TemporaryFile](dataParts = Map(), files = Seq(), badParts = Seq(), missingFileParts = Seq())
 
       f.campaignManagerMock.doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]]) answers {(params,_) => params match{
@@ -1013,7 +1013,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
     "send bad request if form is submit with empty field" in new WithApplication{
       val f=fixture
       val formData=MultipartFormData[TemporaryFile](dataParts = Map(), files = Seq(), badParts = Seq(), missingFileParts = Seq())
-      val camp=Campagne(nom="camp",types="Terrain",conditions=List())
+      val camp=Campagne(nom="camp",types="Terrain",collectUrl="",version=1,dataToken="",conditions=List())
 
       f.campaignManagerMock.doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]]) answers {(params,_) => params match{
         case Array(_,p:(Campagne=>Future[Result]),_) => p.apply(camp)
@@ -1035,7 +1035,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
       val captor = ArgumentCaptor.forClass(classOf[File])
       val param=Map("nom"->Seq("unNom"),"lat"->Seq("2.3"),"lon"->Seq("3.5"),"commentaire"->Seq("un com"))
       val formData=MultipartFormData[TemporaryFile](dataParts = param, files = Seq(file), badParts = Seq(), missingFileParts = Seq())
-      val camp=Campagne(nom="camp",types="Terrain",conditions=List())
+      val camp=Campagne(nom="camp",types="Terrain",collectUrl="",version=1,dataToken="",conditions=List())
 
       file.filename returns "file.jpg"
       f.appMock.path returns (new File("/route"))
@@ -1085,7 +1085,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
       val captor = ArgumentCaptor.forClass(classOf[File])
       val param=Map("nom"->Seq("unNom"),"lat"->Seq("2.3"),"lon"->Seq("3.5"),"commentaire"->Seq("un com"))
       val formData=MultipartFormData[TemporaryFile](dataParts = param, files = Seq(file), badParts = Seq(), missingFileParts = Seq())
-      val camp=Campagne(nom="camp",types="Terrain",conditions=List())
+      val camp=Campagne(nom="camp",types="Terrain",collectUrl="",version=1,dataToken="",conditions=List())
       val locObj=Localisation(bson2,bson3,"loc",Some(1.2f),Some(3.4f),Some("un com"),List("img.jpg"))
       val sessionObj=Json.obj("debut"->date,"fin"->date2,"commentaire"->"unCom","module"->bson4.stringify,"localisation"->Json.toJson(locObj))
 
@@ -1155,7 +1155,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
       val locObj=Localisation(bson2,bson3,"loc",Some(1.2f),Some(3.4f),Some("un com"),List("img.jpg"))
       val session=Json.obj("debut"->date,"fin"->date2,"commentaire"->"unCom","module"->bson4.stringify,"localisation"->Json.toJson(locObj))
       val module=Module(bson4,"idMod","typeMod",date,List(),List(),Some("moduleCom"))
-      val camp=Campagne(nom="camp",types="Terrain",conditions=List())
+      val camp=Campagne(nom="camp",types="Terrain",collectUrl="",version=1,dataToken="",conditions=List())
       val queryBegin=Json.obj("dateDebut"->Json.obj("$gte"->date,"$lte"->date2))
       val queryEnd=Json.obj("$or"->JsArray(Seq(Json.obj("dateFin"->Json.obj("$gte"->date,"$lte"->date2),"dateFin"->Json.obj("$exists"->false)))))
       val query=Json.obj("modules"->bson4,"$or"->JsArray(Seq(queryBegin,queryEnd)))
@@ -1203,7 +1203,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
 
     "send Bad request with error message if condition have an error" in new WithApplication{
       val f = fixture
-      val camp=Campagne(nom="camp",types="Terrain",conditions=List())
+      val camp=Campagne(nom="camp",types="Terrain",collectUrl="",version=1,dataToken="",conditions=List())
 
       f.campaignManagerMock.doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]]) answers {(params,_) => params match{
         case Array(_,p:(Campagne=>Future[Result]),_) => p.apply(camp)
@@ -1246,7 +1246,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
       val locObj=Localisation(bson2,bson3,"loc",Some(1.2f),Some(3.4f),Some("un com"),List("img.jpg"))
       val session=Json.obj("debut"->date,"fin"->date2,"commentaire"->"unCom","module"->bson4.stringify,"localisation"->Json.toJson(locObj))
       val module=Module(bson4,"idMod","typeMod",date,List(bson2),List(bson3),Some("moduleCom"))
-      val camp=Campagne(bson,nom="camp",types="Terrain",conditions=List())
+      val camp=Campagne(bson,nom="camp",types="Terrain",collectUrl="",version=1,dataToken="",conditions=List())
       val queryBegin=Json.obj("dateDebut"->Json.obj("$gte"->date,"$lte"->date2))
       val queryEnd=Json.obj("$or"->JsArray(Seq(Json.obj("dateFin"->Json.obj("$gte"->date,"$lte"->date2),"dateFin"->Json.obj("$exists"->false)))))
       val query=Json.obj("modules"->bson4,"$or"->JsArray(Seq(queryBegin,queryEnd)))
@@ -1303,7 +1303,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
       val locObj=Localisation(bson2,bson3,"loc",Some(1.2f),Some(3.4f),Some("un com"),List("img.jpg"))
       val session=Json.obj("form"->"update","id"->bson3.stringify,"debut"->date,"fin"->date2,"commentaire"->"unCom","module"->bson4.stringify,"localisation"->Json.toJson(locObj))
       val module=Module(bson4,"idMod","typeMod",date,List(bson2),List(bson3),Some("moduleCom"))
-      val camp=Campagne(bson,nom="camp",types="Terrain",conditions=List())
+      val camp=Campagne(bson,nom="camp",types="Terrain",collectUrl="",version=1,dataToken="",conditions=List())
       val queryBegin=Json.obj("dateDebut"->Json.obj("$gte"->date,"$lte"->date2))
       val queryEnd=Json.obj("$or"->JsArray(Seq(Json.obj("dateFin"->Json.obj("$gte"->date,"$lte"->date2),"dateFin"->Json.obj("$exists"->false)))))
       val query=Json.obj("_id"->Json.obj("$ne"->bson3),"modules"->bson4,"$or"->JsArray(Seq(queryBegin,queryEnd)))
@@ -1347,7 +1347,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
 
     "send Bad request with error message if condition have an error" in new WithApplication{
       val f = fixture
-      val camp=Campagne(nom="camp",types="Terrain",conditions=List())
+      val camp=Campagne(nom="camp",types="Terrain",collectUrl="",version=1,dataToken="",conditions=List())
 
       f.campaignManagerMock.doIfCampaignFound(org.mockito.Matchers.eq(bson))(any[Campagne=>Future[Result]])(any[Unit=>Future[Result]]) answers {(params,_) => params match{
         case Array(_,p:(Campagne=>Future[Result]),_) => p.apply(camp)
@@ -1651,7 +1651,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
   "When method verifyGeneralData is called, ConditionsManager" should{
     "send Redirect if data are valid" in new WithApplication{
       val f=fixture
-      val camp=Campagne(bson,"camp","type",List())
+      val camp=Campagne(bson,"camp","type","",1,"",List())
       val condition=ConditionForm(date,None,None)
 
       val req=FakeRequest(GET,"url").withSession("user" -> """{"login":"test"}""")
@@ -1665,7 +1665,7 @@ class ConditionsManagerSpec extends Specification with Mockito {
     "send bad request with the form if end date is before begin date" in new WithApplication{
       val f=fixture
       val condition=ConditionForm(date2,Some(date),None)
-      val camp=Campagne(bson,"camp","type",List())
+      val camp=Campagne(bson,"camp","type","",1,"",List())
 
       val req=FakeRequest(GET,"url").withSession("user" -> """{"login":"test"}""")
       val action=Action.async{implicit request=>f.controller.verifyGeneralData(condition,bson.stringify,camp)}

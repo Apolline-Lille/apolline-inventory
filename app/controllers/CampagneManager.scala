@@ -1,17 +1,22 @@
 package controllers
 
 import com.wordnik.swagger.annotations._
+import dispatch.{Req, url, Http}
 import models._
+import org.apache.http.HttpResponse
+import play.api.Play
 import play.api.data.Form
 import play.api.data.Forms._
 import play.api.i18n.Messages
 import play.api.libs.json.{JsObject, Json}
+import play.api.libs.ws.WS
 import play.api.mvc._
 import reactivemongo.bson.BSONObjectID
 import reactivemongo.extensions.BSONFormats.BSONObjectIDFormat
 import scala.concurrent._
 
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
+import play.api.Play.current
 
 /**
  * This class is used when user submit form for campaign
@@ -31,6 +36,12 @@ trait CampagneManagerLike extends Controller{
    * DAO for campaign
    */
   val campaignDao:CampagneDao=CampagneDaoObj
+
+  val app=Play.application
+
+  val http:Http=Http
+
+  val urlVal:(String=>Req)=url
 
   val form=Form[CampaignForm](
     mapping(
@@ -177,9 +188,14 @@ trait CampagneManagerLike extends Controller{
             }
 
             //If user press on a other insert the campaign
-            case _=>campaignDao.insert(Campagne(nom = campaignData.nom,types=campaignData.types, conditions = List())).map(
-              data => Redirect(routes.CampagneManager.listCampaign())
-            ).recover({ case _ => InternalServerError("error") })
+            case _=>login(campaignData.nom).flatMap(
+              data => data match{
+                case (dataToken,collectUrl,version)=>
+                  campaignDao.insert(Campagne(nom = campaignData.nom,types=campaignData.types,dataToken=dataToken,collectUrl=collectUrl,version=version, conditions = List())).map(
+                    data => Redirect(routes.CampagneManager.listCampaign())
+                  ).recover({ case _ => InternalServerError("error") })
+              }
+            )
           }
       }
   }
@@ -314,6 +330,127 @@ trait CampagneManagerLike extends Controller{
       //Send Internal Server Error if have mongoDB error
       case _=> InternalServerError("error")
     })
+  }
+
+  /**
+   * Log the user on the apisense website for create and subscrib a crop associat to a campaign
+   * @param name Name of the campaign
+   * @return The dataToken, the collect url and the version number of the crop
+   */
+  def login(name:String):Future[(String,String,Int)]={
+    //Get the page for log the user
+    http(urlVal("http://apisense.io/login").GET).flatMap(
+      resp=>{
+        //Get the cookie header
+        val header=resp.getHeader("Set-Cookie")
+
+        //Find the end of token
+        val endToken=header.lastIndexOf("\"")
+
+        //Extract the token
+        val token=header.substring(header.indexOf("csrfToken")+10,endToken)
+
+        val login=app.configuration.getString("apisense.login").getOrElse("")
+
+        val password=app.configuration.getString("apisense.password").getOrElse("")
+
+        //Log the user on apisense
+        http(urlVal("http://apisense.io/login").POST.addHeader("Cookie",header.substring(0,endToken+2)) << Map("username"->login,"password"->password,"csrfToken"->token)).flatMap(
+         resp2=>
+
+           //Create the crops associat to a campaign
+           createCrops(name, resp2.getHeader("Set-Cookie"))
+        )
+      }
+    )
+  }
+
+  /**
+   * Create a crops and subscrib to a crops on apisense
+   * @param name Name of the campaign
+   * @param header Cookie header of the login return
+   * @return The dataToken, the collect url and the version number of the crop
+   */
+  def createCrops(name:String,header:String): Future[(String,String,Int)] ={
+    //Get the page for create a crop
+    http(urlVal("http://apisense.io/new/crop").GET.addHeader("Cookie",header.substring(0,header.lastIndexOf("\"") +2))).flatMap(
+      resp=>{
+
+        //Get the cookie header
+        val header=resp.getHeader("Set-Cookie")
+
+        //Find the end of the token
+        val endToken=header.lastIndexOf("\"")
+
+        //Get the token
+        val token=header.substring(header.indexOf("csrfToken")+10,endToken)
+
+        //create the crops
+        http(urlVal("http://apisense.io/new/crop").POST.addHeader("Cookie",header.substring(0,endToken+2)) << Map("name"->name,"description"->"","visibility"->"PRIVATE","csrfToken"->token)).flatMap(
+          resp2=> {
+
+            //Get cookie header
+            val header=resp2.getHeader("Set-Cookie")
+
+            //Find end of the token
+            val endToken=header.lastIndexOf("\"")
+
+            //Deploy the new crops
+            http(urlVal("http://apisense.io" + resp2.getHeader("Location")).PUT.addHeader("Cookie",header.substring(0,endToken+2)).setContentType("application/json", "UTF-8") << """{"command":"deploy","script":""}""").flatMap(
+              resp3 =>
+                //Bee subscrib to the crops
+                subscribeCrops(name)
+            )
+          }
+        )
+      }
+    )
+  }
+
+  /**
+   * Subscrib to the crop
+   * @param name Name of the campaign
+   * @return The dataToken, the collect url and the version number of the crop
+   */
+  def subscribeCrops(name:String):Future[(String,String,Int)]={
+    //Encode to base64 the name of the campaign
+    val nameEncode=new sun.misc.BASE64Encoder().encode(name.getBytes)
+
+    //Find the authorization header
+    val authorization="Bearer "+app.configuration.getString("apisense.token").getOrElse("")
+
+    //Find the crops access header
+    val cropsAccess=app.configuration.getString("apisense.cropAccess").getOrElse("")
+
+    //Create the url for subscrib to the crops
+    val urlStr="http://hive.apisense.io/v1/crops/"+app.configuration.getString("apisense.owner").getOrElse("")+"/"+nameEncode
+
+    //Subscrib to the crop
+    http(urlVal(urlStr).POST.addHeader("CropAccessToken",cropsAccess).addHeader("Authorization",authorization)).flatMap(
+      resp=>{
+
+        //Find the dataToken of the crop
+        val dataToken=(Json.parse(resp.getResponseBody) \ "dataToken").as[String]
+
+        //Find information of the crop
+        http(urlVal(urlStr+"/"+dataToken).GET.addHeader("Authorization",authorization)).map(
+          resp2=>{
+
+            //Find the response
+            val respJson=Json.parse(resp2.getResponseBody)
+
+            //Get the collectUrl
+            val collectUrl=(respJson \ "collectUrl").as[String]
+
+            //get the version number
+            val version=(respJson \ "version").as[Int]
+
+            //Return informations of the collect
+            (dataToken,collectUrl,version)
+          }
+        )
+      }
+    )
   }
 }
 
