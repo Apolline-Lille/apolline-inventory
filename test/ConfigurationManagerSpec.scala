@@ -45,6 +45,7 @@ class ConfigurationManagerSpec extends Specification with Mockito{
     val moduleDaoMock=mock[ModuleDao]
     val moduleManagerMock = mock[ModuleManagerLike]
     val zipOutputStreamBuilderMock=mock[ZipOutputStreamBuilder]
+    val configMock=mock[play.api.Configuration]
     val controller = new ConfigurationManagerTest{
       override val sensorsDao=sensorDaoMock
       override val typeSensorsDao=typeSensorDaoMock
@@ -54,6 +55,7 @@ class ConfigurationManagerSpec extends Specification with Mockito{
       override val configurationDao=configurationDaoMock
       override val moduleDao=moduleDaoMock
       override val zipOutputStreamBuilder=zipOutputStreamBuilderMock
+      override val appConfig=configMock
     }
 
     def applyFoundFunction() {
@@ -827,6 +829,7 @@ class ConfigurationManagerSpec extends Specification with Mockito{
       val info=List(InformationMesure(bson3,0,"id",bson2,bson3),InformationMesure(bson4,0,"id2",bson3,bson2))
 
       f.applyFoundFunction()
+      f.configMock.getString(org.mockito.Matchers.eq("hostname"),any[Option[Set[String]]]) returns Some("url")
       f.configurationDaoMock.findAll(any[JsObject],any[JsObject])(any[ExecutionContext]) returns future{config}
       f.informationMesureDaoMock.findAll(any[JsObject],any[JsObject])(any[ExecutionContext]) returns future{info}
       f.zipOutputStreamBuilderMock.createZipOutputStream(any[OutputStream]) returns zip
@@ -844,6 +847,7 @@ class ConfigurationManagerSpec extends Specification with Mockito{
       org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("numberOfValue=6\n").getBytes))
       org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("numberOfValue=8\n").getBytes))
       org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("moduleId="+bson.stringify+"\n").getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("website=url\n").getBytes))
       org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("sensors={\\\n").getBytes))
       org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("\""+bson3.stringify+"\":[\\\n").getBytes))
       org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("\""+bson2.stringify+"\":[\\\n").getBytes))
@@ -862,6 +866,7 @@ class ConfigurationManagerSpec extends Specification with Mockito{
       header("Content-Type",r) must beSome("application/zip")
       header("Content-Disposition",r) must beSome("attachment; filename=configuration.zip")
 
+      there was 2.times(f.configMock).getString(org.mockito.Matchers.eq("hostname"),any[Option[Set[String]]])
       there was one(f.configurationDaoMock).findAll(any[JsObject],any[JsObject])(any[ExecutionContext])
       there was one(f.informationMesureDaoMock).findAll(any[JsObject],any[JsObject])(any[ExecutionContext])
       there was one(f.zipOutputStreamBuilderMock).createZipOutputStream(any[OutputStream])
@@ -878,6 +883,7 @@ class ConfigurationManagerSpec extends Specification with Mockito{
       there was one(zip).write(org.mockito.Matchers.eq(("numberOfValue=6\n").getBytes))
       there was one(zip).write(org.mockito.Matchers.eq(("numberOfValue=8\n").getBytes))
       there was 2.times(zip).write(org.mockito.Matchers.eq(("moduleId="+bson.stringify+"\n").getBytes))
+      there was 2.times(zip).write(org.mockito.Matchers.eq(("website=url\n").getBytes))
       there was 2.times(zip).write(org.mockito.Matchers.eq(("sensors={\\\n").getBytes))
       there was one(zip).write(org.mockito.Matchers.eq(("\""+bson3.stringify+"\":[\\\n").getBytes))
       there was one(zip).write(org.mockito.Matchers.eq(("\""+bson2.stringify+"\":[\\\n").getBytes))
@@ -1464,6 +1470,7 @@ class ConfigurationManagerSpec extends Specification with Mockito{
       val config=List(Configuration(port="/dev/ttyUSB0",types="ADC",infoMesure=List(bson3),numberOfValue=6),Configuration(port="/dev/ttyUSB0",types="wasp",infoMesure=List(bson4),numberOfValue=12))
       val info=List(InformationMesure(bson3,0,"id",bson2,bson3),InformationMesure(bson4,0,"id2",bson3,bson2))
 
+      f.configMock.getString(org.mockito.Matchers.eq("hostname"),any[Option[Set[String]]]) returns Some("url")
       f.zipOutputStreamBuilderMock.createZipOutputStream(any[OutputStream]) returns zip
       org.mockito.Mockito.doNothing().when(zip).putNextEntry(org.mockito.Matchers.eq(new ZipEntry("ADC.properties")))
       org.mockito.Mockito.doNothing().when(zip).putNextEntry(org.mockito.Matchers.eq(new ZipEntry("wasp.properties")))
@@ -1479,6 +1486,7 @@ class ConfigurationManagerSpec extends Specification with Mockito{
       org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("numberOfValue=6\n").getBytes))
       org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("numberOfValue=12\n").getBytes))
       org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("moduleId="+bson.stringify+"\n").getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("website=url\n").getBytes))
       org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("sensors={\\\n").getBytes))
       org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("\""+bson3.stringify+"\":[\\\n").getBytes))
       org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("\""+bson2.stringify+"\":[\\\n").getBytes))
@@ -1492,6 +1500,7 @@ class ConfigurationManagerSpec extends Specification with Mockito{
 
       f.controller.create_zip(bson.stringify,config,info)
 
+      there was 2.times(f.configMock).getString(org.mockito.Matchers.eq("hostname"),any[Option[Set[String]]])
       there was one(f.zipOutputStreamBuilderMock).createZipOutputStream(any[OutputStream])
       there was 2.times(zip).putNextEntry(any[ZipEntry])
       there was 2.times(zip).write(org.mockito.Matchers.eq(("device=/dev/ttyUSB0\n").getBytes))
@@ -1506,6 +1515,7 @@ class ConfigurationManagerSpec extends Specification with Mockito{
       there was one(zip).write(org.mockito.Matchers.eq(("numberOfValue=6\n").getBytes))
       there was one(zip).write(org.mockito.Matchers.eq(("numberOfValue=12\n").getBytes))
       there was 2.times(zip).write(org.mockito.Matchers.eq(("moduleId="+bson.stringify+"\n").getBytes))
+      there was 2.times(zip).write(org.mockito.Matchers.eq(("website=url\n").getBytes))
       there was 2.times(zip).write(org.mockito.Matchers.eq(("sensors={\\\n").getBytes))
       there was one(zip).write(org.mockito.Matchers.eq(("\""+bson3.stringify+"\":[\\\n").getBytes))
       there was one(zip).write(org.mockito.Matchers.eq(("\""+bson2.stringify+"\":[\\\n").getBytes))

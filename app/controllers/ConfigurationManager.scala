@@ -6,6 +6,7 @@ import java.util.zip.{ZipEntry, ZipOutputStream}
 
 import com.wordnik.swagger.annotations._
 import models._
+import play.api.Play
 import play.api.data.Form
 import play.api.data.Forms._
 import play.api.i18n.Messages
@@ -19,6 +20,7 @@ import scala.collection.immutable.HashSet
 import scala.concurrent._
 
 import scala.concurrent.ExecutionContext.Implicits.global
+import play.api.Play.current
 
 case class ConfigurationForm(port:String,timeout:Int=10000,baud:Int=9600,bits:Int=8,stopBits:Int=1,parity:Int=0,timeFilter:Int=1000,types:String,numberOfValue:Int)
 
@@ -69,6 +71,8 @@ trait ConfigurationManagerLike extends Controller{
   val moduleManager:ModuleManagerLike=ModuleManager
 
   val zipOutputStreamBuilder=new ZipOutputStreamBuilder
+
+  val appConfig=Play.configuration
 
   /**
    * Display information about the configuration
@@ -681,6 +685,8 @@ trait ConfigurationManagerLike extends Controller{
 
       //Write module id in the file
       zip.write(("moduleId="+id+"\n").getBytes)
+
+      zip.write(("website="+appConfig.getString("hostname").getOrElse("")+"\n").getBytes)
 
       //Write mesure informations
       zip.write(("sensors={\\\n").getBytes)
