@@ -49,6 +49,8 @@ class ModuleManagerSpec extends Specification with Mockito {
     val configurationDaoMock:ConfigurationDao=mock[ConfigurationDao]
     val configMock=mock[Configuration]
     val conditionDaoMock:ConditionDao = mock[ConditionDao]
+    val campaignDaoMock:CampagneDao=mock[CampagneDao]
+    val localisationDaoMock:LocalisationDao=mock[LocalisationDao]
     val controller=new ModuleManagerTest{
       override val typeCardsManager:TypeCardsManagerLike = typeCardsManagerMock
       override val cardsManager:CardsManagerLike = cardsManagerMock
@@ -64,6 +66,8 @@ class ModuleManagerSpec extends Specification with Mockito {
       override val configurationDao:ConfigurationDao=configurationDaoMock
       override val config=configMock
       override val conditionDao:ConditionDao=conditionDaoMock
+      override val campaignDao:CampagneDao=campaignDaoMock
+      override val localisationDao:LocalisationDao=localisationDaoMock
     }
   }
 
@@ -1423,6 +1427,89 @@ class ModuleManagerSpec extends Specification with Mockito {
     }
   }
 
+  "When user is on resource /inventary/modules/:id/information, ModuleManager" should {
+    "send a 404 not found if condition not found" in new WithApplication{
+      val f=fixture
+
+      f.conditionDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{None}
+
+      val req=FakeRequest("GET","/inventary/modules/"+bson.stringify+"/information").withSession("user" -> """{"login":"test"}""")
+      val r=f.controller.getModuleInformation(bson.stringify).apply(req)
+
+      status(r) must equalTo(NOT_FOUND)
+
+      there was one(f.conditionDaoMock).findOne(any[JsObject])(any[ExecutionContext])
+    }
+
+    "send a 404 not found if campaign not found" in new WithApplication{
+      val f=fixture
+      val cond=mock[Condition]
+
+      cond._id returns bson2
+      f.conditionDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{Some(cond)}
+      f.campaignDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("conditions"->cond._id)))(any[ExecutionContext]) returns future{None}
+
+      val req=FakeRequest("GET","/inventary/modules/"+bson.stringify+"/information").withSession("user" -> """{"login":"test"}""")
+      val r=f.controller.getModuleInformation(bson.stringify).apply(req)
+
+      status(r) must equalTo(NOT_FOUND)
+
+      there was one(f.conditionDaoMock).findOne(any[JsObject])(any[ExecutionContext])
+      there was one(f.campaignDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("conditions"->cond._id)))(any[ExecutionContext])
+    }
+
+    "send a JSON without the localisation" in new WithApplication{
+      val f=fixture
+      val cond=mock[Condition]
+      val camp=mock[Campagne]
+
+      cond._id returns bson2
+      camp.dataToken returns "token"
+      camp.collectUrl returns "collectUrl"
+      camp.version returns 1
+      f.conditionDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{Some(cond)}
+      f.campaignDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("conditions"->cond._id)))(any[ExecutionContext]) returns future{Some(camp)}
+      f.localisationDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("condition"->cond._id)))(any[ExecutionContext]) returns future{None}
+
+      val req=FakeRequest("GET","/inventary/modules/"+bson.stringify+"/information").withSession("user" -> """{"login":"test"}""")
+      val r=f.controller.getModuleInformation(bson.stringify).apply(req)
+
+      status(r) must equalTo(OK)
+      contentAsJson(r) must equalTo(Json.obj("dataToken"->"token","collectUrl"->"collectUrl/1","condition"->bson2.stringify))
+
+      there was one(f.conditionDaoMock).findOne(any[JsObject])(any[ExecutionContext])
+      there was one(f.campaignDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("conditions"->cond._id)))(any[ExecutionContext])
+      there was one(f.localisationDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("condition"->cond._id)))(any[ExecutionContext])
+    }
+
+    "send a JSON" in new WithApplication{
+      val f=fixture
+      val cond=mock[Condition]
+      val camp=mock[Campagne]
+      val loc=mock[Localisation]
+
+      cond._id returns bson2
+      camp.dataToken returns "token"
+      camp.collectUrl returns "collectUrl"
+      camp.version returns 1
+      loc.lat returns Some(2.3f)
+      loc.lon returns Some(4.5f)
+      f.conditionDaoMock.findOne(any[JsObject])(any[ExecutionContext]) returns future{Some(cond)}
+      f.campaignDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("conditions"->cond._id)))(any[ExecutionContext]) returns future{Some(camp)}
+      f.localisationDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("condition"->cond._id)))(any[ExecutionContext]) returns future{Some(loc)}
+
+      val req=FakeRequest("GET","/inventary/modules/"+bson.stringify+"/information").withSession("user" -> """{"login":"test"}""")
+      val r=f.controller.getModuleInformation(bson.stringify).apply(req)
+
+      status(r) must equalTo(OK)
+      contentAsJson(r) must equalTo(Json.obj("dataToken"->"token","collectUrl"->"collectUrl/1","condition"->bson2.stringify,"latitude"->2.3f,"longitude"->4.5f))
+
+      there was one(f.conditionDaoMock).findOne(any[JsObject])(any[ExecutionContext])
+      there was one(f.campaignDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("conditions"->cond._id)))(any[ExecutionContext])
+      there was one(f.localisationDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("condition"->cond._id)))(any[ExecutionContext])
+    }
+  }
+
   "When method getInventaryModule is called, ModuleManager" should{
     "apply view function and not consider the filtre" in new WithApplication{
       val f=fixture
@@ -1880,7 +1967,7 @@ class ModuleManagerSpec extends Specification with Mockito {
       there was one(futureMock).recover(any[PartialFunction[Throwable,Result]])(any[ExecutionContext])
     }
   }
-/*
+
   "When method findCardsInfo was called, ModuleManager" should{
     "get cards selected and their associat information" in new WithApplication{
       val f=fixture
@@ -2024,32 +2111,30 @@ class ModuleManagerSpec extends Specification with Mockito {
     }
   }
 
-  "When method previousPage is called, ModulesManager" should{
-    "return the url if the hostname and the url are found and the url match with the pattern" in new WithApplication{
-      val f=fixture
-      val url="http://hostname/inventary/modules?types=typ"
+  "When method previousPage is called, ModulesManager" should {
+    "return the url if the hostname and the url are found and the url match with the pattern" in new WithApplication {
+      val f = fixture
+      val url = "http://hostname/inventary/modules?types=typ"
 
-      f.configMock.getString(org.mockito.Matchers.eq("hostname"),any[Option[Set[String]]]) returns Some("http://hostname/")
+      f.configMock.getString(org.mockito.Matchers.eq("hostname"), any[Option[Set[String]]]) returns Some("http://hostname/")
 
-      val req=FakeRequest(GET,"url").withHeaders(("Referer"->url))
-      val r=f.controller.previousPage(req)
+      val req = FakeRequest(GET, "url").withHeaders(("Referer" -> url))
+      val r = f.controller.previousPage(req)
 
       r must equalTo(url)
 
-      there was one(f.configMock).getString(org.mockito.Matchers.eq("hostname"),any[Option[Set[String]]])
+      there was one(f.configMock).getString(org.mockito.Matchers.eq("hostname"), any[Option[Set[String]]])
     }
 
-    "throw an exception if the hostname not found" in new WithApplication{
-      val f=fixture
+    "throw an exception if the hostname not found" in new WithApplication {
+      val f = fixture
 
-      f.configMock.getString(org.mockito.Matchers.eq("hostname"),any[Option[Set[String]]]) returns None
+      f.configMock.getString(org.mockito.Matchers.eq("hostname"), any[Option[Set[String]]]) returns None
 
-      val req=FakeRequest(GET,"url")
+      val req = FakeRequest(GET, "url")
       f.controller.previousPage(req) must throwA[Exception]
 
-      there was one(f.configMock).getString(org.mockito.Matchers.eq("hostname"),any[Option[Set[String]]])
+      there was one(f.configMock).getString(org.mockito.Matchers.eq("hostname"), any[Option[Set[String]]])
     }
   }
-
-  */
 }

@@ -85,6 +85,10 @@ trait ModuleManagerLike extends Controller {
 
   val conditionDao:ConditionDao = ConditionDaoObj
 
+  val campaignDao:CampagneDao=CampagneDaoObj
+
+  val localisationDao:LocalisationDao=LocalisationDaoObj
+
   /**
    * DAO for type sensors
    */
@@ -836,6 +840,41 @@ trait ModuleManagerLike extends Controller {
         //Redirect to validate page
         Redirect(routes.ModuleManager.validate()).withSession(request.session + ("module" -> Module.toStrings(newModule)))
       }
+  }
+
+  def getModuleInformation(id:String)=Action.async{
+    //Create the query
+    val query = Json.obj("modules" ->BSONObjectID(id),"$or"->JsArray(Seq(
+      Json.obj("dateFin"->Json.obj("$exists"->false)),
+      Json.obj("dateDebut"->Json.obj("$lt"->new Date),"dateFin"->Json.obj("$gt"->new Date))
+    )))
+
+    //Find the condition
+    conditionDao.findOne(query).flatMap(
+      condOpt=>condOpt match{
+
+        //If the condition is not found, send 404 not found with an error
+        case None=>future{NotFound(Json.obj("error"->"Current informations not found"))}
+        //If the condition is found, find the current campaign
+        case Some(cond)=>campaignDao.findOne(Json.obj("conditions"->cond._id)).flatMap(
+          campOpt=>campOpt match{
+
+            //If the campaign is not found, send 404 not found with an error
+            case None=>future{NotFound(Json.obj("error"->"Current informations not found"))}
+            //If the campaign is found, find the the localisation
+            case Some(camp)=>localisationDao.findOne(Json.obj("condition"->cond._id)).map(
+              locOpt=>locOpt match{
+
+                  //If the localisation is not found, send module informations without GPS coordinates
+                case None=>Ok(Json.obj("dataToken"->camp.dataToken,"collectUrl"->(camp.collectUrl+"/"+camp.version),"condition"->cond._id.stringify))
+                  //If the localisation is not found, send module informations without GPS coordinates
+                case Some(loc)=>Ok(Json.obj("dataToken"->camp.dataToken,"collectUrl"->(camp.collectUrl+"/"+camp.version),"condition"->cond._id.stringify,"latitude"->loc.lat,"longitude"->loc.lon))
+              }
+            )
+          }
+        )
+      }
+    )
   }
 
   /**

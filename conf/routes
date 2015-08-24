@@ -84,6 +84,7 @@ GET         /inventary/modules/:id/configuration/validation          controllers
 POST        /inventary/modules/:id/configuration/validation          controllers.ConfigurationManager.validation(id)
 GET         /inventary/modules/:id/configuration/download            controllers.ConfigurationManager.downloadConfiguration(id)
 GET         /inventary/modules/:id/configuration/:id2               controllers.ConfigurationManager.configuration(id,id2)
+GET         /inventary/modules/:id/information                      controllers.ModuleManager.getModuleInformation(id)
 GET         /inventary/modules/:id                                   controllers.ModuleManager.moreInformation(id)
 
 #Campaign page
