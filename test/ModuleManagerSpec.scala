@@ -1676,20 +1676,6 @@ class ModuleManagerSpec extends Specification with Mockito {
       header("Location",r) must beSome("/inventary/modules/form/update")
     }
 
-    "send redirect if not have cards selected" in new WithApplication{
-      val f=fixture
-      val mod=Module(bson,"id","type",date,List(),List(),Some("un com"))
-      val funcError=mock[(Module,String)=>Future[Result]]
-      val funcSuccess=mock[Module=>Future[Result]]
-
-      val req=FakeRequest("GET","url")
-      val action=Action.async{f.controller.verifyData(mod,List(),List())(funcError)(funcSuccess)}
-      val r=call(action,req)
-
-      status(r) must equalTo(SEE_OTHER)
-      header("Location",r) must beSome("/inventary/modules/form/typeCards")
-    }
-
     "apply error function if not have the good number of cards" in new WithApplication{
       val f=fixture
       val mod=Module(bson,"id","type",date,List(bson,bson2),List(),Some("un com"))

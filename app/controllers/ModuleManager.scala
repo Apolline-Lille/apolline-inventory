@@ -975,9 +975,6 @@ trait ModuleManagerLike extends Controller {
       //If module type is empty
       case Module(_,_,"",_,_,_,_,_,_) =>future{Redirect(routes.ModuleManager.formUpdate())}
 
-      //If module haven't got cards
-      case _ if cards.size==0 =>future{Redirect(routes.ModuleManager.formTypeCards())}
-
       //If the number of cards or sensors is not correct
       case _ if cards.size != mod.cartes.size || sensors.size != mod.capteurs.size =>{
         val cartes=cards.mapConserve(p=>p._id).asInstanceOf[List[BSONObjectID]]
