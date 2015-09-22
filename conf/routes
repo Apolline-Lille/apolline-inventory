@@ -27,10 +27,15 @@ POST        /register                                                controllers
 #Sensor page
 GET         /inventary/sensors                                       controllers.TypeSensorManager.inventary(types:String ?= "",modele:String?="",stock:String ?= "")
 GET         /inventary/sensors/type                                  controllers.TypeSensorManager.typePage
-POST        /inventary/sensors/type                                  controllers.TypeSensorManager.typeInsert
+POST        /inventary/sensors/type                                  controllers.TypeSensorManager.saveTypeInfo
+GET         /inventary/sensors/type/update                           controllers.TypeSensorManager.updateInfo
+GET         /inventary/sensors/type/species                          controllers.TypeSensorManager.addEspecePage
+POST        /inventary/sensors/type/species                          controllers.TypeSensorManager.saveEspece
+GET         /inventary/sensors/type/validate                         controllers.TypeSensorManager.validationPage
+POST        /inventary/sensors/type/validate                         controllers.TypeSensorManager.validate
+GET         /inventary/sensors/type/species/:id/delete               controllers.TypeSensorManager.deleteEspece(id:Int)
 GET         /inventary/sensors/:idType                               controllers.SensorManager.inventary(idType:String,sort:String ?= "id",sens:Int ?= 1,id:String ?= "")
 GET         /inventary/sensors/:id/update                            controllers.TypeSensorManager.typeUpdatePage(id:String)
-POST        /inventary/sensors/:id/update                            controllers.TypeSensorManager.typeUpdate(id:String)
 GET         /inventary/sensors/:id/delete                            controllers.TypeSensorManager.delete(id:String)
 GET         /inventary/sensors/:id/sensor                            controllers.SensorManager.sensorPage(id:String)
 POST        /inventary/sensors/:id/sensor                            controllers.SensorManager.sensorInsert(id:String)
@@ -83,8 +88,8 @@ POST        /inventary/modules/:id/configuration/sensors/:id2        controllers
 GET         /inventary/modules/:id/configuration/validation          controllers.ConfigurationManager.formValidation(id)
 POST        /inventary/modules/:id/configuration/validation          controllers.ConfigurationManager.validation(id)
 GET         /inventary/modules/:id/configuration/download            controllers.ConfigurationManager.downloadConfiguration(id)
-GET         /inventary/modules/:id/configuration/:id2               controllers.ConfigurationManager.configuration(id,id2)
-GET         /inventary/modules/:id/information                      controllers.ModuleManager.getModuleInformation(id)
+GET         /inventary/modules/:id/configuration/:id2                controllers.ConfigurationManager.configuration(id,id2)
+GET         /inventary/modules/:id/information                       controllers.ModuleManager.getModuleInformation(id)
 GET         /inventary/modules/:id                                   controllers.ModuleManager.moreInformation(id)
 
 #Campaign page
@@ -108,7 +113,6 @@ GET         /campaigns/campaign/:id/:id2                             controllers
 GET         /campaigns/campaign/:id/:id2/form                        controllers.ConditionsManager.formGeneralUpdate(id,id2)
 GET         /campaigns/campaign/:id/:id2/finish                      controllers.ConditionsManager.finishCondition(id,id2)
 GET         /campaigns/campaign/:id/:id2/picture/delete              controllers.ConditionsManager.removeImageCondition(id,id2,filename?="")
-
 
 # Map static resources from the /public folder to the /assets URL path
 GET         /assets/*file                                            controllers.Assets.at(path="/public", file)

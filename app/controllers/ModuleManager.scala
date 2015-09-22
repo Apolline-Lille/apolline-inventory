@@ -87,6 +87,8 @@ trait ModuleManagerLike extends Controller {
 
   val campaignDao:CampagneDao=CampagneDaoObj
 
+  val especeDao:EspeceDao=EspeceDaoObj
+
   val localisationDao:LocalisationDao=LocalisationDaoObj
 
   /**
@@ -184,7 +186,7 @@ trait ModuleManagerLike extends Controller {
               findSensorsInfo(module).flatMap(
                 dataSensor => dataSensor match {
 
-                  case (typeSensors,typeMesure,sensors)=>
+                  case (typeSensors,espece,typeMesure,sensors)=>
 
                     //Find cards information
                     findCardsInfo (module).flatMap (
@@ -197,7 +199,7 @@ trait ModuleManagerLike extends Controller {
                               configurationDao.findAll(Json.obj("_id"->Json.obj("$in"->module.configuration))).map(
                                 configs=>
                                   //Print module information
-                                  Ok(views.html.module.moreInfo(module,data.getOrElse(module._id,""),typesCards,cards,firmware,typeSensors,typeMesure,sensors,previous,configs)).withSession(request.session + ("previous"->previous))
+                                  Ok(views.html.module.moreInfo(module,data.getOrElse(module._id,""),typesCards,cards,firmware,typeSensors,espece,typeMesure,sensors,previous,configs)).withSession(request.session + ("previous"->previous))
                               )
                           )
                       }
@@ -415,7 +417,7 @@ trait ModuleManagerLike extends Controller {
 
                 //Find the list of type sensors
                 typeSensorManager.getInventaryTypeSensor(Json.obj("delete" -> false, "_id" -> Json.obj("$in" -> JsArray(idType.toSeq))), filtreType,filtreModele) {
-                  (typeSensor, typeMesure, stock,stockUsed, nomType) => Ok(views.html.module.listTypeSensors(filtreType,filtreModele, typeSensor, typeMesure, stock,stockUsed, nomType))
+                  (typeSensor, typeMesure,espece, stock,stockUsed, nomType) => Ok(views.html.module.listTypeSensors(filtreType,filtreModele, typeSensor, typeMesure,espece, stock,stockUsed, nomType))
                 }
 
             ).recover({ case e => InternalServerError("error") })
@@ -454,7 +456,7 @@ trait ModuleManagerLike extends Controller {
             val query=Json.obj("delete"->false,"types"->BSONObjectID(id),"_id"->Json.obj("$nin"->listSensors)) ++ (if(id2.nonEmpty){Json.obj("id"->Json.obj("$regex"->(".*"+id2+".*")))}else{Json.obj()})
             //Find the list of sensors
             sensorsManager.getInventarySensor(query, Json.obj(sort -> sens), BSONObjectID(id), Redirect(routes.ModuleManager.formTypeSensors())) {
-              (typeSensor, typeMesure, listSensors,totalSensors,sensorsUsed,sensorState) => Ok(views.html.module.listSensors(selectElement, typeSensor, typeMesure, listSensors,totalSensors,sensorsUsed,sensorState, sort, sens,id2))
+              (typeSensor,espece, typeMesure, listSensors,totalSensors,sensorsUsed,sensorState) => Ok(views.html.module.listSensors(selectElement, typeSensor,espece, typeMesure, listSensors,totalSensors,sensorsUsed,sensorState, sort, sens,id2))
             }
           }
         )
@@ -549,7 +551,7 @@ trait ModuleManagerLike extends Controller {
             formWithErrors => {
               //Find the list of cards
               sensorsManager.getInventarySensor(Json.obj("delete"->false,"types"->BSONObjectID(idType)),Json.obj("id"->1),BSONObjectID(idType),Redirect(routes.ModuleManager.formTypeCards())){
-                (typeSensor,typeMesure,listSensors,totalSensors,sensorUsed,sensorState)=>BadRequest(views.html.module.listSensors(selectElement,typeSensor,typeMesure,listSensors,totalSensors,sensorUsed,sensorState,"id",1,""))
+                (typeSensor,espece,typeMesure,listSensors,totalSensors,sensorUsed,sensorState)=>BadRequest(views.html.module.listSensors(selectElement,typeSensor,espece,typeMesure,listSensors,totalSensors,sensorUsed,sensorState,"id",1,""))
               }
             },
 
@@ -667,7 +669,7 @@ trait ModuleManagerLike extends Controller {
             //Find sensors information for selected sensors
             findSensorsInfo(mod, listSensorsUsed).flatMap(
               dataSensor => dataSensor match {
-                case (typeSensors, typeMesure, sensors) =>
+                case (typeSensors,espece, typeMesure, sensors) =>
 
                   //Find the list of cards used
                   moduleDao.fold(selector=Json.obj("_id"->Json.obj("$ne"->mod._id),"delete"->false),state=List[BSONObjectID]())((list,mod)=>list ++ mod.cartes).flatMap(
@@ -677,10 +679,10 @@ trait ModuleManagerLike extends Controller {
                         data => data match {
                           case (typesCards, cards, firmware) => verifyData(mod, cards, sensors) {
                             //Print the summary with an error message
-                            (mod, error) => future {BadRequest(views.html.module.validateForm(mod, typesCards, cards, firmware, typeSensors, typeMesure, sensors, error))}
+                            (mod, error) => future {BadRequest(views.html.module.validateForm(mod, typesCards, cards, firmware, typeSensors,espece, typeMesure, sensors, error))}
                           } {
                             //Print the summary
-                            mod => future {Ok(views.html.module.validateForm(mod, typesCards, cards, firmware, typeSensors, typeMesure, sensors, ""))}
+                            mod => future {Ok(views.html.module.validateForm(mod, typesCards, cards, firmware, typeSensors,espece, typeMesure, sensors, ""))}
                           }
                         }
                       )
@@ -866,9 +868,10 @@ trait ModuleManagerLike extends Controller {
               locOpt=>locOpt match{
 
                   //If the localisation is not found, send module informations without GPS coordinates
-                case None=>Ok(Json.obj("dataToken"->camp.dataToken,"collectUrl"->(camp.collectUrl+"/"+camp.version),"condition"->cond._id.stringify))
+                case None =>Ok(Json.obj("dataToken"->camp.dataToken,"collectUrl"->(camp.collectUrl+"/"+camp.version),"condition"->cond._id.stringify))
                   //If the localisation is not found, send module informations without GPS coordinates
-                case Some(loc)=>Ok(Json.obj("dataToken"->camp.dataToken,"collectUrl"->(camp.collectUrl+"/"+camp.version),"condition"->cond._id.stringify,"latitude"->loc.lat,"longitude"->loc.lon))
+                case Some(loc) if loc.lat.nonEmpty =>Ok(Json.obj("dataToken"->camp.dataToken,"collectUrl"->(camp.collectUrl+"/"+camp.version),"condition"->cond._id.stringify,"latitude"->loc.lat,"longitude"->loc.lon))
+                case _ => Ok(Json.obj("dataToken"->camp.dataToken,"collectUrl"->(camp.collectUrl+"/"+camp.version),"condition"->cond._id.stringify))
               }
             )
           }
@@ -1030,7 +1033,7 @@ trait ModuleManagerLike extends Controller {
    * @param mod A module
    * @return Return list of type sensors, type mesure and sensors information for sensors associat to a module
    */
-  def findSensorsInfo(mod:Module,listSensorsUsed:List[BSONObjectID]=List()):Future[(List[TypeSensor],List[TypeMesure],List[Sensor])]={
+  def findSensorsInfo(mod:Module,listSensorsUsed:List[BSONObjectID]=List()):Future[(List[TypeSensor],List[Espece],List[TypeMesure],List[Sensor])]={
     //Find the list of sensors selected without sensors used
     val listSensors = mod.capteurs.diff(listSensorsUsed).mapConserve(p => BSONObjectIDFormat.writes(p)).asInstanceOf[List[JsValue]]
     //Get the list of type sensors for sensors selected available
@@ -1047,10 +1050,13 @@ trait ModuleManagerLike extends Controller {
       sensors =>
         getTypeSensors.flatMap(
           typeSensors =>
-            getMesure.map(
+            especeDao.findAll(Json.obj("_id"->Json.obj("$in"->typeSensors.foldRight(List[BSONObjectID]()){(types,list)=>types.espece:::list}))).flatMap(
+              espece=>
+                getMesure.map(
 
-              typeMesure => (typeSensors, typeMesure, sensors)
+                  typeMesure => (typeSensors,espece, typeMesure, sensors)
 
+                )
             )
         )
     )

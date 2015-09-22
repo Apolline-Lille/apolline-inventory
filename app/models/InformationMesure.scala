@@ -9,7 +9,7 @@ import play.api.Play.current
 import scala.concurrent.ExecutionContext.Implicits.global
 
 
-case class InformationMesure(_id:BSONObjectID=BSONObjectID.generate,index:Int,id:String,sensor:BSONObjectID,mesure:BSONObjectID)
+case class InformationMesure(_id:BSONObjectID=BSONObjectID.generate,index:Int,sensor:BSONObjectID)
 
 object InformationMesure{
   implicit val infoMesureFormat:Format[InformationMesure]=Json.format[InformationMesure]

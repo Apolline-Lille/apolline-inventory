@@ -1,4 +1,4 @@
-@(mod:Module,config:Configuration,infos:List[InformationMesure],mesures:List[TypeMesure],typeSensors:List[TypeSensor],sensors:List[Sensor])(implicit request: Request[AnyContent])
+@(mod:Module,config:Configuration,infos:List[InformationMesure],typeSensors:List[TypeSensor],sensors:List[Sensor])(implicit request: Request[AnyContent])
 
 @main(Messages("inventary.module.title")){
   @navigation("inventary")
@@ -28,9 +28,6 @@
               <thead>
                 <tr>
                   <th>@Messages("inventary.configuration.index")</th>
-                  <th>@Messages("inventary.configuration.id")</th>
-                  <th>@Messages("inventary.configuration.mesure")</th>
-                  <th>@Messages("inventary.configuration.unite")</th>
                   <th>@Messages("inventary.configuration.sensor")</th>
                 </tr>
               </thead>
@@ -38,11 +35,6 @@
               @for(info<-infos){
                 <tr>
                   <td>@info.index</td>
-                  <td>@info.id</td>
-                  @defining(mesures.filter(types=>types._id.equals(info.mesure))(0)){mesure=>
-                    <td>@mesure.nom</td>
-                    <td>@mesure.unite</td>
-                  }
                   <td>@defining(sensors.find(p=>p._id.equals(info.sensor)).get){sensor=>
                     @defining(typeSensors.find(p=>p._id.equals(sensor.types)).get){types=>
                       <a href="@routes.SensorManager.inventary(types._id.stringify)#@info.sensor.stringify"><span class="bold">@types.nomType / @types.modele</span><br/>@sensor.id</a>

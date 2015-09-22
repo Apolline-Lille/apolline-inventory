@@ -14,12 +14,9 @@ case class TypeSensor(
      _id:BSONObjectID=BSONObjectID.generate,
      nomType:String,
      modele:String,
-     mesure:BSONObjectID,
      fabricant:String,
      nbSignaux:Int,
-     espece:List[String],
-     min:Float,
-     max:Float,
+     espece:List[BSONObjectID],
      delete:Boolean=false
 )
 

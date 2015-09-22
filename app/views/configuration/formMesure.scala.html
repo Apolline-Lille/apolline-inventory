@@ -25,23 +25,6 @@
                         @helper.input(form("index"),'_label->Messages("inventary.configuration.index"),'required->true){ (id, name, value, args) =>
                             <input id="@id" name="@name" class="form-control" type="number" autofocus="autofocus" autocomplete="off" @if(value!=null){value="@value"}/>
                         }
-                        @helper.inputText(form("id"),'_label->Messages("inventary.configuration.id"),'autofocus->"autofocus",'autocomplete->"off",'required->true,'class->"form-control")
-                        @helper.input(form("mesure"),'_label->Messages("inventary.typeSensor.mesure"),'required->true) { (id, name, value, args) =>
-                            <input id="@id" name="@name" class="form-control" list="list_mesure" type="text" autocomplete="off" @if(value!=null){value="@value"}/>
-                            <datalist id="list_mesure">
-                            @for(mes<-mesure){
-                                <option value="@mes.getAs[String]("_id")"></option>
-                            }
-                            </datalist>
-                        }
-                        @helper.input(form("unite"),'_label->Messages("inventary.typeSensor.unite"),'required->true) { (id, name, value, args) =>
-                            <input id="@id" name="@name" class="form-control" list="list_unite" type="text" autocomplete="off" @if(value!=null){value="@value"}/>
-                            <datalist id="list_unite">
-                            @for(u<-unite){
-                                <option value="@u.getAs[String]("_id")"></option>
-                            }
-                            </datalist>
-                        }
                     </div>
                     <div class="col-sm-12">
                         <div style="float:right">

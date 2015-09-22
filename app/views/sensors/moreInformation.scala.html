@@ -1,4 +1,4 @@
-@(types:TypeSensor,mesure:TypeMesure,sensor:Sensor)(implicit request: Request[AnyContent])
+@(types:TypeSensor,espece:List[Espece],typeMesure:List[TypeMesure],sensor:Sensor)(implicit request: Request[AnyContent])
 
 @main(Messages("inventary.typeSensor.title")){
     @navigation("inventary")
@@ -14,8 +14,40 @@
                     <div class="col-sm-11 col-sm-offset-1">
                         <div class="row"><span class="bold">@Messages("inventary.sensor.id")</span> : @sensor.id </div>
                         <div class="row"> <span class="bold">@Messages("inventary.typeSensor.fabricant")</span> : @{types.fabricant} </div>
-                        <div class="row"> <span class="bold">@Messages("inventary.typeSensor.nbSignaux")</span> : @{types.nbSignaux} (@{mesure.nom}) </div>
-                        <div class="row"> <span class="bold">@Messages("inventary.typeSensor.espece")</span> : @{types.espece.mkString(", ")} </div>
+                        <div class="row"> <span class="bold">@Messages("inventary.typeSensor.nbSignaux")</span> : @{types.nbSignaux} </div>
+                        <div class="row">
+                            <span class="bold">@Messages("inventary.typeSensor.espece")</span> :<br/>
+                            <div class="row col-sm-10 col-sm-offset-1 table-responsive">
+                                <table class="table table-hover table-bordered">
+                                    <thead>
+                                        <tr>
+                                            <th>@Messages("inventary.typeSensor.nomEspece")</th>
+                                            <th>@Messages("inventary.typeSensor.mesure")</th>
+                                            <th>@Messages("inventary.typeSensor.signalMin")</th>
+                                            <th>@Messages("inventary.typeSensor.signalMax")</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                    @for(esp <- types.espece) {
+                                        @defining(espece.find(p => p._id.equals(esp))) {currentEsp=>
+                                            @if(currentEsp.nonEmpty){
+                                                @defining(typeMesure.find(p=>p._id.equals(currentEsp.get.mesure))){mesure=>
+                                                    @if(mesure.nonEmpty){
+                                                        <tr>
+                                                            <td>@currentEsp.get.espece</td>
+                                                            <td>@mesure.get.nom</td>
+                                                            <td>@currentEsp.get.min @mesure.get.unite</td>
+                                                            <td>@currentEsp.get.max @mesure.get.unite</td>
+                                                        </tr>
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                         <div class="row"><span class="bold">@Messages("inventary.sensor.acquisition")</span> : @SensorManager.format(sensor.acquisition) </div>
                         <div class="row"><span class="bold">@Messages("inventary.sensor.expiration")</span> : @if(sensor.expiration.nonEmpty){@SensorManager.format(sensor.expiration.get)} </div>
                         <div class="row"><span class="bold">@Messages("inventary.sensor.firstUse")</span> : @if(sensor.firstUse.nonEmpty){@SensorManager.format(sensor.firstUse.get)} </div>

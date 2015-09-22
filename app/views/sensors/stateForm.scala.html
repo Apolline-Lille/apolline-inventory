@@ -1,0 +1,6 @@
+@(activ:String)
+<ol class="breadcrumb">
+  <li @if(activ.equals("type")){class="active"}><a href="@routes.TypeSensorManager.updateInfo()">@Messages("inventary.module.onglet.info")</a></li>
+  <li @if(activ.equals("espece")){class="active"}><a href="@routes.TypeSensorManager.addEspecePage()">@Messages("inventary.typeSensor.espece")</a></li>
+  <li @if(activ.equals("validation")){class="active"}><a href="@routes.TypeSensorManager.validationPage()">@Messages("inventary.typeSensor.validate")</a></li>
+</ol>

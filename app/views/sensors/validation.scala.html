@@ -1,0 +1,59 @@
+@(types:Option[TypeSensorForm],espece:List[EspeceForm],error:String)(implicit request: Request[AnyContent])
+
+@main(Messages("inventary.typeSensor.title")){
+  @navigation("inventary")
+  <div class="container">
+    @inventary("capteur")
+    <section>
+      <article>
+        <a href="@routes.TypeSensorManager.inventary()"><span class="glyphicon glyphicon-arrow-left"></span> Retour</a>
+        @sensors.stateForm("validation")
+        @if(error.nonEmpty){<div class="alert alert-danger" role="alert">@error</div>}
+        @if(types.nonEmpty) {
+          <div class="col-sm-12">
+            <h4>@{types.get.types} / @{types.get.model}</h4>
+          </div>
+        }
+        <div class="col-sm-11 col-sm-offset-1">
+          @if(types.nonEmpty) {
+            <div class="row"> <span class="bold">@Messages("inventary.typeSensor.fabricant")</span> : @{
+              types.get.fabricant
+            }</div>
+            <div class="row"> <span class="bold">@Messages("inventary.typeSensor.nbSignaux")</span> : @{
+              types.get.nbSignaux
+            }</div>
+          }
+          <div class="row"> <span class="bold">@Messages("inventary.typeSensor.espece")</span> :
+            <div class="col-sm-11 col-sm-offset-1 table-responsive">
+              <table class="table table-hover table-bordered">
+                <thead>
+                  <tr>
+                    <th>@Messages("inventary.typeSensor.nomEspece")</th>
+                    <th>@Messages("inventary.typeSensor.mesure")</th>
+                    <th>@Messages("inventary.typeSensor.signalMin")</th>
+                    <th>@Messages("inventary.typeSensor.signalMax")</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for((esp,index) <- espece.reverse.zipWithIndex) {
+                    <tr>
+                      <td>@esp.espece</td>
+                      <td>@esp.mesure</td>
+                      <td>@esp.min @esp.unite</td>
+                      <td>@esp.max @esp.unite</td>
+                      <td><a href="@routes.TypeSensorManager.deleteEspece(espece.size - index - 1)"><span class="glyphicon glyphicon-trash"></span></a></td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        @helper.form(action=routes.TypeSensorManager.validate()){
+          <p><span style="float:right"><input type="submit" class="btn btn-default" value="@Messages("global.valider")"/></span></p>
+        }
+      </article>
+    </section>
+  </div>
+}

@@ -32,9 +32,6 @@
               <thead>
                 <tr>
                   <th>@Messages("inventary.configuration.index")</th>
-                  <th>@Messages("inventary.configuration.id")</th>
-                  <th>@Messages("inventary.configuration.mesure")</th>
-                  <th>@Messages("inventary.configuration.unite")</th>
                   <th>@Messages("inventary.configuration.sensor")</th>
                 </tr>
               </thead>
@@ -42,9 +39,6 @@
                 @for(info<-infoMesure){
                   <tr>
                     <td>@info._2.index</td>
-                    <td>@info._2.id</td>
-                    <td>@info._2.mesure</td>
-                    <td>@info._2.unite</td>
                     <td>@defining(sensors.find(p=>p._id.equals(info._1)).get){sensor=>
                       @defining(typeSensors.find(p=>p._id.equals(sensor.types)).get){types=>
                         <a href="@routes.SensorManager.inventary(types._id.stringify)#@info._1.stringify"><span class="bold">@types.nomType / @types.modele</span><br/>@sensor.id</a>

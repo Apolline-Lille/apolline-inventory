@@ -1,4 +1,4 @@
-@(filtreSto:String,sort:String,modele:String,funcFiltre:Int=>Boolean,listType:List[TypeSensor],listMesure:List[TypeMesure],stock:List[reactivemongo.bson.BSONDocument],stockUsed:List[(reactivemongo.bson.BSONObjectID,Int)],filtre:List[reactivemongo.bson.BSONDocument])(implicit request: Request[AnyContent])
+@(filtreSto:String,sort:String,modele:String,funcFiltre:Int=>Boolean,listType:List[TypeSensor],listMesure:List[TypeMesure],espece:List[Espece],stock:List[reactivemongo.bson.BSONDocument],stockUsed:List[(reactivemongo.bson.BSONObjectID,Int)],filtre:List[reactivemongo.bson.BSONDocument])(implicit request: Request[AnyContent])
 @import reactivemongo.bson.BSONObjectID
 
 @main(Messages("inventary.typeSensor.title")){
@@ -41,7 +41,43 @@
                           <div class="row"> <span class="bold">@Messages("inventary.typeSensor.fabricant")</span> : @{
                             types.fabricant
                           } </div>
-                          @defining(listMesure.filter(m => m._id == types.mesure).head) { mesure =>
+                          <div class="row"> <span class="bold">@Messages("inventary.typeSensor.nbSignaux")</span> : @{
+                            types.nbSignaux
+                          }</div>
+                          <div class="row">
+                            <span class="bold">@Messages("inventary.typeSensor.espece")</span> :
+                            <div class="col-sm-10 col-sm-offset-1 table-responsive">
+                              <table class="table table-hover table-bordered">
+                                <thead>
+                                  <tr>
+                                    <th>@Messages("inventary.typeSensor.nomEspece")</th>
+                                    <th>@Messages("inventary.typeSensor.mesure")</th>
+                                    <th>@Messages("inventary.typeSensor.signalMin")</th>
+                                    <th>@Messages("inventary.typeSensor.signalMax")</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  @for(esp <- types.espece) {
+                                    @defining(espece.find(p => p._id.equals(esp))) {currentEsp=>
+                                      @if(currentEsp.nonEmpty){
+                                        @defining(listMesure.find(p=>p._id.equals(currentEsp.get.mesure))){mesure=>
+                                          @if(mesure.nonEmpty){
+                                            <tr>
+                                              <td>@currentEsp.get.espece</td>
+                                              <td>@mesure.get.nom</td>
+                                              <td>@currentEsp.get.min @mesure.get.unite</td>
+                                              <td>@currentEsp.get.max @mesure.get.unite</td>
+                                            </tr>
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                          @* @defining(listMesure.filter(m => m._id == types.mesure).head) { mesure =>
                             <div class="row"> <span class="bold">@Messages("inventary.typeSensor.nbSignaux")</span> : @{
                               types.nbSignaux
                             } (@{
@@ -52,7 +88,7 @@
                           }
                           <div class="row"> <span class="bold">@Messages("inventary.typeSensor.espece")</span> : @{
                             types.espece.mkString(", ")
-                          } </div>
+                          } </div>*@
                           <div class="row"> <span class="bold">@Messages("inventary.typeSensor.stock")</span> : @stoUnused / @sto</div>
                         </div>
                     }

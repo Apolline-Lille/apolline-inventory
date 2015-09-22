@@ -24,7 +24,7 @@ import play.api.Play.current
 
 case class ConfigurationForm(port:String,timeout:Int=10000,baud:Int=9600,bits:Int=8,stopBits:Int=1,parity:Int=0,timeFilter:Int=1000,types:String,numberOfValue:Int)
 
-case class InfoMesureForm(index:Int,id:String,mesure:String,unite:String)
+case class InfoMesureForm(index:Int)
 /**
  * This trait is a controller for manager module configuration
  */
@@ -49,10 +49,7 @@ trait ConfigurationManagerLike extends Controller{
 
   val formMesure=Form[InfoMesureForm](
     mapping(
-      "index"->number(min=0),
-      "id"->nonEmptyText,
-      "mesure"->nonEmptyText,
-      "unite"->nonEmptyText
+      "index"->number(min=0)
     )(InfoMesureForm.apply)(InfoMesureForm.unapply)
   )
 
@@ -67,6 +64,8 @@ trait ConfigurationManagerLike extends Controller{
   val informationMesureDao:InformationMesureDao=InformationMesureDaoObj
 
   val configurationDao:ConfigurationDao=ConfigurationDaoObj
+
+  val especeDao:EspeceDao=EspeceDaoObj
 
   val moduleManager:ModuleManagerLike=ModuleManager
 
@@ -113,20 +112,15 @@ trait ConfigurationManagerLike extends Controller{
                 infos=>{
 
                   //Find id of sensors and mesure type
-                  val ids=infos.foldLeft((HashSet[BSONObjectID](),HashSet[BSONObjectID]())){(set,info)=>(set._1 + info.sensor,set._2+info.mesure)}
+                  val ids=infos.foldLeft(HashSet[BSONObjectID]()){(set,info)=>set + info.sensor}
 
-                  //Find type mesure
-                  typeMesureDao.findAll(Json.obj("_id"->Json.obj("$in"->ids._2))).flatMap(
-                    mesures=>
+                  //Find sensors information
+                  findListSensor(ids.toList).map(
+                    data=>data match{
 
-                      //Find sensors information
-                      findListSensor(ids._1.toList).map(
-                      data=>data match{
-
-                          //Display the configuration information
-                        case (typeSensor, typeMesure, sensor)=>Ok(views.html.configuration.showConfiguration(module, config,infos,mesures,typeSensor,sensor))
-                      }
-                    )
+                        //Display the configuration information
+                      case (typeSensor,espece, typeMesure, sensor)=>Ok(views.html.configuration.showConfiguration(module, config,infos,typeSensor,sensor))
+                    }
                   )
                 }
               )
@@ -349,7 +343,7 @@ trait ConfigurationManagerLike extends Controller{
             data => data match{
 
               //Display the list of sensors
-              case (typeSensor,typeMesure,sensor)=>Ok(views.html.configuration.listSensor(module,typeSensor,typeMesure,sensor))
+              case (typeSensor,espece,typeMesure,sensor)=>Ok(views.html.configuration.listSensor(module,typeSensor,espece,typeMesure,sensor))
 
             }
            )
@@ -639,21 +633,14 @@ trait ConfigurationManagerLike extends Controller{
     case Nil => future{List()}
 
     //Else find mesure informations
-    case _ => informationMesureDao.findAll(Json.obj("_id"->Json.obj("$in"->infos))).flatMap(
+    case _ => informationMesureDao.findAll(Json.obj("_id"->Json.obj("$in"->infos))).map(
       data=>
+        //for each mesure information
+        data.foldLeft(List[JsObject]())((list,info)=>{
 
-        //Find type mesure
-        typeMesureDao.findAll(Json.obj("_id"->Json.obj("$in"->data.foldLeft(List[BSONObjectID]())((list,info)=>info.mesure :: list)))).map(
-          listMesure=>
-            //for each mesure information
-            data.foldLeft(List[JsObject]())((list,info)=>{
-              //Find the type mesure
-              val mesure=listMesure.filter(m=>m._id.equals(info.mesure))(0)
-
-              //Insert to the list a Json represent the mesure information
-              Json.obj("sensor"->info.sensor.stringify,"info"->InfoMesureForm(info.index,info.id,mesure.nom,mesure.unite)) :: list
-            })
-        )
+          //Insert to the list a Json represent the mesure information
+          Json.obj("sensor"->info.sensor.stringify,"info"->InfoMesureForm(info.index)) :: list
+        })
     )
   }
 
@@ -774,10 +761,7 @@ trait ConfigurationManagerLike extends Controller{
       if(value!=0) zip.write(",\\\n".getBytes)
 
       //Write index of the information
-      zip.write(("{\"index\":"+h.index+",").getBytes)
-
-      //Write id of the mesure information
-      zip.write(("\"infoId\":\""+h._id.stringify+"\"}").getBytes)
+      zip.write(("{\"index\":"+h.index+"}").getBytes)
 
       //Write new mesure information
       write_info_mesure_properties(zip,t,current,value+1)
@@ -793,52 +777,21 @@ trait ConfigurationManagerLike extends Controller{
     //If not have informations
     case Nil=>List()
 
-    //If have informations, Find the mesure type
-    case h::t=>typeMesureDao.findOne(Json.obj("nom"->h._2.mesure,"unite"->h._2.unite)).flatMap(
-      data=> {
-        //Find the type mesure id
-        val id = findIdTypeMesure(data,h._2)
+    //If have informations
+    case h::t=>informationMesureDao.findOne(Json.obj("index"->h._2.index,"sensor"->h._1)).flatMap(
+      data => data match{
+        case None=>{
+          //Create the mesure information
+          val info=InformationMesure(index=h._2.index,sensor=h._1)
 
-        informationMesureDao.findOne(Json.obj("index"->h._2.index,"id"->h._2.id,"sensor"->h._1,"mesure"->id)).flatMap(
-          data => data match{
-            case None=>{
-              //Create the mesure information
-              val info=InformationMesure(index=h._2.index,id=h._2.id,sensor=h._1,mesure=id)
-
-              //Insert the mesure information
-              informationMesureDao.insert(info).map(
-                data=>info._id
-              )
-            }
-            case Some(info)=>future{info._id}
-          }
-        )
+          //Insert the mesure information
+          informationMesureDao.insert(info).map(
+            data=>info._id
+          )
+        }
+        case Some(info)=>future{info._id}
       }
     ) :: insertInformation(t)
-  }
-
-  /**
-   * Find the type mesure _id of the information
-   * @param data The type mesure
-   * @param infoMesure The mesure information
-   * @return The type mesure _id
-   */
-  def findIdTypeMesure(data:Option[TypeMesure],infoMesure:InfoMesureForm)=data match {
-    //if type mesure not exist
-    case None => {
-
-      //Create the type mesure
-      val mesure = TypeMesure(nom = infoMesure.mesure, unite = infoMesure.unite)
-
-      //Insert the type mesure
-      typeMesureDao.insert(mesure)
-
-      //Return the type mesure _id
-      mesure._id
-    }
-
-    //If the type mesure exist, return the _id
-    case Some(mesure)=>mesure._id
   }
 
   /**
@@ -910,7 +863,7 @@ trait ConfigurationManagerLike extends Controller{
     }).map(data => data match {
 
       //Display the summary of the configuration
-      case (typeSensor, typeMesure, sensor) => status(views.html.configuration.validation(module,config,typeSensor,sensor,infoMesure,errors))
+      case (typeSensor,espece, typeMesure, sensor) => status(views.html.configuration.validation(module,config,typeSensor,sensor,infoMesure,errors))
     })
   }
 
@@ -919,25 +872,27 @@ trait ConfigurationManagerLike extends Controller{
    * @param listSensors List of sensors associat to the module
    * @return The list of sensors, type sensors and type mesure
    */
-  def findListSensor(listSensors:List[BSONObjectID]):Future[(List[TypeSensor],List[TypeMesure],List[Sensor])]={
+  def findListSensor(listSensors:List[BSONObjectID]):Future[(List[TypeSensor],List[Espece],List[TypeMesure],List[Sensor])]={
     //Get the list of type sensors for sensors selected available
     val selector=Json.obj("delete"->false,"_id" -> Json.obj("$in" -> JsArray(listSensors.mapConserve(id=>BSONObjectIDFormat.writes(id)).asInstanceOf[List[JsValue]].toSeq)))
     val getTypeSensors = sensorsDao.fold(selector, Json.obj(), HashSet[BSONObjectID]())((set, sensors) => set + sensors.types).flatMap(
       types => typeSensorsDao.findAll(Json.obj("delete"->false,"_id" -> Json.obj("$in" -> JsArray(types.toList.mapConserve(p => BSONObjectIDFormat.writes(p)).asInstanceOf[List[JsValue]].toSeq))))
     )
 
-    //Get the list of type mesure
-    val getMesure = typeMesureDao.findAll()
-
     //Find sensors
     sensorsDao.findAll(selector).flatMap(
       sensors =>
         getTypeSensors.flatMap(
           typeSensors =>
-            getMesure.map(
-
-              typeMesure => (typeSensors, typeMesure, sensors)
-
+            especeDao.findAll(Json.obj("_id"->Json.obj("$in"->typeSensors.foldRight(List[BSONObjectID]()){
+              (types,list)=>types.espece:::list
+            }))).flatMap(
+              espece=>
+                typeMesureDao.findAll(Json.obj("_id"->Json.obj("$in"->espece.foldRight(List[BSONObjectID]()){
+                  (esp,list)=>esp.mesure::list
+                }))).map(
+                  typeMesure=>(typeSensors,espece,typeMesure,sensors)
+                )
             )
         )
     )

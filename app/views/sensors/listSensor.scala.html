@@ -1,4 +1,4 @@
-@(types:TypeSensor,mesure:TypeMesure,listSensor:List[Sensor],totalSensor:Int,stockUsed:List[(reactivemongo.bson.BSONObjectID,Int)],sensorState:Map[reactivemongo.bson.BSONObjectID,String],trie:String,sens:Int,id:String,previous:String)(implicit request: Request[AnyContent])
+@(types:TypeSensor,espece:List[Espece],typeMesure:List[TypeMesure],listSensor:List[Sensor],totalSensor:Int,stockUsed:List[(reactivemongo.bson.BSONObjectID,Int)],sensorState:Map[reactivemongo.bson.BSONObjectID,String],trie:String,sens:Int,id:String,previous:String)(implicit request: Request[AnyContent])
 
 @main(Messages("inventary.typeSensor.title")){
   <script src="@routes.Assets.at("/public","javascripts/modal-delete.js")" type="text/javascript" defer></script>
@@ -14,10 +14,40 @@
             </div>
             <div class="col-sm-11 col-sm-offset-1">
               <div class="row"> <span class="bold">@Messages("inventary.typeSensor.fabricant")</span> : @{types.fabricant} </div>
-              <div class="row"> <span class="bold">@Messages("inventary.typeSensor.nbSignaux")</span> : @{types.nbSignaux} (@{mesure.nom}) </div>
-              <div class="row"> <span class="bold">@Messages("inventary.typeSensor.signalMin")</span> : @types.min @mesure.unite</div>
-              <div class="row"> <span class="bold">@Messages("inventary.typeSensor.signalMax")</span> : @types.max @mesure.unite</div>
-              <div class="row"> <span class="bold">@Messages("inventary.typeSensor.espece")</span> : @{types.espece.mkString(", ")} </div>
+              <div class="row"> <span class="bold">@Messages("inventary.typeSensor.nbSignaux")</span> : @{types.nbSignaux} </div>
+              <div class="row">
+                <span class="bold">@Messages("inventary.typeSensor.espece")</span> :<br/>
+                <div class="row col-sm-10 col-sm-offset-1 table-responsive">
+                  <table class="table table-hover table-bordered">
+                    <thead>
+                      <tr>
+                        <th>@Messages("inventary.typeSensor.nomEspece")</th>
+                        <th>@Messages("inventary.typeSensor.mesure")</th>
+                        <th>@Messages("inventary.typeSensor.signalMin")</th>
+                        <th>@Messages("inventary.typeSensor.signalMax")</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                    @for(esp <- types.espece) {
+                      @defining(espece.find(p => p._id.equals(esp))) {currentEsp=>
+                        @if(currentEsp.nonEmpty){
+                          @defining(typeMesure.find(p=>p._id.equals(currentEsp.get.mesure))){mesure=>
+                            @if(mesure.nonEmpty){
+                              <tr>
+                                <td>@currentEsp.get.espece</td>
+                                <td>@mesure.get.nom</td>
+                                <td>@currentEsp.get.min @mesure.get.unite</td>
+                                <td>@currentEsp.get.max @mesure.get.unite</td>
+                              </tr>
+                            }
+                          }
+                        }
+                      }
+                    }
+                    </tbody>
+                  </table>
+                </div>
+              </div>
               <div class="row"> <span class="bold">@Messages("inventary.typeSensor.stock")</span> : @{totalSensor - stockUsed.head._2} / @totalSensor </div>
             </div>
         </div>

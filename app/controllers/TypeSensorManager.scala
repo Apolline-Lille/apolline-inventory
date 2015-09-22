@@ -4,7 +4,7 @@ import com.wordnik.swagger.annotations._
 import models._
 import play.api.data.format.Formats._
 import play.api.i18n.Messages
-import play.api.libs.json.{JsSuccess, JsArray, JsObject, Json}
+import play.api.libs.json._
 import play.api.mvc._
 import play.api.data._
 import play.api.data.Forms._
@@ -23,29 +23,42 @@ import play.api.libs.concurrent.Execution.Implicits.defaultContext
  * This class represent all information get when the user submit a form for insert or update a sensor type
  * @param model Name of the sensor model
  * @param types Name of the sensor type
- * @param espece List of specie analyze by the sensor
- * @param mesure Name of the signal received by the sensor
  * @param nbSignaux Number of signal received by the sensor
  * @param fabricant Builder of the sensor
- * @param unite Unity for the signal
  */
 case class TypeSensorForm(
    model:String,
    types:String,
-   espece:List[String],
-   mesure:String,
    nbSignaux:Int,
    fabricant:String,
-   unite:String,
-   min:Float,
-   max:Float,
    send:Option[String]=None
  )
+
+
+/**
+ * This class represent all information about a specie get when the user submit a form for insert or update a sensor type
+ * @param espece Name of the specie
+ * @param mesure Name of the mesure
+ * @param unite Unity of the mesure
+ * @param min Min value received
+ * @param max Max value received
+ */
+case class EspeceForm(
+   espece:String,
+   mesure:String,
+   unite:String,
+   min:Float,
+   max:Float
+)
 
 /**
  * This trait is a controller for manage sensors type
  */
 trait TypeSensorManagerLike extends Controller{
+
+  implicit val typeFormFormat:Format[TypeSensorForm]=Json.format[TypeSensorForm]
+
+  implicit val especeFormat:Format[EspeceForm]=Json.format[EspeceForm]
 
   /************* Property *********************/
 
@@ -56,15 +69,22 @@ trait TypeSensorManagerLike extends Controller{
     mapping(
       "model"->nonEmptyText,
       "types"->nonEmptyText,
-      "espece"->list(text),
-      "mesure"->nonEmptyText,
       "nbSignaux"->number(min=1),
       "fabricant"->nonEmptyText,
-      "unite"->nonEmptyText,
-      "min"->of(floatFormat),
-      "max"->of(floatFormat),
       "send"->optional(text)
     )(TypeSensorForm.apply)(TypeSensorForm.unapply)
+  )
+
+  lazy val formEspece=Form[EspeceForm](
+    mapping(
+      "espece"->nonEmptyText,
+      "mesure"->nonEmptyText,
+      "unite"->nonEmptyText,
+      "min"->of[Float],
+      "max"->of[Float]
+    )(EspeceForm.apply)(EspeceForm.unapply) verifying(Messages("inventary.typeSensor.error.minGreaterMax"), fields => fields match {
+      case data => data.min<data.max
+    })
   )
 
   /**
@@ -80,7 +100,15 @@ trait TypeSensorManagerLike extends Controller{
    */
   val sensorDao:SensorDao=SensorDaoObj
 
+  /**
+   * DAO for modules
+   */
   val moduleDao:ModuleDao=ModuleDaoObj
+
+  /**
+   * DAO for species
+   */
+  val especeDao:EspeceDao=EspeceDaoObj
 
   /****************** Route methods ***********/
 
@@ -107,22 +135,22 @@ trait TypeSensorManagerLike extends Controller{
       //Verify if user is connect
       UserManager.doIfconnectAsync(request) {
         getInventaryTypeSensor(Json.obj("delete"->false),types,modele){
-          (typeSensor,typeMesure,stock,stockUsed,nomType)=>
+          (typeSensor,typeMesure,espece,stock,stockUsed,nomType)=>
               //Display the HTML page
-              Ok(views.html.sensors.listTypeSensor(filtreSto, types, modele, filtreStock(filtreSto), typeSensor, typeMesure, stock, stockUsed, nomType))
+              Ok(views.html.sensors.listTypeSensor(filtreSto, types, modele, filtreStock(filtreSto), typeSensor, typeMesure,espece, stock, stockUsed, nomType))
         }
       }
   }
 
   /**
-   * This method is call when the user is on the page /inventary/sensors/type. It display a form for add new sensor type
+   * This method is call when the user is on the page /inventary/sensors/type. It display a form for add sensor type information
    * @return Return Ok Action when the user is on the page /inventary/sensors/type with the form
    *         Return Redirect Action when the user is not log in
    */
   @ApiOperation(
     nickname = "inventary/sensors",
-    value = "Get the html page for insert a new sensor type",
-    notes = "Get the html page for insert a new sensor type",
+    value = "Get the html page for insert a sensor type",
+    notes = "Get the html page for insert a sensor type",
     httpMethod = "GET")
   @ApiResponses(Array(
     new ApiResponse(code=303,message="Move resource to the login page at /login if the user is not log")
@@ -133,7 +161,137 @@ trait TypeSensorManagerLike extends Controller{
       UserManager.doIfconnectAsync(request) {
 
         //Display the form for insert new sensor type
-        printForm(Results.Ok,form,routes.TypeSensorManager.typeInsert())
+        printForm(Results.Ok,form,routes.TypeSensorManager.saveTypeInfo(),request.session + ("typeForm"->"insert") - "typeInfo" - "typeEspece")
+      }
+  }
+
+  /**
+   * This method is call when the user is on the page /inventary/sensors/type. It save sensor type informations on session
+   * @return Redirect when the user is not log in or when sensor type informations are saved on session
+   *         Bad request if the form is submit with error
+   */
+  @ApiOperation(
+    nickname = "inventary/sensors/type",
+    value = "Save sensor type informations on session",
+    notes = "Save sensor type informations on session",
+    httpMethod = "POST")
+  @ApiResponses(Array(
+    new ApiResponse(code=303,message="<ul><li>Move resource to the login page at /login if the user is not log</li><li>Move resource to the form for add specie at /inventary/sensors/type/species</li></ul>"),
+    new ApiResponse(code=400,message="The form was submit with error")
+  ))
+  def saveTypeInfo=Action.async{
+    implicit request =>
+      //Verify if user is connect
+      UserManager.doIfconnectAsync(request) {
+
+        form.bindFromRequest.fold(
+
+          //If form contains errors
+          formWithErrors => printForm(Results.BadRequest,formWithErrors,routes.TypeSensorManager.saveTypeInfo(),request.session),
+
+          //Save sensor type information on session and redirect to the form for add specie
+          data=>future{Redirect(routes.TypeSensorManager.addEspecePage()).withSession(request.session + ("typeInfo"->Json.stringify(typeFormFormat.writes(data))))}
+        )
+      }
+  }
+
+  /**
+   * This method is call when the user is on the page /inventary/sensors/type/specie. It display a form for add a specie associat a sensor type
+   * @return Return Ok Action when the user is on the page /inventary/sensors/type/specie with the form
+   *         Return Redirect Action when the user is not log in
+   */
+  @ApiOperation(
+    nickname = "inventary/sensors/type/specie",
+    value = "Get the html page for insert a specie",
+    notes = "Get the html page for insert a specie",
+    httpMethod = "POST")
+  @ApiResponses(Array(
+    new ApiResponse(code=303,message="Move resource to the login page at /login if the user is not log")
+  ))
+  def addEspecePage=Action.async{
+    implicit request=>
+      //Verify if user is connect
+      UserManager.doIfconnectAsync(request) {
+
+        //Find the list of specie
+        especeDao.findListEspece().flatMap(
+          espece=>
+            //Find the list of mesure name
+            typeMesureDao.findListMesure("nom").flatMap(
+              mesures=>
+                //Find the list of unity
+                typeMesureDao.findListUnite("unite").map(
+                  unite=>
+
+                    //Print the form for add a specie
+                    Ok(views.html.sensors.formEspece(formEspece,espece.toList,mesures.toList,unite.toList,routes.TypeSensorManager.saveEspece()))
+                )
+            )
+        )
+      }
+  }
+
+  /**
+   * This method is call when the user is on the page /inventary/sensors/type/specie. It save specie on session
+   * @return Redirect when the user is not log in or when specie are saved on session
+   *         Bad request if the form is submit with error
+   */
+  @ApiOperation(
+    nickname = "inventary/sensors/type/specie",
+    value = "Save specie on session",
+    notes = "Save specie on session",
+    httpMethod = "POST")
+  @ApiResponses(Array(
+    new ApiResponse(code=303,message="<ul><li>Move resource to the login page at /login if the user is not log</li><li>Move resource to /inventary/sensors/type/validate for validate the sensor type</li></ul>"),
+    new ApiResponse(code=400,message="The form was submit with error")
+  ))
+  def saveEspece=Action.async{
+    implicit request =>
+      //Verify if user is connect
+      UserManager.doIfconnectAsync(request) {
+
+        formEspece.bindFromRequest.fold(
+
+          //If form contains errors, find the list of specie
+          formWithErrors =>especeDao.findListEspece().flatMap(
+            espece=>
+              //Find the list of mesure name
+              typeMesureDao.findListMesure("nom").flatMap(
+                mesures=>
+                  //Find the list of unity
+                  typeMesureDao.findListUnite("unite").map(
+                    unite=>
+                      //Send bad request with a prefilled form and errors
+                      BadRequest(views.html.sensors.formEspece(formWithErrors,espece.toList,mesures.toList,unite.toList,routes.TypeSensorManager.saveEspece()))
+                  )
+              )
+          ),
+
+          //Redirect to the page for validate species
+          data=>future{Redirect(routes.TypeSensorManager.validationPage()).withSession(request.session + ("typeEspece"->Json.stringify(especesToJson(data::getEspeceOnSession))))}
+        )
+      }
+  }
+
+  /**
+   * This method is call when the user is on the page /inventary/sensors/type/validate. It display a resume of the sensor type
+   * @return Return Ok Action when the user is on the page /inventary/sensors/type/validate with a resume of the sensor type
+   *         Return Redirect Action when the user is not log in
+   */
+  @ApiOperation(
+    nickname = "inventary/sensors/type/validate",
+    value = "Get the html page for display a resume of the sensor type",
+    notes = "Get the html page for display a resume of the sensor type",
+    httpMethod = "POST")
+  @ApiResponses(Array(
+    new ApiResponse(code=303,message="Move resource to the login page at /login if the user is not log")
+  ))
+  def validationPage=Action.async{
+    implicit request=>
+      //Verify if user is connect
+      UserManager.doIfconnectAsync(request) {
+        //Display the resume of the sensor type
+        future{Ok(views.html.sensors.validation(getTypeOnSession,getEspeceOnSession,""))}
       }
   }
 
@@ -150,7 +308,7 @@ trait TypeSensorManagerLike extends Controller{
     notes = "Get the html page for update sensor type",
     httpMethod = "GET")
   @ApiResponses(Array(
-    new ApiResponse(code=303,message="<ul><li>Move resource to the login page at /login if the user is not log</li><li>Move resource to the sensor inventary page at /inventary/sensors when sensor type not found"),
+    new ApiResponse(code=303,message="<ul><li>Move resource to the login page at /login if the user is not log</li><li>Move resource to the sensor inventary page at /inventary/sensors when sensor type not found</li></ul>"),
     new ApiResponse(code=500,message="Have a mongoDB error")
   ))
   @ApiImplicitParams(Array(
@@ -171,37 +329,19 @@ trait TypeSensorManagerLike extends Controller{
             //Sensor type found
             case Some(typeSensor)=>{
 
-              //Find signal associated to the sensor type
-              typeMesureDao.findById(typeSensor.mesure).flatMap(
-              typeMesureOpt=>typeMesureOpt match {
-
-                //Signal not found redirect to the sensor inventary
-                case None => future{Redirect(routes.TypeSensorManager.inventary())}
-
-                //Signal found
-                case Some(typeMesure) => {
-
                   //Prepare data for prefilled the form
                   val typeSensorData = TypeSensorForm(
                     typeSensor.modele,
                     typeSensor.nomType,
-                    typeSensor.espece,
-                    typeMesure.nom,
                     typeSensor.nbSignaux,
-                    typeSensor.fabricant,
-                    typeMesure.unite,
-                    typeSensor.min,
-                    typeSensor.max
+                    typeSensor.fabricant
                   )
 
-                  //Display the form for update sensor type
-                  printForm(Results.Ok,form.fill(typeSensorData),routes.TypeSensorManager.typeUpdate(id))
-                }
-              }
-              ).recover({
-                //Send an Internal Server Error for mongoDB error
-                case e=>InternalServerError("error")
-              })
+                  getEspeceForm(typeSensor.espece).flatMap(
+                    espece=>
+                      //Display the form for update sensor type
+                      printForm(Results.Ok,form.fill(typeSensorData),routes.TypeSensorManager.saveTypeInfo(),request.session + ("typeForm"->"update") + ("typeInfo"->Json.stringify(typeFormFormat.writes(typeSensorData))) + ("typeEspece"->Json.stringify(especesToJson(espece))) + ("typeId"->id))
+                  )
             }
           }
         ).recover({
@@ -211,123 +351,58 @@ trait TypeSensorManagerLike extends Controller{
       }
   }
 
+
   /**
-   * This method is call when the user submit a form for insert a new sensor type
-   * @return Return Bad Request Action if the form was submit with data error
-   *         Return Redirect Action when the user is not log in or sensor type is insert
-   *         Return Internal Server Error Action when have mongoDB error
+   * This method is call when the user is on the page /inventary/sensors/type/update. It display a prefilled form for update sensor type information
+   * @return Return Ok Action when the user is on the page /inventary/sensors/type/update with the prefilled form
+   *         Return Redirect Action when the user is not log in
    */
   @ApiOperation(
-    nickname = "inventary/sensor/type",
-    value = "Insert a new sensor type",
-    notes = "Insert a new sensor type to the mongoDB database",
-    httpMethod = "POST")
+    nickname = "inventary/sensors/type/update",
+    value = "Get the html page for update a sensor type information",
+    notes = "Get the html page for update a sensor type information",
+    httpMethod = "GET")
   @ApiResponses(Array(
-    new ApiResponse(code=303,message="<ul><li>Move resource to the login page at /login if the user is not log</li><li>Move resource to the sensor inventary page at /inventary/sensors when sensor type is insert"),
-    new ApiResponse(code=400,message="Fields required or not valid"),
-    new ApiResponse(code=500,message="Have a mongoDB error")
+    new ApiResponse(code=303,message="Move resource to the login page at /login if the user is not log")
   ))
-  @ApiImplicitParams(Array(
-    new ApiImplicitParam (value = "Name of the sensor model",required=true,name="model", dataType = "String", paramType = "form"),
-    new ApiImplicitParam (value = "Name of the sensor type",required=true,name="types", dataType = "String", paramType = "form"),
-    new ApiImplicitParam (value = "Builder of the sensor",required=true,name="fabricant", dataType = "String", paramType = "form"),
-    new ApiImplicitParam (value = "List of specie analyze by the sensor",required=true,allowMultiple=true,name="especes", dataType = "String", paramType = "form"),
-    new ApiImplicitParam (value = "Number of signal received by the sensor",required=true,name="nbSignaux", dataType = "Integer", paramType = "form"),
-    new ApiImplicitParam (value = "Name of the signal received by the sensor",required=true,name="mesure", dataType = "String", paramType = "form"),
-    new ApiImplicitParam (value = "Unity for the signal",required=true,name="unite", dataType = "String", paramType = "form")
-  ))
-  def typeInsert=Action.async{
-    implicit request=>
-      val msg=Messages("inventary.typeSensor.error.typeExist")+" <input type=\"submit\" class=\"btn btn-danger\" name=\"send\" value=\""+Messages("global.reactiver")+"\"/> <input type=\"submit\" class=\"btn btn-danger\" name=\"send\" value=\""+Messages("global.ignorer")+"\"/>"
-      //Verify if the user is connect and if data received are valid
-      submitForm(msg,routes.TypeSensorManager.typeInsert()) {
-        typeData => Json.obj("modele" -> typeData.model, "fabricant" -> typeData.fabricant)
-      }{(typeData,especes,mesure)=>{
-        if(typeData.send.isEmpty || typeData.send.equals(Some("Ignorer"))){
-          //Insert sensor type
-          typeSensorDao.insert(TypeSensor(
-            nomType=typeData.types,
-            modele=typeData.model,
-            mesure=mesure._id,
-            fabricant=typeData.fabricant,
-            nbSignaux=typeData.nbSignaux,
-            espece=especes,
-            min=typeData.min,
-            max=typeData.max
-          )).map(
-              //Redirect to the inventary if sensor type was insert
-              e => Redirect(routes.TypeSensorManager.inventary())
-            ).recover({
-            //Send Internal Server Error if have mongoDB error
-            case e => InternalServerError("error")
-          })
+  def updateInfo=Action.async{
+    implicit request =>
+      //Verify if user is connect
+      UserManager.doIfconnectAsync(request) {
+        getTypeOnSession match {
+          case None =>
+            //Display the form for update sensor type
+            printForm(Results.Ok, form, routes.TypeSensorManager.saveTypeInfo(), request.session)
+          case Some(typeData)=>
+            //Display the form for update sensor type
+            printForm(Results.Ok, form.fill(typeData), routes.TypeSensorManager.saveTypeInfo(), request.session)
         }
-        else{
-          updateWithDeleteColumn(Json.obj("modele" -> typeData.model, "fabricant" -> typeData.fabricant),false)
-        }
-      }
       }
   }
 
   /**
-   * This method is call when the user submit a form for update a sensor type
-   * @param id Sensor type id
-   * @return Return Bad Request Action if the form was submit with data error
-   *         Return Redirect Action when the user is not log in or sensor type is update
-   *         Return Internal Server Error Action when have mongoDB error
+   * This method is call when the user is on the page /inventary/sensors/type/validate. It save sensor type on mongoDB
+   * @return Redirect when the user is not log in or when sensor type is saved on mongoDB
+   *         Bad request if the sensor type is not valid
    */
   @ApiOperation(
-    nickname = "inventary/sensors/:id/update",
-    value = "Update a sensor type",
-    notes = "Update a sensor type to the mongoDB database",
+    nickname = "inventary/sensors/type/validate",
+    value = "Save the sensor type on mongoDB",
+    notes = "Save the sensor type on mongoDB",
     httpMethod = "POST")
   @ApiResponses(Array(
-    new ApiResponse(code=303,message="<ul><li>Move resource to the login page at /login if the user is not log</li><li>Move resource to the sensor inventary page at /inventary/sensors when sensor type is update"),
-    new ApiResponse(code=400,message="Fields required or not valid"),
-    new ApiResponse(code=500,message="Have a mongoDB error")
+    new ApiResponse(code=303,message="<ul><li>Move resource to the login page at /login if the user is not log</li><li>Move resource to the list of sensors at /inventary/sensors"),
+    new ApiResponse(code=400,message="The sensor type is not valid")
   ))
-  @ApiImplicitParams(Array(
-    new ApiImplicitParam(value = "Id of the sensor type",required=true,name="id", dataType = "String", paramType = "path"),
-    new ApiImplicitParam (value = "Name of the sensor model",required=true,name="model", dataType = "String", paramType = "form"),
-    new ApiImplicitParam (value = "Name of the sensor type",required=true,name="types", dataType = "String", paramType = "form"),
-    new ApiImplicitParam (value = "Builder of the sensor",required=true,name="fabricant", dataType = "String", paramType = "form"),
-    new ApiImplicitParam (value = "List of specie analyze by the sensor",required=true,allowMultiple=true,name="especes", dataType = "String", paramType = "form"),
-    new ApiImplicitParam (value = "Number of signal received by the sensor",required=true,name="nbSignaux", dataType = "Integer", paramType = "form"),
-    new ApiImplicitParam (value = "Name of the signal received by the sensor",required=true,name="mesure", dataType = "String", paramType = "form"),
-    new ApiImplicitParam (value = "Unity for the signal",required=true,name="unite", dataType = "String", paramType = "form")
-  ))
-  def typeUpdate(id:String)=Action.async{
+  def validate=Action.async{
     implicit request=>
-      val msg=Messages("inventary.typeSensor.error.typeExist")+" <input type=\"submit\" class=\"btn btn-danger\" value=\""+Messages("global.ignorer")+"\"/>"
-
-      //Verify if the user is connect and if data received are valid
-      submitForm(msg,routes.TypeSensorManager.typeUpdate(id)){
-        typeData => Json.obj("_id"->Json.obj("$ne"->BSONObjectID(id)),"modele" -> typeData.model, "fabricant" -> typeData.fabricant)
-      }{(typeData,especes,mesure)=>{
-        if(typeData.send.isEmpty || typeData.send.equals(Some("Ignorer"))) {
-          //Update sensor type
-          typeSensorDao.updateById(BSONObjectID(id),
-            TypeSensor(
-              _id = BSONObjectID(id),
-              nomType = typeData.types,
-              modele = typeData.model,
-              mesure = mesure._id,
-              fabricant = typeData.fabricant,
-              nbSignaux = typeData.nbSignaux,
-              espece = especes,
-              min=typeData.min,
-              max=typeData.max
-            )).map(
-              //Redirect to the inventary if sensor type was update
-              e => Redirect(routes.TypeSensorManager.inventary())
-            ).recover({
-            //Send Internal Server Error if have mongoDB error
-            case e => InternalServerError("error")
-          })
-        }else{
-          printForm(Results.BadRequest, form.withGlobalError(msg).fill(typeData), routes.TypeSensorManager.typeUpdate(id))
-        }
-      }
+      request.session.get("typeForm") match{
+        case Some("update")=>
+          request.session.get("typeId") match{
+            case None=>future{Redirect(routes.TypeSensorManager.inventary())}
+            case Some(id)=>typeUpdate(id)
+          }
+        case _=>typeInsert
       }
   }
 
@@ -372,6 +447,39 @@ trait TypeSensorManagerLike extends Controller{
       }
   }
 
+  /**
+   * Delete a specie when insert or update a sensor type
+   * @param id Index of the specie
+   * @return
+   */
+  @ApiOperation(
+    nickname = "inventary/sensors/type/validate",
+    value = "Delete a specie when insert or update a sensor type",
+    notes = "Delete a specie when insert or update a sensor type",
+    httpMethod = "GET")
+  @ApiResponses(Array(
+    new ApiResponse(code=303,message="<ul><li>Move resource to the login page at /login if the user is not log</li><li>Move resource /inventary/sensors/type/validate when after delete a specie"),
+    new ApiResponse(code=500,message="Have a mongoDB error")
+  ))
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(value = "Index of the specie",required=true,name="id", dataType = "Int", paramType = "path")
+  ))
+  def deleteEspece(id:Int)=Action.async{
+    implicit request=>
+      //Verify if user is connect
+      UserManager.doIfconnectAsync(request) {
+
+        //Find specie saved on session
+        val s=getEspeceOnSession
+
+        //Remove a specie
+        val newList=if(s.size<id) s else s.take(id)++s.drop(id+1)
+
+        //Redirect to the page for for validate the sensor type
+        future{Redirect(routes.TypeSensorManager.validationPage).withSession(request.session + ("typeEspece"->Json.stringify(especesToJson(newList))))}
+      }
+  }
+
   /****************  Methods  ***********************/
 
   /**
@@ -381,7 +489,7 @@ trait TypeSensorManagerLike extends Controller{
    * @param f Function for print the list of type sensors
    * @return
    */
-  def getInventaryTypeSensor(selector:JsObject,filtreType:String,filtreModele:String)(f:(List[TypeSensor],List[TypeMesure],List[BSONDocument],List[(BSONObjectID,Int)],List[BSONDocument])=>Result)={
+  def getInventaryTypeSensor(selector:JsObject,filtreType:String,filtreModele:String)(f:(List[TypeSensor],List[TypeMesure],List[Espece],List[BSONDocument],List[(BSONObjectID,Int)],List[BSONDocument])=>Result)={
     val selectorAll=(filtreType,filtreModele) match{
       case ("","")=>selector
       case (_,"")=>selector ++ Json.obj("nomType"->filtreType)
@@ -401,17 +509,20 @@ trait TypeSensorManagerLike extends Controller{
 
     //Get value defined on future
     typeSensorDao.findAll(selectorAll).flatMap(typeSensor=>
-      future_mesure.flatMap(typeMesure=>
-        future_stock.flatMap(stock=>
-          future_nomType.flatMap(nomType=>
-            sensorDao.countUsedSensors(typeSensor).map(
-              stockUsed=>
-                //Print the list of sensors type
-                f(typeSensor,typeMesure,stock.toList,stockUsed,nomType.toList)
+      especeDao.findAll(Json.obj("_id"->Json.obj("$in"->typeSensor.foldRight(List[BSONObjectID]()){(types,list)=>types.espece:::list}))).flatMap(
+        espece=>
+          future_mesure.flatMap(typeMesure=>
+            future_stock.flatMap(stock=>
+              future_nomType.flatMap(nomType=>
+                sensorDao.countUsedSensors(typeSensor).map(
+                  stockUsed=>
+                    //Print the list of sensors type
+                    f(typeSensor,typeMesure,espece,stock.toList,stockUsed,nomType.toList)
+                ).recover({case e=>InternalServerError("error")})
+              ).recover({case e=>InternalServerError("error")})
             ).recover({case e=>InternalServerError("error")})
           ).recover({case e=>InternalServerError("error")})
-        ).recover({case e=>InternalServerError("error")})
-      ).recover({case e=>InternalServerError("error")})
+      )
     ).recover({case e=>InternalServerError("error")})
   }
 
@@ -424,36 +535,89 @@ trait TypeSensorManagerLike extends Controller{
    *         Return Redirect if dedicated function is a success
    *         Return Internal server error if have mongoDB error
    */
-  def submitForm(errorMessage:String,r:Call)(verif:TypeSensorForm=>JsObject)(f:(TypeSensorForm,List[String],TypeMesure)=>Future[Result])(implicit request: Request[AnyContent]):Future[Result]={
+  def submitForm(errorMessage:String,r:Call)(verif:TypeSensorForm=>JsObject)(f:(TypeSensorForm,List[BSONObjectID])=>Future[Result])(implicit request: Request[AnyContent]):Future[Result]={
     //Verify if user is connect
     UserManager.doIfconnectAsync(request) {
-      form.bindFromRequest.fold(
 
-        //If form contains errors
-        formWithErrors => {
-          val especes = formWithErrors.data.filter(p=>p._1.startsWith("espece") && p._2.nonEmpty)
+      //Find specie on session
+      getEspeceOnSession match {
 
-          //If don't have valid specie
-          especes.size match {
-            //print form with prefilled data and a bad request
-            case 0 => printForm(Results.BadRequest,formWithErrors.withError("espece",Messages("global.error.required")),r)
-            //the form is redisplay with error descriptions
-            case _ => printForm(Results.BadRequest, formWithErrors, r)
-          }
-        },
+        //Send bad request if not have specie
+        case Nil=>future{BadRequest(views.html.sensors.validation(getTypeOnSession,List(),Messages("inventary.typeSensor.error.especeNotFound")))}
 
-        // Else if form no contains errors
-        typeData => {
-          //Get valid specie
-          val especes = typeData.espece.filter(p => p.length > 0)
+        //apply function for insert or update sensor type
+        case especes=>actionWhenFormValid(errorMessage,r,getTypeOnSession,especes,verif,f)
+      }
+    }
+  }
 
-          especes match {
-            //print form with prefilled data and a bad request
-            case List() => printForm(Results.BadRequest,form.withError("espece",Messages("global.error.required")).fill(typeData),r)
-            case _ => actionWhenFormValid (errorMessage,r,typeData,especes,verif,f)
-          }
-        }
-      )
+  /**
+   * Insert the sensor type on mongoDB
+   * @param request Request received
+   * @return
+   */
+  def typeInsert(implicit request:Request[AnyContent])={
+    val msg=Messages("inventary.typeSensor.error.typeExist")+" <input type=\"submit\" class=\"btn btn-danger\" name=\"send\" value=\""+Messages("global.reactiver")+"\"/> <input type=\"submit\" class=\"btn btn-danger\" name=\"send\" value=\""+Messages("global.ignorer")+"\"/>"
+    //Verify if the user is connect and if data received are valid
+    submitForm(msg,routes.TypeSensorManager.validate()) {
+      typeData => Json.obj("modele" -> typeData.model, "fabricant" -> typeData.fabricant)
+    }{(typeData,especes)=>{
+      if(typeData.send.isEmpty || typeData.send.equals(Some("Ignorer"))){
+        //Insert sensor type
+        typeSensorDao.insert(TypeSensor(
+          nomType=typeData.types,
+          modele=typeData.model,
+          fabricant=typeData.fabricant,
+          espece=especes,
+          nbSignaux=typeData.nbSignaux
+        )).map(
+            //Redirect to the inventary if sensor type was insert
+            e =>Redirect(routes.TypeSensorManager.inventary())
+          ).recover({
+          //Send Internal Server Error if have mongoDB error
+          case e => InternalServerError("error")
+        })
+      }
+      else{
+        updateWithDeleteColumn(Json.obj("modele" -> typeData.model, "fabricant" -> typeData.fabricant),false)
+      }
+    }
+    }
+  }
+
+  /**
+   * Update the sensor type on mongoDB
+   * @param request Request received
+   * @return
+   */
+  def typeUpdate(id:String)(implicit request:Request[AnyContent])={
+    val msg=Messages("inventary.typeSensor.error.typeExist")+" <input type=\"submit\" class=\"btn btn-danger\" name=\"send\" value=\""+Messages("global.ignorer")+"\"/>"
+
+    //Verify if the user is connect and if data received are valid
+    submitForm(msg,routes.TypeSensorManager.validate()){
+      typeData => Json.obj("_id"->Json.obj("$ne"->BSONObjectID(id)),"modele" -> typeData.model, "fabricant" -> typeData.fabricant)
+    }{(typeData,especes)=>{
+      if(typeData.send.isEmpty || typeData.send.equals(Some("Ignorer"))) {
+        //Update sensor type
+        typeSensorDao.updateById(BSONObjectID(id),
+          TypeSensor(
+            _id = BSONObjectID(id),
+            nomType = typeData.types,
+            modele = typeData.model,
+            fabricant = typeData.fabricant,
+            espece=especes,
+            nbSignaux = typeData.nbSignaux
+          )).map(
+            //Redirect to the inventary if sensor type was update
+            e => Redirect(routes.TypeSensorManager.inventary())
+          ).recover({
+          //Send Internal Server Error if have mongoDB error
+          case e => InternalServerError("error")
+        })
+      }else{
+        future{Results.BadRequest(views.html.sensors.validation(getTypeOnSession,getEspeceOnSession,msg))}
+      }
+    }
     }
   }
 
@@ -485,68 +649,100 @@ trait TypeSensorManagerLike extends Controller{
    * This method verify if the sensor exists before insert/update/reactivat the sensor
    * @param errorMessage Error message print if the sensor exist
    * @param r Route used when submit a form
-   * @param typeData Data received from the form
+   * @param typeOpt Data received from the form
    * @param especes List of valid specie in the form
    * @param verif A method return a JSON Object for get sensor to verify if the sensor exist
    * @param f A method for insert/update/reactivat the sensor
    * @param request
    * @return
    */
-  def actionWhenFormValid(errorMessage:String,r:Call,typeData:TypeSensorForm,especes:List[String],verif:TypeSensorForm=>JsObject,f:(TypeSensorForm,List[String],TypeMesure)=>Future[Result])(implicit request:Request[AnyContent])={
-    //Find the sensor type
-    typeSensorDao.findAll(verif(typeData)).flatMap(
-      types=>(typeData.send,types) match{
+  def actionWhenFormValid(errorMessage:String,r:Call,typeOpt:Option[TypeSensorForm],especes:List[EspeceForm],verif:TypeSensorForm=>JsObject,f:(TypeSensorForm,List[BSONObjectID])=>Future[Result])(implicit request:Request[AnyContent]):Future[Result]=typeOpt match{
+    case None=>future{BadRequest(views.html.sensors.validation(typeOpt,especes,Messages("inventary.typeSensor.error.typeInfo")))}
+    case Some(typeData)=>
+      //Find the sensor type
+      typeSensorDao.findAll(verif(typeData)).flatMap(
+        types=>(typeData.send,types) match{
           //If type not found or click on reactivat or ignore button
-        case (Some("Réactiver"),_) | (Some("Ignorer"),_) | (_,Nil) =>
-          //Find the signal
-          typeMesureDao.findOne(Json.obj("nom" -> typeData.mesure)).flatMap(
-            mesure => mesure match {
+          case (Some("Réactiver"),_) | (Some("Ignorer"),_) | (_,Nil) =>
+            Future.sequence(insertEspeces(especes)).flatMap(
+              espece => f(typeData, espece)
+            )
 
-              //If signal not found, insert the signal and applied dedicated function
-              case None => applyFunctionWithInsertSensor(typeData, especes, f)
-              //If signal found, applied dedicated function
-              case _ => f(typeData, especes, mesure.get)
-            }
-          ).recover({
-            //Send Internal Server Error if have mongoDB error
-            case e => InternalServerError("error")
-          })
+            //If type exist and delete
+          case _ if types.filter(p => !(p.delete) ).size>0 =>future{BadRequest(views.html.sensors.validation(typeOpt,especes,Messages("inventary.typeSensor.error.typeExist")))}
 
-          //If type exist and delete
-        case _ if types.filter(p => !(p.delete) ).size>0 =>printForm(Results.BadRequest, form.withGlobalError(Messages("inventary.typeSensor.error.typeExist")).fill(typeData), r)
-
-          //If type exist and not delete
-        case _ => printForm(Results.BadRequest, form.withGlobalError(errorMessage).fill(typeData), r)
-      }
-    ).recover({
-      //Send Internal Server Error if have mongoDB error
-      case e => InternalServerError("error")
-    })
+            //If type exist and not delete
+          case _ => future{BadRequest(views.html.sensors.validation(typeOpt,especes,errorMessage))}
+        }
+      ).recover({
+        //Send Internal Server Error if have mongoDB error
+        case e => Results.InternalServerError("error")
+      })
   }
 
   /**
-   * This method insert signal into the database and after execute dedicated function
-   * @param typeData Data received from the form
-   * @param especes List of valid specie
-   * @param f Dedicated function
-   * @return Return Redirect Action if the dedicated function success
-   *         Return Internal server error if have mongoDB error
+   * Insert species and mesure type on mongoDB
+   * @param espece List of species submit
+   * @return The list of BSONObjectID associat to species
    */
-  def applyFunctionWithInsertSensor(typeData:TypeSensorForm,especes:List[String],f:(TypeSensorForm,List[String],TypeMesure)=>Future[Result]): Future[Result] ={
-    val mesure_Insert = TypeMesure(nom = typeData.mesure, unite = typeData.unite)
+  def insertEspeces(espece:List[EspeceForm]):List[Future[BSONObjectID]]=espece match{
+      //Return an empty list if not have specie
+    case Nil=>List()
 
-    //Insert the signal into the database
-    typeMesureDao.insert(mesure_Insert).flatMap(
+    case h::t=>
+      //Find the list of mesure
+      typeMesureDao.findOne(Json.obj("nom"->h.mesure,"unite"->h.unite)).flatMap(
+        mesureOpt=>mesureOpt match{
 
-      //If signal was insert, execute dedicated function
-      e => f(typeData,especes, mesure_Insert)
+            //If not have mesure
+          case None=>{
+            //Create mesure type
+            val mesure=TypeMesure(nom=h.mesure,unite=h.unite)
 
-    ).recover({
+            //Insert mesure type on mongoDB
+            typeMesureDao.insert(mesure).flatMap(
 
-      //Send Internal Server Error if have mongoDB error
-      case _ => InternalServerError("error")
-    })
+              //Insert specie
+              data=>insertEspece(h,mesure._id)
+            )
+          }
+
+            //If have mesure, insert specie
+          case Some(mesure)=>insertEspece(h,mesure._id)
+        }
+      )::insertEspeces(t)
   }
+
+  /**
+   * Insert specie on mongoDB
+   * @param espece A Specie
+   * @param mesure Mesure type BSONObjectID
+   * @return Return the BSONObjectID of specie
+   */
+  def insertEspece(espece:EspeceForm,mesure:BSONObjectID):Future[BSONObjectID]=
+    //Find specie
+    especeDao.findOne(Json.obj("espece"->espece.espece,"mesure"->mesure,"min"->espece.min,"max"->espece.max)).flatMap(
+
+      especeOpt=>especeOpt match {
+
+        //If specie not exist
+        case None=>{
+
+          //Create specie
+          val esp=Espece(espece=espece.espece,mesure=mesure,min=espece.min,max=espece.max)
+
+          //Insert specie on mongoDB
+          especeDao.insert(esp).map(
+
+            //Return specie BSONObjectID
+            data=>esp._id
+          )
+        }
+
+        //If specie exist, return BSONObjectID
+        case Some(esp)=>future{esp._id}
+      }
+  )
 
   /**
    * Print the form with datalist
@@ -555,22 +751,82 @@ trait TypeSensorManagerLike extends Controller{
    * @param r Route call when submit the form
    * @return
    */
-  def printForm(status:Results.Status,form:Form[TypeSensorForm],r:Call)(implicit request:Request[AnyContent]): Future[Result] ={
+  def printForm(status:Results.Status,form:Form[TypeSensorForm],r:Call,session:Session)(implicit request:Request[AnyContent]): Future[Result] ={
     getListData().map(listData=>
       status(
         views.html.sensors.formType(
           form,
           listData.get("modele").get,
           listData.get("fabricant").get,
-          listData.get("espece").get,
           listData.get("type").get,
-          listData.get("mesure").get,
-          listData.get("unite").get,
           r
         )
-      )
+      ).withSession(session)
     )
   }
+
+  /**
+   * Find species saved on session
+   * @param request Request received
+   * @return List of species saved on session
+   */
+  def getEspeceOnSession(implicit request:Request[AnyContent]):List[EspeceForm]=request.session.get("typeEspece") match {
+
+    //If the session not exist, return an empty list
+    case None=>List()
+
+    //If the session exist, return the list of species saved on session
+    case Some(str)=>Json.parse(str).as[List[EspeceForm]]
+  }
+
+  /**
+   * Find sensor type saved on session
+   * @param request Request received
+   * @return Sensor type saved on session
+   */
+  def getTypeOnSession(implicit request:Request[AnyContent]):Option[TypeSensorForm]=request.session.get("typeInfo") match{
+
+    //If the session not exist, return None
+    case None=>None
+
+    //If the session exist, return the sensor type
+    case Some(info)=>Some(Json.parse(info).as[TypeSensorForm])
+  }
+
+  /**
+   * Parse the list of species to JSON
+   * @param especes List of specie
+   * @return Return Json represent a list of species
+   */
+  def especesToJson(especes:List[EspeceForm]):JsArray=JsArray(especes.foldRight(List[JsValue]()){
+    (esp,list)=>especeFormat.writes(esp)::list
+  })
+
+  /**
+   * Find species associat to a sensor type for update a sensor type
+   * @param id Sensor type id
+   * @return Return species for update a sensor type
+   */
+  def getEspeceForm(id:List[BSONObjectID]):Future[List[EspeceForm]]=
+    //Find the list of species
+    especeDao.findAll(Json.obj("_id"->Json.obj("$in"->id))).flatMap(
+      espece=>
+
+        //Find the list of mesure
+        typeMesureDao.findAll(Json.obj("_id"->Json.obj("$in"->espece.foldRight(List[BSONObjectID]()){
+          (esp,list)=>esp.mesure::list
+        }))).map(
+          mesure=>
+
+            //for each species create specie for update a sensor type
+            espece.foldRight(List[EspeceForm]()){
+              (esp,list)=>mesure.find(p=>p._id.equals(esp.mesure)) match{
+                case None=>list
+                case Some(m)=>EspeceForm(esp.espece,m.nom,m.unite,esp.min,esp.max)::list
+              }
+            }
+        )
+    )
 
   /**
    * This method update just the delete column of a sensor type
@@ -617,26 +873,14 @@ trait TypeSensorManagerLike extends Controller{
   def getListData():Future[Map[String, List[BSONDocument]]]={
     val future_modele = typeSensorDao.findListModele("modele")
     val future_fabricant = typeSensorDao.findListFabricant("fabricant")
-    val future_espece = typeSensorDao.findListEspece("espece")
     val future_type = typeSensorDao.findListType("nomType")
-    val future_mesure = typeMesureDao.findListMesure("nom")
-    val future_unite = typeMesureDao.findListUnite("unite")
     future_modele.flatMap(modele=>
       future_fabricant.flatMap(fabricant=>
-        future_espece.flatMap(espece=>
-          future_type.flatMap(typesData=>
-            future_mesure.flatMap(mesure=>
-              future_unite.map(unite=>
-                Map(
-                  "modele"->modele.toList,
-                  "fabricant"->fabricant.toList,
-                  "espece"->espece.toList,
-                  "type"->typesData.toList,
-                  "mesure"->mesure.toList,
-                  "unite"->unite.toList
-                )
-              )
-            )
+        future_type.map(typesData=>
+          Map(
+            "modele"->modele.toList,
+            "fabricant"->fabricant.toList,
+            "type"->typesData.toList
           )
         )
       )
