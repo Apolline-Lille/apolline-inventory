@@ -20,4 +20,8 @@ abstract class ConfigurationDao extends JsonDao[Configuration, BSONObjectID](Rea
 
 }
 
+object TimeConfigOrdering extends Ordering[Configuration]{
+  def compare(a:Configuration, b:Configuration) = a.timeFilter compare b.timeFilter
+}
+
 object ConfigurationDaoObj extends ConfigurationDao

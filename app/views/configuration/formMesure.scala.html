@@ -1,4 +1,4 @@
-@(form:Form[InfoMesureForm],mod:Module,mesure:List[reactivemongo.bson.BSONDocument],unite:List[reactivemongo.bson.BSONDocument],idSensor:String)(implicit request: Request[AnyContent])
+@(form:Form[InfoMesureForm],mod:Module,espece:List[Espece],idSensor:String)(implicit request: Request[AnyContent])
 
 @import models.template.InlineInput.inlineInput
 
@@ -24,6 +24,13 @@
                     <div class="col-sm-12">
                         @helper.input(form("index"),'_label->Messages("inventary.configuration.index"),'required->true){ (id, name, value, args) =>
                             <input id="@id" name="@name" class="form-control" type="number" autofocus="autofocus" autocomplete="off" @if(value!=null){value="@value"}/>
+                        }
+                        @helper.input(form("espece"),'_label->Messages("inventary.configuration.specie"),'required->true){ (id, name, value, args) =>
+                            <select id="@id" name="@name" class="form-control">
+                                @for(esp<-espece){
+                                    <option value="@esp._id.stringify">@esp.espece</option>
+                                }
+                            </select>
                         }
                     </div>
                     <div class="col-sm-12">

@@ -269,8 +269,8 @@ class ConfigurationManagerSpec extends Specification with Mockito{
       controller.formatsForm returns f.controller.formatsForm
       controller.findInformationForForm(infos) returns future{
         List(
-          Json.obj("sensor"->bson4.stringify,"info"->Json.obj("index"->1,"id"->"id2","mesure"->"Tension2","unite"->"Volt2")),
-          Json.obj("sensor"->bson3.stringify,"info"->Json.obj("index"->0,"id"->"id","mesure"->"Tension","unite"->"Volt"))
+          Json.obj("sensor"->bson4.stringify,"info"->Json.obj("index"->1,"espece"->bson.stringify)),
+          Json.obj("sensor"->bson3.stringify,"info"->Json.obj("index"->0,"espece"->bson2.stringify))
         )
       }
       f.applyFoundFunction()
@@ -298,7 +298,7 @@ class ConfigurationManagerSpec extends Specification with Mockito{
       val s = session(r)
       s.get("configForm") must beSome("update")
       s.get("config") must beSome("""{"port":"/dev/ttyUSB0","timeout":10000,"baud":9600,"bits":8,"stopBits":1,"parity":0,"timeFilter":1000,"types":"ADC","numberOfValue":6}""")
-      s.get("infoMesure") must beSome("[{\"sensor\":\""+bson4.stringify+"\",\"info\":{\"index\":1,\"id\":\"id2\",\"mesure\":\"Tension2\",\"unite\":\"Volt2\"}},{\"sensor\":\""+bson3.stringify+"\",\"info\":{\"index\":0,\"id\":\"id\",\"mesure\":\"Tension\",\"unite\":\"Volt\"}}]")
+      s.get("infoMesure") must beSome("[{\"sensor\":\""+bson4.stringify+"\",\"info\":{\"index\":1,\"espece\":\""+bson.stringify+"\"}},{\"sensor\":\""+bson3.stringify+"\",\"info\":{\"index\":0,\"espece\":\""+bson2.stringify+"\"}}]")
       s.get("configUpdate") must beSome(bson2.stringify)
 
       there was one(f.moduleManagerMock).doIfModuleFound(org.mockito.Matchers.eq(bson))(any[Module => Future[Result]])(any[Unit => Future[Result]])
@@ -480,12 +480,12 @@ class ConfigurationManagerSpec extends Specification with Mockito{
   "When user is on resource /inventary/modules/:id/configuration/sensors/:id2, ConfigurationManager" should{
     "send 200 Ok page with a form" in new WithApplication{
       val f=fixture
-      val sensor=mock[Sensor]
+      val sensor=Sensor(bson2,"id",bson3,None,date,None,false,None)
 
       f.applyFoundFunction()
-      f.typeMesureDaoMock.findListMesure(org.mockito.Matchers.eq("mesure")) returns future{Stream()}
-      f.typeMesureDaoMock.findListUnite(org.mockito.Matchers.eq("unite")) returns future{Stream()}
       f.sensorDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->bson2)))(any[ExecutionContext]) returns future{Some(sensor)}
+      f.typeSensorDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("_id"->bson3)))(any[ExecutionContext]) returns future{Some(TypeSensor(bson3,"nom","mod","fab",1,List(bson4)))}
+      f.especeDaoMock.findAll(org.mockito.Matchers.eq(Json.obj("_id"->Json.obj("$in"->List(bson4)))),any[JsObject])(any[ExecutionContext]) returns future{List(Espece(bson4,"esp",bson,0f,1f))}
 
       val r=f.controller.formInfoMesure(bson.stringify,bson2.stringify).apply(FakeRequest(GET, "/inventary/modules/"+bson.stringify+"/configuration/sensors/"+bson2.stringify).withSession("user" -> """{"login":"test"}"""))
 
@@ -497,19 +497,19 @@ class ConfigurationManagerSpec extends Specification with Mockito{
       content must contain("<input id=\"index\" name=\"index\" class=\"form-control\" type=\"number\" autofocus=\"autofocus\" autocomplete=\"off\" value=\"\"/>")
 
       there was one(f.moduleManagerMock).doIfModuleFound(org.mockito.Matchers.eq(bson))(any[Module=>Future[Result]])(any[Unit=>Future[Result]])
-      there was one(f.typeMesureDaoMock).findListMesure(org.mockito.Matchers.eq("mesure"))
-      there was one(f.typeMesureDaoMock).findListUnite(org.mockito.Matchers.eq("unite"))
       there was one(f.sensorDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->bson2)))(any[ExecutionContext])
+      there was one(f.typeSensorDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("_id"->bson3)))(any[ExecutionContext])
+      there was one(f.especeDaoMock).findAll(org.mockito.Matchers.eq(Json.obj("_id"->Json.obj("$in"->List(bson4)))),any[JsObject])(any[ExecutionContext])
     }
 
     "send bad request if form is submit with empty field" in new WithApplication {
       val f= fixture
-      val sensor=mock[Sensor]
+      val sensor=Sensor(bson2,"id",bson3,None,date,None,false,None)
 
       f.applyFoundFunction()
-      f.typeMesureDaoMock.findListMesure(org.mockito.Matchers.eq("mesure")) returns future{Stream()}
-      f.typeMesureDaoMock.findListUnite(org.mockito.Matchers.eq("unite")) returns future{Stream()}
       f.sensorDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->bson2)))(any[ExecutionContext]) returns future{Some(sensor)}
+      f.typeSensorDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("_id"->bson3)))(any[ExecutionContext]) returns future{Some(TypeSensor(bson3,"nom","mod","fab",1,List(bson4)))}
+      f.especeDaoMock.findAll(org.mockito.Matchers.eq(Json.obj("_id"->Json.obj("$in"->List(bson4)))),any[JsObject])(any[ExecutionContext]) returns future{List(Espece(bson4,"esp",bson,0f,1f))}
 
       val r=f.controller.insertInfoMesure(bson.stringify,bson2.stringify).apply(FakeRequest(POST, "/inventary/modules/"+bson.stringify+"/configuration/sensors/"+bson2.stringify).withSession("user" -> """{"login":"test"}"""))
 
@@ -518,23 +518,23 @@ class ConfigurationManagerSpec extends Specification with Mockito{
       content must contain("<h4>type / id</h4>")
       content must contain("<span class=\"bold\">Commentaires</span> : un com")
       content must matchRegex("<span class=\"bold\">Date d&#x27;assemblage</span> : \\d{2}/\\d{2}/\\d{4}")
-      content must contains("<span class=\"control-label errors\">This field is required</span>",1)
+      content must contains("<span class=\"control-label errors\">This field is required</span>",2)
 
       there was one(f.moduleManagerMock).doIfModuleFound(org.mockito.Matchers.eq(bson))(any[Module=>Future[Result]])(any[Unit=>Future[Result]])
-      there was one(f.typeMesureDaoMock).findListMesure(org.mockito.Matchers.eq("mesure"))
-      there was one(f.typeMesureDaoMock).findListUnite(org.mockito.Matchers.eq("unite"))
       there was one(f.sensorDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->bson2)))(any[ExecutionContext])
+      there was one(f.typeSensorDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("_id"->bson3)))(any[ExecutionContext])
+      there was one(f.especeDaoMock).findAll(org.mockito.Matchers.eq(Json.obj("_id"->Json.obj("$in"->List(bson4)))),any[JsObject])(any[ExecutionContext])
     }
 
     "send bad request if the index is not valid" in new WithApplication{
       val f= fixture
-      val data="""{"index":"a"}"""
-      val sensor=mock[Sensor]
+      val data="""{"index":"a","espece":"abcde"}"""
+      val sensor=Sensor(bson2,"id",bson3,None,date,None,false,None)
 
       f.applyFoundFunction()
-      f.typeMesureDaoMock.findListMesure(org.mockito.Matchers.eq("mesure")) returns future{Stream()}
-      f.typeMesureDaoMock.findListUnite(org.mockito.Matchers.eq("unite")) returns future{Stream()}
       f.sensorDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->bson2)))(any[ExecutionContext]) returns future{Some(sensor)}
+      f.typeSensorDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("_id"->bson3)))(any[ExecutionContext]) returns future{Some(TypeSensor(bson3,"nom","mod","fab",1,List(bson4)))}
+      f.especeDaoMock.findAll(org.mockito.Matchers.eq(Json.obj("_id"->Json.obj("$in"->List(bson4)))),any[JsObject])(any[ExecutionContext]) returns future{List(Espece(bson4,"esp",bson,0f,1f))}
 
       val r=f.controller.insertInfoMesure(bson.stringify,bson2.stringify).apply(FakeRequest(POST, "/inventary/modules/"+bson.stringify+"/configuration/sensors/"+bson2.stringify).withJsonBody(Json.parse(data)).withSession("user" -> """{"login":"test"}"""))
 
@@ -543,14 +543,14 @@ class ConfigurationManagerSpec extends Specification with Mockito{
       content must contain("<span class=\"control-label errors\">Numeric value expected</span>")
 
       there was one(f.moduleManagerMock).doIfModuleFound(org.mockito.Matchers.eq(bson))(any[Module=>Future[Result]])(any[Unit=>Future[Result]])
-      there was one(f.typeMesureDaoMock).findListMesure(org.mockito.Matchers.eq("mesure"))
-      there was one(f.typeMesureDaoMock).findListUnite(org.mockito.Matchers.eq("unite"))
       there was one(f.sensorDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->bson2)))(any[ExecutionContext])
+      there was one(f.typeSensorDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("_id"->bson3)))(any[ExecutionContext])
+      there was one(f.especeDaoMock).findAll(org.mockito.Matchers.eq(Json.obj("_id"->Json.obj("$in"->List(bson4)))),any[JsObject])(any[ExecutionContext])
     }
 
     "send redirect after insert mesure information into session" in new WithApplication{
       val f= fixture
-      val data="""{"index":"0"}"""
+      val data="""{"index":"0","espece":""""+bson3.stringify+""""}"""
       val sensor=mock[Sensor]
 
       f.applyFoundFunction()
@@ -561,7 +561,7 @@ class ConfigurationManagerSpec extends Specification with Mockito{
       status(r) must equalTo(SEE_OTHER)
       header("Location",r) must beSome("/inventary/modules/"+bson.stringify+"/configuration/sensors")
       val s=session(r)
-      s.get("infoMesure") must beSome("[{\"sensor\":\""+bson2.stringify+"\",\"info\":{\"index\":0}}]")
+      s.get("infoMesure") must beSome("[{\"sensor\":\""+bson2.stringify+"\",\"info\":{\"index\":0,\"espece\":\""+bson3.stringify+"\"}}]")
 
       there was one(f.moduleManagerMock).doIfModuleFound(org.mockito.Matchers.eq(bson))(any[Module=>Future[Result]])(any[Unit=>Future[Result]])
       there was one(f.sensorDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->bson2)))(any[ExecutionContext])
@@ -585,7 +585,7 @@ class ConfigurationManagerSpec extends Specification with Mockito{
     "send 200 Ok page with the summary of the validation" in new WithApplication{
       val f=fixture
       val sessionConfig="""{"port":"/dev/ttyUSB0","timeout":10,"baud":9600,"bits":8,"parity":0,"stopBits":1,"timeFilter":1000,"types":"ADC","numberOfValue":6}"""
-      val sessionInfoMesure="""[{"sensor":""""+bson2.stringify+"""","info":{"index":0,"id":"id","mesure":"mesure","unite":"unite"}}]"""
+      val sessionInfoMesure="""[{"sensor":""""+bson2.stringify+"""","info":{"index":0,"espece":""""+bson4.stringify+""""}}]"""
       val typeSensor=List(TypeSensor(bson3,"typeSensor2","nomTypeSensor2","fab2",2,List(bson4)))
       val typeMesure=List(TypeMesure(bson2,"mesure2","unite2"))
       val sensor=List(Sensor(bson2,"id",bson3,None,date,None,true,None))
@@ -683,7 +683,7 @@ class ConfigurationManagerSpec extends Specification with Mockito{
     "send redirect after insert configuration" in new WithApplication{
       val f=fixture
       val sessionConfig="""{"port":"/dev/ttyUSB0","timeout":10000,"baud":9600,"bits":8,"parity":0,"stopBits":1,"timeFilter":1000,"types":"ADC","numberOfValue":6}"""
-      val sessionInfoMesure="""[{"sensor":""""+bson2.stringify+"""","info":{"index":0,"id":"id","mesure":"mesure","unite":"unite"}}]"""
+      val sessionInfoMesure="""[{"sensor":""""+bson2.stringify+"""","info":{"index":0,"espece":""""+bson3.stringify+""""}}]"""
       val lastError=mock[LastError]
 
       f.applyFoundFunction()
@@ -713,7 +713,7 @@ class ConfigurationManagerSpec extends Specification with Mockito{
       there was one(f.moduleDaoMock).updateById(org.mockito.Matchers.eq(bson),captorObj.capture(),any[GetLastError])(any[Writes[JsObject]],any[ExecutionContext])
 
       val arg=captor.getValue
-      arg must equalTo(InformationMesure(arg._id,0,bson2))
+      arg must equalTo(InformationMesure(arg._id,0,bson2,bson3))
 
       val configCapt=captorConfig.getValue
       configCapt must equalTo(Configuration(_id=configCapt._id,port="/dev/ttyUSB0",types="ADC",infoMesure=List(arg._id),numberOfValue=6))
@@ -766,7 +766,7 @@ class ConfigurationManagerSpec extends Specification with Mockito{
     "send 200 Ok page with configuration informations" in new WithApplication {
       val f = fixture
       val config=Configuration(_id=bson2,port="/dev/ttyUSB0",types="ADC",infoMesure=List(bson3),numberOfValue=6)
-      val info=InformationMesure(bson3,0,bson)
+      val info=InformationMesure(bson3,0,bson,bson2)
       val typeSensor = List(TypeSensor(bson3, "typeSensor2", "nomTypeSensor2", "fab2", 2,List(bson2)))
       val typeMesure = List(TypeMesure(bson4, "mesure", "unite"))
       val sensor = List(Sensor(bson, "id", bson3, None, date, None, true, None))
@@ -837,7 +837,7 @@ class ConfigurationManagerSpec extends Specification with Mockito{
       val f=fixture
       val zip=mock[ZipOutputStream]
       val config=List(Configuration(port="/dev/ttyUSB0",types="ADC",infoMesure=List(bson3),numberOfValue=6),Configuration(port="/dev/ttyUSB0",types="wasp",infoMesure=List(bson4),numberOfValue=8))
-      val info=List(InformationMesure(bson3,0,bson2),InformationMesure(bson4,0,bson3))
+      val info=List(InformationMesure(bson3,0,bson2,bson4),InformationMesure(bson4,0,bson3,bson))
 
       f.applyFoundFunction()
       f.configMock.getString(org.mockito.Matchers.eq("hostname"),any[Option[Set[String]]]) returns Some("url")
@@ -862,7 +862,8 @@ class ConfigurationManagerSpec extends Specification with Mockito{
       org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("sensors={\\\n").getBytes))
       org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("\""+bson3.stringify+"\":[\\\n").getBytes))
       org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("\""+bson2.stringify+"\":[\\\n").getBytes))
-      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq("{\"index\":0}".getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("{\"index\":0,\"espece\":\""+bson4.stringify+"\"}").getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("{\"index\":0,\"espece\":\""+bson.stringify+"\"}").getBytes))
       org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq("\\\n]".getBytes))
       org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("}").getBytes))
       org.mockito.Mockito.doNothing().when(zip).closeEntry()
@@ -896,7 +897,8 @@ class ConfigurationManagerSpec extends Specification with Mockito{
       there was 2.times(zip).write(org.mockito.Matchers.eq(("sensors={\\\n").getBytes))
       there was one(zip).write(org.mockito.Matchers.eq(("\""+bson3.stringify+"\":[\\\n").getBytes))
       there was one(zip).write(org.mockito.Matchers.eq(("\""+bson2.stringify+"\":[\\\n").getBytes))
-      there was 2.times(zip).write(org.mockito.Matchers.eq("{\"index\":0}".getBytes))
+      there was one(zip).write(org.mockito.Matchers.eq(("{\"index\":0,\"espece\":\""+bson4.stringify+"\"}").getBytes))
+      there was one(zip).write(org.mockito.Matchers.eq(("{\"index\":0,\"espece\":\""+bson.stringify+"\"}").getBytes))
       there was 2.times(zip).write(org.mockito.Matchers.eq("\\\n]".getBytes))
       there was 2.times(zip).write(org.mockito.Matchers.eq(("}").getBytes))
       there was 2.times(zip).closeEntry()
@@ -908,8 +910,8 @@ class ConfigurationManagerSpec extends Specification with Mockito{
   "When method createJsonInfoMesure is called, ConfigurationManager" should{
     "send new JsArray with mesure information" in new WithApplication{
       val f=fixture
-      val infoMesure=InfoMesureForm(0)
-      val infoMesureObj=Json.parse("""{"index":0}""")
+      val infoMesure=InfoMesureForm(0,bson2.stringify)
+      val infoMesureObj=Json.parse("""{"index":0,"espece":""""+bson2.stringify+""""}""")
 
       val r=f.controller.createJsonInfoMesure(bson.stringify,infoMesure)(FakeRequest(POST, "/inventary/modules/"+bson.stringify+"/configuration/sensors/"+bson2.stringify))
 
@@ -918,9 +920,9 @@ class ConfigurationManagerSpec extends Specification with Mockito{
 
     "send JsArray with the new mesure information" in new WithApplication{
       val f=fixture
-      val infoMesure=InfoMesureForm(0)
-      val infoMesureObj=Json.parse("""{"index":0}""")
-      val objSession="""{"sensor":""""+bson2.stringify+"""","info":{"index":1}}"""
+      val infoMesure=InfoMesureForm(0,bson2.stringify)
+      val infoMesureObj=Json.parse("""{"index":0,"espece":""""+bson2.stringify+""""}""")
+      val objSession="""{"sensor":""""+bson2.stringify+"""","info":{"index":1,"espece":""""+bson3.stringify+""""}}"""
 
       val r=f.controller.createJsonInfoMesure(bson.stringify,infoMesure)(FakeRequest(POST, "/inventary/modules/"+bson.stringify+"/configuration/sensors/"+bson2.stringify).withSession("infoMesure"->("["+objSession+"]")))
 
@@ -931,7 +933,7 @@ class ConfigurationManagerSpec extends Specification with Mockito{
   "When method verifyModuleAndSensorFound is called, ConfigurationManager" should{
     "send redirect if module not found" in new WithApplication{
       val f=fixture
-      val func=mock[Module=>Future[Result]]
+      val func=mock[(Module,Sensor)=>Future[Result]]
 
       f.applyNotFoundFunction()
 
@@ -944,7 +946,7 @@ class ConfigurationManagerSpec extends Specification with Mockito{
 
     "send redirect if sensor not found" in new WithApplication{
       val f=fixture
-      val func=mock[Module=>Future[Result]]
+      val func=mock[(Module,Sensor)=>Future[Result]]
 
       f.applyFoundFunction()
       f.sensorDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->bson2)))(any[ExecutionContext]) returns future{None}
@@ -959,11 +961,11 @@ class ConfigurationManagerSpec extends Specification with Mockito{
 
     "execute function if module and sensor found" in new WithApplication{
       val f=fixture
-      val func=mock[Module=>Future[Result]]
+      val func=mock[(Module,Sensor)=>Future[Result]]
 
       f.applyFoundFunction()
       f.sensorDaoMock.findOne(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->bson2)))(any[ExecutionContext]) returns future{Some(mock[Sensor])}
-      func.apply(any[Module]) returns future{Results.Ok("exec func")}
+      func.apply(any[Module],any[Sensor]) returns future{Results.Ok("exec func")}
 
       val r=f.controller.verifyModuleAndSensorFound(bson.stringify,bson2.stringify)(func)(FakeRequest(GET, "/inventary/modules/"+bson.stringify+"/configuration/sensors/"+bson2.stringify).withSession("user" -> """{"login":"test"}"""))
       status(r) must equalTo(OK)
@@ -971,7 +973,7 @@ class ConfigurationManagerSpec extends Specification with Mockito{
 
       there was one(f.moduleManagerMock).doIfModuleFound(org.mockito.Matchers.eq(bson))(any[Module=>Future[Result]])(any[Unit=>Future[Result]])
       there was one(f.sensorDaoMock).findOne(org.mockito.Matchers.eq(Json.obj("delete"->false,"_id"->bson2)))(any[ExecutionContext])
-      there was one(func).apply(any[Module])
+      there was one(func).apply(any[Module],any[Sensor])
     }
   }
 
@@ -1013,11 +1015,11 @@ class ConfigurationManagerSpec extends Specification with Mockito{
 
     "return the list of informations mesure in session" in new WithApplication{
       val f=fixture
-      val session="""[{"sensor":""""+bson.stringify+"""","info":{"index":0}}]"""
+      val session="""[{"sensor":""""+bson.stringify+"""","info":{"index":0,"espece":""""+bson2.stringify+""""}}]"""
 
       val r=f.controller.getInfoMesure(FakeRequest(GET,"url").withSession("infoMesure"->session))
 
-      r must equalTo(List((bson,InfoMesureForm(0))))
+      r must equalTo(List((bson,InfoMesureForm(0,bson2.stringify))))
     }
   }
 
@@ -1075,7 +1077,7 @@ class ConfigurationManagerSpec extends Specification with Mockito{
     "send page with the summary of the validation" in new WithApplication{
       val f=fixture
       val config=ConfigurationForm("/dev/ttyUSB0",10,9600,8,1,0,1000,"ADC",6)
-      val infoMesure=List((bson2,InfoMesureForm(0)))
+      val infoMesure=List((bson2,InfoMesureForm(0,bson4.stringify)))
       val typeSensor=List(TypeSensor(bson3,"typeSensor2","nomTypeSensor2","fab2",2,List(bson4)))
       val typeMesure=List(TypeMesure(bson2,"mesure2","unite2"))
       val module=Module(bson,"id","type",date,List(),List(),Some("un com"))
@@ -1151,8 +1153,8 @@ class ConfigurationManagerSpec extends Specification with Mockito{
     "return a list with id of type mesure" in new WithApplication{
       val f=fixture
       val listInfo=List(
-        (bson,InfoMesureForm(0)),
-        (bson2,InfoMesureForm(1))
+        (bson,InfoMesureForm(0,bson3.stringify)),
+        (bson2,InfoMesureForm(1,bson4.stringify))
       )
       val lastError=mock[LastError]
 
@@ -1167,8 +1169,8 @@ class ConfigurationManagerSpec extends Specification with Mockito{
       there was 2.times(f.informationMesureDaoMock).insert(captor.capture(),any[GetLastError])(any[ExecutionContext])
 
       val args=captor.getAllValues
-      args.get(0) must equalTo(InformationMesure(args.get(0)._id,1,bson2)) or equalTo(InformationMesure(args.get(0)._id,0,bson))
-      args.get(1) must equalTo(InformationMesure(args.get(1)._id,1,bson2)) or equalTo(InformationMesure(args.get(1)._id,0,bson))
+      args.get(0) must equalTo(InformationMesure(args.get(0)._id,1,bson2,bson4)) or equalTo(InformationMesure(args.get(0)._id,0,bson,bson3))
+      args.get(1) must equalTo(InformationMesure(args.get(1)._id,1,bson2,bson4)) or equalTo(InformationMesure(args.get(1)._id,0,bson,bson3))
 
       Await.result(Future.sequence(res),Duration.Inf) must equalTo(List(args.get(0)._id,args.get(1)._id)) or equalTo(List(args.get(1)._id,args.get(0)._id))
     }
@@ -1178,8 +1180,8 @@ class ConfigurationManagerSpec extends Specification with Mockito{
     "Send redirect after insert configuration" in new WithApplication{
       val f=fixture
       val listInfo=List(
-        (bson,InfoMesureForm(0)),
-        (bson2,InfoMesureForm(1))
+        (bson,InfoMesureForm(0,bson3.stringify)),
+        (bson2,InfoMesureForm(1,bson4.stringify))
       )
       val config=ConfigurationForm(port="/dev/ttyUSB0",types="ADC",numberOfValue=6)
       val lastError=mock[LastError]
@@ -1209,8 +1211,8 @@ class ConfigurationManagerSpec extends Specification with Mockito{
       there was one(f.moduleDaoMock).updateById(org.mockito.Matchers.eq(bson),captorObj.capture(),any[GetLastError])(any[Writes[JsObject]],any[ExecutionContext])
 
       val args=captor.getAllValues
-      args.get(0) must equalTo(InformationMesure(args.get(0)._id,1,bson2)) or equalTo(InformationMesure(args.get(0)._id,0,bson))
-      args.get(1) must equalTo(InformationMesure(args.get(1)._id,1,bson2)) or equalTo(InformationMesure(args.get(1)._id,0,bson))
+      args.get(0) must equalTo(InformationMesure(args.get(0)._id,1,bson2,bson4)) or equalTo(InformationMesure(args.get(0)._id,0,bson,bson3))
+      args.get(1) must equalTo(InformationMesure(args.get(1)._id,1,bson2,bson4)) or equalTo(InformationMesure(args.get(1)._id,0,bson,bson3))
 
       val configCapt=captorConfig.getValue
       configCapt must equalTo(Configuration(_id=configCapt._id,port="/dev/ttyUSB0",types="ADC",infoMesure=List(args.get(0)._id,args.get(1)._id),numberOfValue=6)) or equalTo(Configuration(_id=configCapt._id,port="/dev/ttyUSB0",types="ADC",infoMesure=List(args.get(1)._id,args.get(0)._id),numberOfValue=6))
@@ -1222,8 +1224,8 @@ class ConfigurationManagerSpec extends Specification with Mockito{
     "Send redirect after update configuration" in new WithApplication{
       val f=fixture
       val listInfo=List(
-        (bson,InfoMesureForm(0)),
-        (bson2,InfoMesureForm(1))
+        (bson,InfoMesureForm(0,bson3.stringify)),
+        (bson2,InfoMesureForm(1,bson4.stringify))
       )
       val config=ConfigurationForm(port="/dev/ttyUSB0",types="ADC",numberOfValue=6)
       val lastError=mock[LastError]
@@ -1250,8 +1252,8 @@ class ConfigurationManagerSpec extends Specification with Mockito{
       there was one(f.configurationDaoMock).updateById(org.mockito.Matchers.eq(bson2),captorConfig.capture(),any[GetLastError])(any[Writes[Configuration]],any[ExecutionContext])
 
       val args=captor.getAllValues
-      args.get(0) must equalTo(InformationMesure(args.get(0)._id,1,bson2)) or equalTo(InformationMesure(args.get(0)._id,0,bson))
-      args.get(1) must equalTo(InformationMesure(args.get(1)._id,1,bson2)) or equalTo(InformationMesure(args.get(1)._id,0,bson))
+      args.get(0) must equalTo(InformationMesure(args.get(0)._id,1,bson2,bson4)) or equalTo(InformationMesure(args.get(0)._id,0,bson,bson3))
+      args.get(1) must equalTo(InformationMesure(args.get(1)._id,1,bson2,bson4)) or equalTo(InformationMesure(args.get(1)._id,0,bson,bson3))
 
       val configCapt=captorConfig.getValue
       configCapt must equalTo(Configuration(_id=configCapt._id,port="/dev/ttyUSB0",types="ADC",infoMesure=List(args.get(0)._id,args.get(1)._id),numberOfValue=6)) or equalTo(Configuration(_id=configCapt._id,port="/dev/ttyUSB0",types="ADC",infoMesure=List(args.get(1)._id,args.get(0)._id),numberOfValue=6))
@@ -1271,48 +1273,48 @@ class ConfigurationManagerSpec extends Specification with Mockito{
     "write informations mesure if sensor is equal to previous sensor" in new WithApplication{
       val f=fixture
       val zip=mock[ZipOutputStream]
-      val listInfo=List(InformationMesure(bson,0,bson2))
+      val listInfo=List(InformationMesure(bson,0,bson2,bson3))
 
-      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq("{\"index\":0}".getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("{\"index\":0,\"espece\":\""+bson3.stringify+"\"}").getBytes))
       org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq("\\\n]".getBytes))
 
       f.controller.write_info_mesure_properties(zip,listInfo,bson2,0)
 
-      there was one(zip).write(org.mockito.Matchers.eq("{\"index\":0}".getBytes))
+      there was one(zip).write(org.mockito.Matchers.eq(("{\"index\":0,\"espece\":\""+bson3.stringify+"\"}").getBytes))
       there was one(zip).write(org.mockito.Matchers.eq("\\\n]".getBytes))
     }
 
     "write informations mesure if sensor is equal to previous sensor with 2 elements in the list" in new WithApplication{
       val f=fixture
       val zip=mock[ZipOutputStream]
-      val listInfo=List(InformationMesure(bson,0,bson2),InformationMesure(bson4,1,bson2))
+      val listInfo=List(InformationMesure(bson,0,bson2,bson3),InformationMesure(bson4,1,bson2,bson3))
 
-      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq("{\"index\":0}".getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("{\"index\":0,\"espece\":\""+bson3.stringify+"\"}").getBytes))
       org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(",\\\n".getBytes))
-      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq("{\"index\":1}".getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("{\"index\":1,\"espece\":\""+bson3.stringify+"\"}").getBytes))
       org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq("\\\n]".getBytes))
 
       f.controller.write_info_mesure_properties(zip,listInfo,bson2,0)
 
-      there was one(zip).write(org.mockito.Matchers.eq("{\"index\":0}".getBytes))
+      there was one(zip).write(org.mockito.Matchers.eq(("{\"index\":0,\"espece\":\""+bson3.stringify+"\"}").getBytes))
       there was one(zip).write(org.mockito.Matchers.eq(",\\\n".getBytes))
-      there was one(zip).write(org.mockito.Matchers.eq("{\"index\":1}".getBytes))
+      there was one(zip).write(org.mockito.Matchers.eq(("{\"index\":1,\"espece\":\""+bson3.stringify+"\"}").getBytes))
       there was one(zip).write(org.mockito.Matchers.eq("\\\n]".getBytes))
     }
 
     "write informations mesure if sensor is not equal to previous sensor" in new WithApplication{
       val f=fixture
       val zip=mock[ZipOutputStream]
-      val listInfo=List(InformationMesure(bson,0,bson2))
+      val listInfo=List(InformationMesure(bson,0,bson2,bson3))
 
       org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("\\\n],\\\n\""+bson2.stringify+"\":[\\\n").getBytes))
-      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq("{\"index\":0}".getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("{\"index\":0,\"espece\":\""+bson3.stringify+"\"}").getBytes))
       org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq("\\\n]".getBytes))
 
       f.controller.write_info_mesure_properties(zip,listInfo,bson4,0)
 
       there was one(zip).write(org.mockito.Matchers.eq(("\\\n],\\\n\""+bson2.stringify+"\":[\\\n").getBytes))
-      there was one(zip).write(org.mockito.Matchers.eq("{\"index\":0}".getBytes))
+      there was one(zip).write(org.mockito.Matchers.eq(("{\"index\":0,\"espece\":\""+bson3.stringify+"\"}").getBytes))
       there was one(zip).write(org.mockito.Matchers.eq("\\\n]".getBytes))
     }
   }
@@ -1341,36 +1343,36 @@ class ConfigurationManagerSpec extends Specification with Mockito{
     "write sensor informations if have one elements in the list" in new WithApplication{
       val f=fixture
       val zip=mock[ZipOutputStream]
-      val listInfo=List(InformationMesure(bson,0,bson2))
+      val listInfo=List(InformationMesure(bson,0,bson2,bson3))
 
       org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("\""+bson2.stringify+"\":[\\\n").getBytes))
-      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq("{\"index\":0}".getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("{\"index\":0,\"espece\":\""+bson3.stringify+"\"}").getBytes))
       org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq("\\\n]".getBytes))
 
       f.controller.write_sensors_properties(zip,listInfo,null)
 
       there was one(zip).write(org.mockito.Matchers.eq(("\""+bson2.stringify+"\":[\\\n").getBytes))
-      there was one(zip).write(org.mockito.Matchers.eq("{\"index\":0}".getBytes))
+      there was one(zip).write(org.mockito.Matchers.eq(("{\"index\":0,\"espece\":\""+bson3.stringify+"\"}").getBytes))
       there was one(zip).write(org.mockito.Matchers.eq("\\\n]".getBytes))
     }
 
     "write sensor informations if have many elements in the list" in new WithApplication{
       val f=fixture
       val zip=mock[ZipOutputStream]
-      val listInfo=List(InformationMesure(bson,0,bson2),InformationMesure(bson4,1,bson3))
+      val listInfo=List(InformationMesure(bson,0,bson2,bson3),InformationMesure(bson4,1,bson3,bson2))
 
       org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("\""+bson2.stringify+"\":[\\\n").getBytes))
-      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq("{\"index\":0}".getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("{\"index\":0,\"espece\":\""+bson3.stringify+"\"}").getBytes))
       org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("\\\n],\\\n\""+bson3.stringify+"\":[\\\n").getBytes))
-      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq("{\"index\":1}".getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("{\"index\":1,\"espece\":\""+bson2.stringify+"\"}").getBytes))
       org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq("\\\n]".getBytes))
 
       f.controller.write_sensors_properties(zip,listInfo,null)
 
       there was one(zip).write(org.mockito.Matchers.eq(("\""+bson2.stringify+"\":[\\\n").getBytes))
-      there was one(zip).write(org.mockito.Matchers.eq("{\"index\":0}".getBytes))
+      there was one(zip).write(org.mockito.Matchers.eq(("{\"index\":0,\"espece\":\""+bson3.stringify+"\"}").getBytes))
       there was one(zip).write(org.mockito.Matchers.eq(("\\\n],\\\n\""+bson3.stringify+"\":[\\\n").getBytes))
-      there was one(zip).write(org.mockito.Matchers.eq("{\"index\":1}".getBytes))
+      there was one(zip).write(org.mockito.Matchers.eq(("{\"index\":1,\"espece\":\""+bson2.stringify+"\"}").getBytes))
       there was one(zip).write(org.mockito.Matchers.eq("\\\n]".getBytes))
     }
   }
@@ -1426,7 +1428,7 @@ class ConfigurationManagerSpec extends Specification with Mockito{
       val f=fixture
       val zip=mock[ZipOutputStream]
       val config=List(Configuration(port="/dev/ttyUSB0",types="ADC",infoMesure=List(bson3),numberOfValue=6),Configuration(port="/dev/ttyUSB0",types="wasp",infoMesure=List(bson4),numberOfValue=12))
-      val info=List(InformationMesure(bson3,0,bson2),InformationMesure(bson4,0,bson3))
+      val info=List(InformationMesure(bson3,0,bson2,bson4),InformationMesure(bson4,0,bson3,bson2))
 
       f.configMock.getString(org.mockito.Matchers.eq("hostname"),any[Option[Set[String]]]) returns Some("url")
       f.zipOutputStreamBuilderMock.createZipOutputStream(any[OutputStream]) returns zip
@@ -1448,7 +1450,8 @@ class ConfigurationManagerSpec extends Specification with Mockito{
       org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("sensors={\\\n").getBytes))
       org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("\""+bson3.stringify+"\":[\\\n").getBytes))
       org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("\""+bson2.stringify+"\":[\\\n").getBytes))
-      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq("{\"index\":0}".getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("{\"index\":0,\"espece\":\""+bson4.stringify+"\"}").getBytes))
+      org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("{\"index\":0,\"espece\":\""+bson2.stringify+"\"}").getBytes))
       org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq("\\\n]".getBytes))
       org.mockito.Mockito.doNothing().when(zip).write(org.mockito.Matchers.eq(("}").getBytes))
       org.mockito.Mockito.doNothing().when(zip).closeEntry()
@@ -1475,7 +1478,8 @@ class ConfigurationManagerSpec extends Specification with Mockito{
       there was 2.times(zip).write(org.mockito.Matchers.eq(("sensors={\\\n").getBytes))
       there was one(zip).write(org.mockito.Matchers.eq(("\""+bson3.stringify+"\":[\\\n").getBytes))
       there was one(zip).write(org.mockito.Matchers.eq(("\""+bson2.stringify+"\":[\\\n").getBytes))
-      there was 2.times(zip).write(org.mockito.Matchers.eq("{\"index\":0}".getBytes))
+      there was one(zip).write(org.mockito.Matchers.eq(("{\"index\":0,\"espece\":\""+bson4.stringify+"\"}").getBytes))
+      there was one(zip).write(org.mockito.Matchers.eq(("{\"index\":0,\"espece\":\""+bson2.stringify+"\"}").getBytes))
       there was 2.times(zip).write(org.mockito.Matchers.eq("\\\n]".getBytes))
       there was 2.times(zip).write(org.mockito.Matchers.eq(("}").getBytes))
       there was 2.times(zip).closeEntry()
@@ -1483,34 +1487,36 @@ class ConfigurationManagerSpec extends Specification with Mockito{
     }
   }
 
-  "When method findInformationForForm is called, ConfigurationManager" should{
-    "return a list with sensor and its mesure informations" in new WithApplication{
-      val f=fixture
-      val infos=List(bson,bson2)
-      val listInfos=List(
-        InformationMesure(bson,0,bson3),
-        InformationMesure(bson2,1,bson4)
+  "When method findInformationForForm is called, ConfigurationManager" should {
+    "return a list with sensor and its mesure informations" in new WithApplication {
+      val f = fixture
+      val infos = List(bson, bson2)
+      val listInfos = List(
+        InformationMesure(bson, 0, bson3, bson4),
+        InformationMesure(bson2, 1, bson4, bson3)
       )
 
-      f.informationMesureDaoMock.findAll(org.mockito.Matchers.eq(Json.obj("_id"->Json.obj("$in"->infos))),any[JsObject])(any[ExecutionContext]) returns future{listInfos}
+      f.informationMesureDaoMock.findAll(org.mockito.Matchers.eq(Json.obj("_id" -> Json.obj("$in" -> infos))), any[JsObject])(any[ExecutionContext]) returns future {
+        listInfos
+      }
 
-      val res=f.controller.findInformationForForm(infos)
+      val res = f.controller.findInformationForForm(infos)
 
-      Await.result(res,Duration.Inf) must equalTo(List(
-        Json.obj("sensor"->bson4.stringify,"info"->Json.obj("index"->1)),
-        Json.obj("sensor"->bson3.stringify,"info"->Json.obj("index"->0))
+      Await.result(res, Duration.Inf) must equalTo(List(
+        Json.obj("sensor" -> bson4.stringify, "info" -> Json.obj("index" -> 1,"espece"->bson3.stringify)),
+        Json.obj("sensor" -> bson3.stringify, "info" -> Json.obj("index" -> 0,"espece"->bson4.stringify))
       ))
 
-      there was one(f.informationMesureDaoMock).findAll(org.mockito.Matchers.eq(Json.obj("_id"->Json.obj("$in"->infos))),any[JsObject])(any[ExecutionContext])
+      there was one(f.informationMesureDaoMock).findAll(org.mockito.Matchers.eq(Json.obj("_id" -> Json.obj("$in" -> infos))), any[JsObject])(any[ExecutionContext])
     }
-  }
 
-  "return an empty list if not have mesure informations" in new WithApplication{
-    val f=fixture
-    val res=f.controller.findInformationForForm(List())
+    "return an empty list if not have mesure informations" in new WithApplication {
+      val f = fixture
+      val res = f.controller.findInformationForForm(List())
 
-    Await.result(res,Duration.Inf) must equalTo(List())
+      Await.result(res, Duration.Inf) must equalTo(List())
 
-    there was no(f.informationMesureDaoMock).findAll(any[JsObject],any[JsObject])(any[ExecutionContext])
+      there was no(f.informationMesureDaoMock).findAll(any[JsObject], any[JsObject])(any[ExecutionContext])
+    }
   }
 }

@@ -1,4 +1,6 @@
-@(mod:Module,config:ConfigurationForm,typeSensors:List[TypeSensor],sensors:List[Sensor],infoMesure:List[(reactivemongo.bson.BSONObjectID,InfoMesureForm)],errors:List[String])(implicit request: Request[AnyContent])
+@(mod:Module,config:ConfigurationForm,typeSensors:List[TypeSensor],sensors:List[Sensor],espece:List[Espece],infoMesure:List[(reactivemongo.bson.BSONObjectID,InfoMesureForm)],errors:List[String])(implicit request: Request[AnyContent])
+
+@import reactivemongo.bson.BSONObjectID
 
 @main(Messages("inventary.module.title")){
   @navigation("inventary")
@@ -33,6 +35,7 @@
                 <tr>
                   <th>@Messages("inventary.configuration.index")</th>
                   <th>@Messages("inventary.configuration.sensor")</th>
+                  <th>@Messages("inventary.configuration.specie")</th>
                 </tr>
               </thead>
               <tbody>
@@ -43,6 +46,9 @@
                       @defining(typeSensors.find(p=>p._id.equals(sensor.types)).get){types=>
                         <a href="@routes.SensorManager.inventary(types._id.stringify)#@info._1.stringify"><span class="bold">@types.nomType / @types.modele</span><br/>@sensor.id</a>
                       }
+                    }</td>
+                    <td>@defining(espece.find(p=>p._id.equals(BSONObjectID(info._2.espece))).get){esp=>
+                      @esp.espece
                     }</td>
                   </tr>
                 }

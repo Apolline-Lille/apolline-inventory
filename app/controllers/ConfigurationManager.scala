@@ -24,7 +24,7 @@ import play.api.Play.current
 
 case class ConfigurationForm(port:String,timeout:Int=10000,baud:Int=9600,bits:Int=8,stopBits:Int=1,parity:Int=0,timeFilter:Int=1000,types:String,numberOfValue:Int)
 
-case class InfoMesureForm(index:Int)
+case class InfoMesureForm(index:Int,espece:String)
 /**
  * This trait is a controller for manager module configuration
  */
@@ -49,7 +49,8 @@ trait ConfigurationManagerLike extends Controller{
 
   val formMesure=Form[InfoMesureForm](
     mapping(
-      "index"->number(min=0)
+      "index"->number(min=0),
+      "espece"->nonEmptyText
     )(InfoMesureForm.apply)(InfoMesureForm.unapply)
   )
 
@@ -162,7 +163,7 @@ trait ConfigurationManagerLike extends Controller{
         moduleManager.doIfModuleFound(BSONObjectID(id)){
 
           //Display the form for insert module configuration
-          module=> future{Ok(views.html.configuration.form(form.fill(ConfigurationForm(port="",types = "",numberOfValue=0)),module)).withSession(request.session + ("configForm"->"insert") + ("config"->Json.stringify(formatsForm.writes(ConfigurationForm(port="",types="",numberOfValue=0)))))}
+          module=> future{Ok(views.html.configuration.form(form.fill(ConfigurationForm(port="",types = "",numberOfValue=0)),module)).withSession(request.session + ("configForm"->"insert") + ("config"->Json.stringify(formatsForm.writes(ConfigurationForm(port="",types="",numberOfValue=0)))) + ("infoMesure"->"[]"))}
         }{
            //Redirect to the list of modules
           _ =>
@@ -383,18 +384,14 @@ trait ConfigurationManagerLike extends Controller{
         //Verify if module and sensor are found
         verifyModuleAndSensorFound(id,idSensor) {
 
-          module => {
-
-            //Find the list of mesure name
-            typeMesureDao.findListMesure("mesure").flatMap(
-              mesure=>
-
-                //Find the list mesure unity
-                typeMesureDao.findListUnite("unite").map(
-
-                  //Display the form
-                  unite=>Ok(views.html.configuration.formMesure(formMesure,module,mesure.toList,unite.toList,idSensor))
-                )
+          (module,sensor) => {
+            typeSensorsDao.findOne(Json.obj("_id"->sensor.types)).flatMap(
+              typeOpt=>typeOpt match{
+                case None=>future{Redirect(routes.ConfigurationManager.listSensors(id))}
+                case Some(types)=>especeDao.findAll(Json.obj("_id"->Json.obj("$in"->types.espece))).map{
+                  espece=>Ok(views.html.configuration.formMesure(formMesure,module,espece,idSensor))
+                }
+              }
             )
           }
         }
@@ -431,20 +428,17 @@ trait ConfigurationManagerLike extends Controller{
 
         //Verify if module and sensor are found
         verifyModuleAndSensorFound(id,idSensor){
-          module =>formMesure.bindFromRequest().fold(
+          (module,sensor) =>formMesure.bindFromRequest().fold(
 
             //If form contains errors, send bad request with a prefilled form
             formWithError =>{
-              //Find the list of mesure name
-              typeMesureDao.findListMesure("mesure").flatMap(
-                mesure=>
-
-                  //Find the list mesure unity
-                  typeMesureDao.findListUnite("unite").map(
-
-                    //Display the form
-                    unite=>BadRequest(views.html.configuration.formMesure(formWithError,module,mesure.toList,unite.toList,idSensor))
-                  )
+              typeSensorsDao.findOne(Json.obj("_id"->sensor.types)).flatMap(
+                typeOpt=>typeOpt match{
+                  case None=>future{Redirect(routes.ConfigurationManager.listSensors(id))}
+                  case Some(types)=>especeDao.findAll(Json.obj("_id"->Json.obj("$in"->types.espece))).map{
+                    espece=>BadRequest(views.html.configuration.formMesure(formWithError,module,espece,idSensor))
+                  }
+                }
               )
             },
 
@@ -639,7 +633,7 @@ trait ConfigurationManagerLike extends Controller{
         data.foldLeft(List[JsObject]())((list,info)=>{
 
           //Insert to the list a Json represent the mesure information
-          Json.obj("sensor"->info.sensor.stringify,"info"->InfoMesureForm(info.index)) :: list
+          Json.obj("sensor"->info.sensor.stringify,"info"->InfoMesureForm(info.index,info.espece.stringify)) :: list
         })
     )
   }
@@ -761,7 +755,7 @@ trait ConfigurationManagerLike extends Controller{
       if(value!=0) zip.write(",\\\n".getBytes)
 
       //Write index of the information
-      zip.write(("{\"index\":"+h.index+"}").getBytes)
+      zip.write(("{\"index\":"+h.index+",\"espece\":\""+h.espece.stringify+"\"}").getBytes)
 
       //Write new mesure information
       write_info_mesure_properties(zip,t,current,value+1)
@@ -782,7 +776,7 @@ trait ConfigurationManagerLike extends Controller{
       data => data match{
         case None=>{
           //Create the mesure information
-          val info=InformationMesure(index=h._2.index,sensor=h._1)
+          val info=InformationMesure(index=h._2.index,sensor=h._1,espece=BSONObjectID(h._2.espece))
 
           //Insert the mesure information
           informationMesureDao.insert(info).map(
@@ -863,7 +857,7 @@ trait ConfigurationManagerLike extends Controller{
     }).map(data => data match {
 
       //Display the summary of the configuration
-      case (typeSensor,espece, typeMesure, sensor) => status(views.html.configuration.validation(module,config,typeSensor,sensor,infoMesure,errors))
+      case (typeSensor,espece, typeMesure, sensor) => status(views.html.configuration.validation(module,config,typeSensor,sensor,espece,infoMesure,errors))
     })
   }
 
@@ -925,7 +919,7 @@ trait ConfigurationManagerLike extends Controller{
    * @return The result of the parameter function
    *         Redirect to the module inventary or the sensor list
    */
-  def verifyModuleAndSensorFound(idModule:String,idSensor:String)(f:Module=>Future[Result])(implicit request:Request[AnyContent]):Future[Result]={
+  def verifyModuleAndSensorFound(idModule:String,idSensor:String)(f:(Module,Sensor)=>Future[Result])(implicit request:Request[AnyContent]):Future[Result]={
     //Verify if module exists
     moduleManager.doIfModuleFound(BSONObjectID(idModule)) {
 
@@ -938,7 +932,7 @@ trait ConfigurationManagerLike extends Controller{
          case None => future{Redirect(routes.ConfigurationManager.listSensors(idModule))}
 
             //If the sensor found, execute parameter function
-         case _=>f(module)
+         case Some(sensor)=>f(module,sensor)
        }
       )
     }{
